@@ -1,0 +1,2176 @@
+/**
+ * Dashboard RTL Styles
+ *
+ * Right-to-Left (RTL) support for Arabic language
+ *
+ * @package sc_events
+ * @version 2.0.0
+ */
+
+/* ============================================
+   Base RTL Settings
+   ============================================ */
+[dir="rtl"],
+.rtl,
+html[dir="rtl"],
+body.rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+[dir="rtl"] body,
+.rtl body,
+body.rtl,
+body.lang-ar {
+    font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+    letter-spacing: 0;
+}
+
+/* Ensure all text is right-aligned by default */
+[dir="rtl"] * {
+    text-align: inherit;
+}
+
+[dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3,
+[dir="rtl"] h4, [dir="rtl"] h5, [dir="rtl"] h6,
+[dir="rtl"] p, [dir="rtl"] label, [dir="rtl"] span,
+[dir="rtl"] div, [dir="rtl"] li, [dir="rtl"] td, [dir="rtl"] th {
+    text-align: right;
+}
+
+/* Arabic numerals font */
+.arabic-nums {
+    font-feature-settings: "numr" on;
+}
+
+/* ============================================
+   Layout & Sidebar - Iconic Template
+   ============================================ */
+[dir="rtl"] #wrapper {
+    direction: rtl;
+}
+
+[dir="rtl"] .wrapper {
+    flex-direction: row-reverse;
+}
+
+/* Left Sidebar - Move to Right */
+[dir="rtl"] #left-sidebar,
+[dir="rtl"] .sidebar,
+[dir="rtl"] #sidebar {
+    right: 0;
+    left: auto !important;
+    border-left: 1px solid #e0e0e0;
+    border-right: none;
+    text-align: right;
+}
+
+/* Main Content - Adjust margin (sidebar 280px + gap 50px = 330px) */
+[dir="rtl"] #main-content,
+[dir="rtl"] .main-content,
+[dir="rtl"] .page-wrapper {
+    margin-right: 330px;
+    margin-left: 0 !important;
+}
+
+/* Sidebar collapsed state */
+[dir="rtl"] .sidebar-collapsed .main-content,
+[dir="rtl"] .sidebar-collapsed .page-wrapper,
+[dir="rtl"] .sidebar-collapsed #main-content {
+    margin-right: 70px;
+    margin-left: 0;
+}
+
+[dir="rtl"] .sidebar-collapsed .sidebar,
+[dir="rtl"] .sidebar-collapsed #left-sidebar {
+    width: 70px;
+}
+
+/* Sidebar offcanvas state */
+[dir="rtl"] .offcanvas-active #left-sidebar,
+[dir="rtl"] .offcanvas-active .sidebar {
+    right: -280px;
+    left: auto;
+}
+
+[dir="rtl"] .offcanvas-active #main-content,
+[dir="rtl"] .offcanvas-active .main-content {
+    margin-right: 0;
+}
+
+/* User Account Section in Sidebar */
+[dir="rtl"] #left-sidebar .user-account {
+    text-align: right;
+}
+
+[dir="rtl"] #left-sidebar .user-account .dropdown {
+    text-align: right;
+}
+
+[dir="rtl"] #left-sidebar .user-account .user-photo {
+    margin-left: 12px;
+    margin-right: 0;
+}
+
+[dir="rtl"] #left-sidebar .user-account .row {
+    flex-direction: row-reverse;
+}
+
+/* Sidebar Menu Navigation */
+[dir="rtl"] .sidebar-nav .metismenu > li > a {
+    text-align: right;
+    padding: 12px 15px 12px 35px !important;
+}
+
+[dir="rtl"] .sidebar-nav .metismenu > li > a > i {
+    margin-left: 12px !important;
+    margin-right: 0 !important;
+}
+
+[dir="rtl"] .sidebar-nav .metismenu > li > a::before {
+    left: auto;
+    right: 0;
+}
+
+/* Submenu Arrow */
+[dir="rtl"] .sidebar-nav .metismenu > li > a .arrow,
+[dir="rtl"] .sidebar-nav .metismenu .has-arrow::after {
+    left: 15px;
+    right: auto;
+    transform: rotate(180deg);
+}
+
+[dir="rtl"] .sidebar-nav .metismenu > li.active > a .arrow,
+[dir="rtl"] .sidebar-nav .metismenu .mm-active > a::after {
+    transform: rotate(270deg);
+}
+
+/* Submenu Items */
+[dir="rtl"] .sidebar-nav .metismenu ul {
+    margin-right: 0 !important;
+    margin-left: 15px !important;
+    padding-right: 15px !important;
+    padding-left: 0 !important;
+}
+
+[dir="rtl"] .sidebar-nav .metismenu ul li a {
+    text-align: right;
+    padding-right: 15px !important;
+    padding-left: 15px !important;
+}
+
+[dir="rtl"] .sidebar-nav .metismenu ul li a:hover,
+[dir="rtl"] .sidebar-nav .metismenu ul li.active > a {
+    padding-right: 20px !important;
+    padding-left: 15px !important;
+}
+
+[dir="rtl"] .sidebar-nav .metismenu ul li a i {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+/* Menu icon wrapper */
+[dir="rtl"] .sidebar-nav .metismenu .menu-icon {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .sidebar-menu .nav-link {
+    padding: 10px 20px 10px 15px;
+}
+
+[dir="rtl"] .sidebar-menu .nav-link i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .sidebar-menu .submenu-arrow {
+    left: 15px;
+    right: auto;
+    transform: rotate(180deg);
+}
+
+[dir="rtl"] .sidebar-menu .submenu-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+[dir="rtl"] .sidebar-menu .submenu {
+    padding-right: 30px;
+    padding-left: 0;
+}
+
+/* ============================================
+   Header / Navbar - Iconic Template
+   ============================================ */
+[dir="rtl"] nav.navbar {
+    direction: rtl;
+}
+
+[dir="rtl"] nav.navbar .navbar-brand {
+    float: right;
+    text-align: right;
+}
+
+[dir="rtl"] nav.navbar .navbar-brand .btn-toggle-offcanvas,
+[dir="rtl"] nav.navbar .navbar-brand .btn-toggle-fullwidth {
+    float: right;
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+[dir="rtl"] nav.navbar .navbar-brand a {
+    float: right;
+}
+
+[dir="rtl"] nav.navbar .navbar-right {
+    float: left !important;
+    direction: ltr;
+}
+
+[dir="rtl"] nav.navbar .navbar-right > * {
+    direction: rtl;
+}
+
+/* Fixed Navbar Position for RTL */
+[dir="rtl"] nav.navbar.navbar-fixed-top {
+    left: 0 !important;
+    right: 260px !important;
+    width: calc(100% - 260px) !important;
+}
+
+/* Fullwidth Layout - RTL */
+[dir="rtl"] .layout-fullwidth #wrapper nav.navbar.navbar-fixed-top {
+    width: 100% !important;
+    right: 0 !important;
+    left: 0 !important;
+}
+
+[dir="rtl"] .header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .header-left {
+    order: 2;
+}
+
+[dir="rtl"] .header-right {
+    order: 1;
+}
+
+[dir="rtl"] .user-menu {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Language Switcher */
+[dir="rtl"] .language-switcher {
+    margin-right: 15px;
+    margin-left: 0;
+}
+
+[dir="rtl"] .language-switcher .dropdown-menu {
+    text-align: right;
+}
+
+[dir="rtl"] .language-switcher .lang-flag {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+/* User Profile Dropdown */
+[dir="rtl"] .user-profile .dropdown-menu {
+    left: 0;
+    right: auto;
+    text-align: right;
+}
+
+[dir="rtl"] .user-profile .dropdown-menu i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* Search Box */
+[dir="rtl"] .search-box {
+    border-radius: 20px 0 0 20px;
+}
+
+[dir="rtl"] .search-btn {
+    border-radius: 0 20px 20px 0;
+}
+
+[dir="rtl"] .notification-badge {
+    right: auto;
+    left: -5px;
+}
+
+/* Navbar Dropdown */
+[dir="rtl"] nav.navbar .dropdown-menu {
+    left: 0;
+    right: auto;
+    text-align: right;
+}
+
+[dir="rtl"] nav.navbar .dropdown-menu li a i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Cards & Panels - Iconic Template
+   ============================================ */
+[dir="rtl"] .card {
+    text-align: right;
+}
+
+[dir="rtl"] .card .header {
+    text-align: right;
+}
+
+[dir="rtl"] .card .header h2 {
+    text-align: right;
+}
+
+[dir="rtl"] .card .header h2 i {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .card .header .header-dropdown {
+    float: left;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+[dir="rtl"] .card-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .card-header .card-title {
+    text-align: right;
+}
+
+[dir="rtl"] .card-header .card-actions {
+    margin-right: auto;
+    margin-left: 0;
+}
+
+[dir="rtl"] .card .body {
+    text-align: right;
+}
+
+/* Block Header */
+[dir="rtl"] .block-header {
+    text-align: right;
+}
+
+[dir="rtl"] .block-header h2 {
+    float: right;
+}
+
+[dir="rtl"] .block-header .breadcrumb {
+    float: left;
+}
+
+[dir="rtl"] .block-header .page_action {
+    float: left;
+}
+
+[dir="rtl"] .block-header .page_action .btn {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+[dir="rtl"] .block-header .page_action .btn:first-child {
+    margin-right: 0;
+}
+
+/* Stat Cards */
+[dir="rtl"] .stat-card .stat-icon {
+    left: auto;
+    right: 15px;
+}
+
+[dir="rtl"] .stat-card .stat-content {
+    padding-right: 80px;
+    padding-left: 15px;
+}
+
+/* Number Chart Cards */
+[dir="rtl"] .card.number-chart .body > .d-flex {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .card.number-chart .icon-in-bg {
+    margin-left: 0;
+    margin-right: 15px;
+}
+
+/* Info Box Cards */
+[dir="rtl"] .card.info-box-2 {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] .card.info-box-2::before {
+    left: auto;
+    right: 0;
+    border-radius: 0 4px 4px 0;
+}
+
+[dir="rtl"] .card.info-box-2 .icon {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+[dir="rtl"] .card.info-box-2 .content {
+    padding-left: 0;
+    padding-right: 20px;
+    text-align: right;
+}
+
+/* Today's Summary Row */
+[dir="rtl"] .card.bg-light .body .row > div {
+    text-align: center;
+}
+
+[dir="rtl"] .card.bg-light .body .row > div.border-right {
+    border-right: none !important;
+    border-left: 1px solid var(--gray-200) !important;
+}
+
+[dir="rtl"] .card.bg-light .body .row > div:last-child {
+    border-left: none !important;
+}
+
+/* ============================================
+   Forms - Comprehensive RTL
+   ============================================ */
+[dir="rtl"] .form-group {
+    text-align: right;
+}
+
+[dir="rtl"] .form-group label {
+    text-align: right;
+    display: block;
+}
+
+[dir="rtl"] .form-control,
+[dir="rtl"] .form-select,
+[dir="rtl"] textarea,
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="tel"],
+[dir="rtl"] input[type="url"],
+[dir="rtl"] input[type="search"],
+[dir="rtl"] input[type="date"],
+[dir="rtl"] input[type="time"],
+[dir="rtl"] input[type="datetime-local"] {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .form-control::placeholder {
+    text-align: right;
+}
+
+/* Select Dropdown Arrow */
+[dir="rtl"] select.form-control,
+[dir="rtl"] .form-select {
+    background-position: left 12px center !important;
+    padding-right: 14px !important;
+    padding-left: 36px !important;
+}
+
+/* Input Group */
+[dir="rtl"] .input-group {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .input-group-text {
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+[dir="rtl"] .input-group .form-control {
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+
+[dir="rtl"] .input-group-prepend {
+    order: 2;
+}
+
+[dir="rtl"] .input-group-append {
+    order: 0;
+}
+
+[dir="rtl"] .input-group > .form-control {
+    order: 1;
+}
+
+/* Checkbox & Radio */
+[dir="rtl"] .form-check {
+    padding-right: 1.75em;
+    padding-left: 0;
+    text-align: right;
+}
+
+[dir="rtl"] .form-check-input {
+    float: right;
+    margin-right: -1.75em;
+    margin-left: 0;
+}
+
+[dir="rtl"] .form-check-label {
+    margin-right: 0.5em;
+    margin-left: 0;
+}
+
+/* Switch */
+[dir="rtl"] .form-switch {
+    padding-right: 2.5em;
+    padding-left: 0;
+}
+
+[dir="rtl"] .form-switch .form-check-input {
+    float: right;
+    margin-right: -2.5em;
+    margin-left: 0;
+}
+
+/* Custom Checkbox Inline */
+[dir="rtl"] .form-check-inline {
+    margin-left: 1rem;
+    margin-right: 0;
+}
+
+[dir="rtl"] .form-floating > label {
+    right: 0;
+    left: auto;
+}
+
+/* Required asterisk */
+[dir="rtl"] label .text-danger,
+[dir="rtl"] label .required {
+    margin-right: 4px;
+    margin-left: 0;
+}
+
+/* Help Text */
+[dir="rtl"] .form-text,
+[dir="rtl"] small.form-text,
+[dir="rtl"] .help-block {
+    text-align: right;
+}
+
+/* Button Toggle Groups */
+[dir="rtl"] .btn-group-toggle {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .btn-group-toggle .btn:first-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+}
+
+[dir="rtl"] .btn-group-toggle .btn:last-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md) !important;
+}
+
+/* Select2 RTL */
+[dir="rtl"] .select2-container {
+    direction: rtl;
+    text-align: right;
+}
+
+[dir="rtl"] .select2-container .select2-selection--single {
+    text-align: right;
+}
+
+[dir="rtl"] .select2-container .select2-selection__arrow {
+    left: 8px;
+    right: auto;
+}
+
+[dir="rtl"] .select2-container .select2-selection__rendered {
+    padding-right: 12px;
+    padding-left: 30px;
+    text-align: right;
+}
+
+[dir="rtl"] .select2-dropdown {
+    direction: rtl;
+    text-align: right;
+}
+
+[dir="rtl"] .select2-results__option {
+    text-align: right;
+}
+
+/* Flatpickr / Date Picker */
+[dir="rtl"] .flatpickr-calendar {
+    direction: rtl;
+}
+
+[dir="rtl"] .flatpickr-months {
+    direction: rtl;
+}
+
+[dir="rtl"] .flatpickr-prev-month {
+    left: auto;
+    right: 0;
+}
+
+[dir="rtl"] .flatpickr-next-month {
+    right: auto;
+    left: 0;
+}
+
+/* ============================================
+   Tables - Comprehensive RTL
+   ============================================ */
+[dir="rtl"] .table {
+    direction: rtl;
+}
+
+[dir="rtl"] .table th,
+[dir="rtl"] .table td {
+    text-align: right;
+}
+
+[dir="rtl"] .table thead th {
+    text-align: right;
+}
+
+/* Table Action Column */
+[dir="rtl"] .table-actions,
+[dir="rtl"] .table td.text-right,
+[dir="rtl"] .table th.text-right {
+    text-align: left !important;
+}
+
+[dir="rtl"] .table td.text-left,
+[dir="rtl"] .table th.text-left {
+    text-align: right !important;
+}
+
+/* Action Buttons in Table */
+[dir="rtl"] .table td.text-right > a,
+[dir="rtl"] .table td.text-right > button,
+[dir="rtl"] .table .action-buttons {
+    margin-right: 4px;
+    margin-left: 0;
+}
+
+[dir="rtl"] .table td.text-right > a:first-child,
+[dir="rtl"] .table td.text-right > button:first-child {
+    margin-right: 0;
+}
+
+/* Table with avatar/image */
+[dir="rtl"] .table td img.rounded-circle,
+[dir="rtl"] .table td .avatar,
+[dir="rtl"] .table td .w35 {
+    margin-left: 12px;
+    margin-right: 0;
+}
+
+/* DataTables */
+[dir="rtl"] .dataTables_wrapper {
+    direction: rtl;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_filter {
+    float: left;
+    text-align: left;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_filter label {
+    text-align: right;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_filter input {
+    margin-left: 0;
+    margin-right: 0.5em;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_length {
+    float: right;
+    text-align: right;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_length select {
+    margin: 0 8px;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_paginate {
+    float: left;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+    margin-right: 0;
+    margin-left: 2px;
+}
+
+[dir="rtl"] .dataTables_wrapper .dataTables_info {
+    float: right;
+    text-align: right;
+}
+
+/* Sorting Icons */
+[dir="rtl"] .sorting_asc::after,
+[dir="rtl"] .sorting_desc::after,
+[dir="rtl"] .sorting::after {
+    right: auto;
+    left: 8px;
+}
+
+[dir="rtl"] table.dataTable thead .sorting::before,
+[dir="rtl"] table.dataTable thead .sorting_asc::before,
+[dir="rtl"] table.dataTable thead .sorting_desc::before {
+    right: auto;
+    left: 1em;
+}
+
+[dir="rtl"] table.dataTable thead .sorting::after,
+[dir="rtl"] table.dataTable thead .sorting_asc::after,
+[dir="rtl"] table.dataTable thead .sorting_desc::after {
+    right: auto;
+    left: 0.5em;
+}
+
+/* Table Responsive */
+[dir="rtl"] .table-responsive {
+    direction: rtl;
+}
+
+/* Custom Table */
+[dir="rtl"] .table-custom th,
+[dir="rtl"] .table-custom td {
+    text-align: right;
+}
+
+[dir="rtl"] .table-custom .event-icon,
+[dir="rtl"] .table-custom img[src*="calendar"] {
+    margin-left: 12px !important;
+    margin-right: 0 !important;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+[dir="rtl"] .btn-group {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .btn-group > .btn:first-child {
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+[dir="rtl"] .btn-group > .btn:last-child {
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+
+[dir="rtl"] .btn i {
+    margin-left: 5px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .btn i:last-child {
+    margin-left: 0;
+    margin-right: 5px;
+}
+
+/* ============================================
+   Modals
+   ============================================ */
+[dir="rtl"] .modal-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .modal-header .btn-close {
+    margin: -0.5rem auto -0.5rem -0.5rem;
+}
+
+[dir="rtl"] .modal-footer {
+    flex-direction: row-reverse;
+}
+
+/* ============================================
+   Dropdowns
+   ============================================ */
+[dir="rtl"] .dropdown-menu {
+    text-align: right;
+    right: 0;
+    left: auto;
+}
+
+[dir="rtl"] .dropdown-menu-end {
+    right: auto;
+    left: 0;
+}
+
+[dir="rtl"] .dropdown-item {
+    padding: 0.5rem 1rem 0.5rem 1rem;
+}
+
+[dir="rtl"] .dropdown-item i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Alerts & Toasts
+   ============================================ */
+[dir="rtl"] .alert {
+    text-align: right;
+}
+
+[dir="rtl"] .alert-dismissible {
+    padding-right: 1rem;
+    padding-left: 3rem;
+}
+
+[dir="rtl"] .alert-dismissible .btn-close {
+    right: auto;
+    left: 0;
+}
+
+[dir="rtl"] .toast {
+    text-align: right;
+}
+
+[dir="rtl"] .toast-header {
+    flex-direction: row-reverse;
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+[dir="rtl"] .badge {
+    margin-right: 0;
+    margin-left: 0.25rem;
+}
+
+/* ============================================
+   Lists
+   ============================================ */
+[dir="rtl"] .list-group-item {
+    text-align: right;
+}
+
+[dir="rtl"] .list-group-item-action {
+    padding: 0.75rem 1.25rem;
+}
+
+[dir="rtl"] .list-inline {
+    padding-right: 0;
+}
+
+[dir="rtl"] .list-inline-item:not(:last-child) {
+    margin-right: 0;
+    margin-left: 0.5rem;
+}
+
+/* ============================================
+   Breadcrumbs
+   ============================================ */
+[dir="rtl"] .breadcrumb {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
+    float: right;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    content: "\f104"; /* fa-angle-left */
+}
+
+/* ============================================
+   Pagination
+   ============================================ */
+[dir="rtl"] .pagination {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .page-item:first-child .page-link {
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+[dir="rtl"] .page-item:last-child .page-link {
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+
+/* ============================================
+   Tabs & Pills
+   ============================================ */
+[dir="rtl"] .nav-tabs,
+[dir="rtl"] .nav-pills {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .nav-tabs .nav-link {
+    margin-left: 0;
+    margin-right: -1px;
+}
+
+/* ============================================
+   Progress Bars
+   ============================================ */
+[dir="rtl"] .progress-bar {
+    direction: ltr;
+}
+
+/* ============================================
+   Accordion
+   ============================================ */
+[dir="rtl"] .accordion-button {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .accordion-button::after {
+    margin-right: auto;
+    margin-left: 0;
+}
+
+/* ============================================
+   Tooltips & Popovers
+   ============================================ */
+[dir="rtl"] .tooltip {
+    text-align: right;
+}
+
+[dir="rtl"] .popover {
+    text-align: right;
+}
+
+[dir="rtl"] .popover-header {
+    text-align: right;
+}
+
+/* ============================================
+   Timeline
+   ============================================ */
+[dir="rtl"] .timeline {
+    padding-right: 30px;
+    padding-left: 0;
+}
+
+[dir="rtl"] .timeline::before {
+    right: 15px;
+    left: auto;
+}
+
+[dir="rtl"] .timeline-item {
+    padding-right: 40px;
+    padding-left: 0;
+}
+
+[dir="rtl"] .timeline-item::before {
+    right: 10px;
+    left: auto;
+}
+
+/* ============================================
+   Stats Cards
+   ============================================ */
+[dir="rtl"] .stats-card .icon {
+    left: 20px;
+    right: auto;
+}
+
+[dir="rtl"] .stats-card .content {
+    text-align: right;
+    padding-left: 60px;
+    padding-right: 20px;
+}
+
+/* ============================================
+   Scanner Page
+   ============================================ */
+[dir="rtl"] .scanner-info {
+    text-align: right;
+}
+
+[dir="rtl"] .scan-result {
+    text-align: right;
+}
+
+[dir="rtl"] .scan-result .icon {
+    left: auto;
+    right: 15px;
+}
+
+[dir="rtl"] .recent-scans .scan-item {
+    flex-direction: row-reverse;
+}
+
+/* ============================================
+   Sessions Cards
+   ============================================ */
+[dir="rtl"] .session-card {
+    text-align: right;
+}
+
+[dir="rtl"] .session-card .session-time {
+    border-left: none;
+    border-right: 3px solid var(--primary-color, #0d6efd);
+    padding-left: 0;
+    padding-right: 15px;
+}
+
+[dir="rtl"] .session-card .session-meta {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .session-card .badge {
+    margin-left: 0;
+    margin-right: 5px;
+}
+
+[dir="rtl"] .session-speakers .speaker-avatar {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Attendance List
+   ============================================ */
+[dir="rtl"] .attendance-item {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .attendance-item .avatar {
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .attendance-item .info {
+    text-align: right;
+}
+
+[dir="rtl"] .attendance-item .actions {
+    margin-right: auto;
+    margin-left: 0;
+}
+
+/* ============================================
+   Control Room
+   ============================================ */
+[dir="rtl"] .zone-card {
+    text-align: right;
+}
+
+[dir="rtl"] .zone-card .zone-icon {
+    left: auto;
+    right: 15px;
+}
+
+[dir="rtl"] .gate-card {
+    text-align: right;
+}
+
+[dir="rtl"] .gate-card .gate-status {
+    left: 15px;
+    right: auto;
+}
+
+[dir="rtl"] .alert-item {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] .alert-item .alert-icon {
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Certificates
+   ============================================ */
+[dir="rtl"] .certificate-card {
+    text-align: right;
+}
+
+[dir="rtl"] .certificate-card .certificate-icon {
+    left: auto;
+    right: 20px;
+}
+
+/* ============================================
+   Venues
+   ============================================ */
+[dir="rtl"] .venue-card {
+    text-align: right;
+}
+
+[dir="rtl"] .venue-card .venue-image {
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+/* ============================================
+   Emergency
+   ============================================ */
+[dir="rtl"] .emergency-btn {
+    text-align: center;
+}
+
+[dir="rtl"] .emergency-contacts {
+    text-align: right;
+}
+
+[dir="rtl"] .emergency-contacts .contact-icon {
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Charts
+   ============================================ */
+[dir="rtl"] .chart-legend {
+    text-align: right;
+}
+
+[dir="rtl"] .chart-legend-item {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chart-legend-color {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Calendar
+   ============================================ */
+[dir="rtl"] .calendar-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .calendar-nav-prev::before {
+    content: "\f105"; /* fa-angle-right */
+}
+
+[dir="rtl"] .calendar-nav-next::before {
+    content: "\f104"; /* fa-angle-left */
+}
+
+/* ============================================
+   File Upload
+   ============================================ */
+[dir="rtl"] .file-upload .upload-icon {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .file-list .file-item {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .file-list .file-icon {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* ============================================
+   Stepper / Wizard
+   ============================================ */
+[dir="rtl"] .stepper {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .stepper-item::after {
+    left: auto;
+    right: calc(50% + 20px);
+}
+
+/* ============================================
+   Switch / Toggle
+   ============================================ */
+[dir="rtl"] .form-switch {
+    padding-right: 2.5em;
+    padding-left: 0;
+}
+
+[dir="rtl"] .form-switch .form-check-input {
+    float: right;
+    margin-right: -2.5em;
+    margin-left: 0;
+}
+
+/* ============================================
+   Icons with Text
+   ============================================ */
+[dir="rtl"] .icon-text i,
+[dir="rtl"] .icon-text svg {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .text-icon i,
+[dir="rtl"] .text-icon svg {
+    margin-right: 8px;
+    margin-left: 0;
+}
+
+/* ============================================
+   Floating Action Button
+   ============================================ */
+[dir="rtl"] .fab {
+    right: auto;
+    left: 30px;
+}
+
+/* ============================================
+   Right Icon Bar (Fixed sidebar)
+   ============================================ */
+[dir="rtl"] .right_icon_bar {
+    right: auto;
+    left: 0;
+    border-left: 0;
+    border-right-width: 1px;
+    border-right-style: solid;
+}
+
+[dir="rtl"] .right_icon_bar ul li:last-child {
+    left: 0;
+    right: auto;
+}
+
+/* ============================================
+   Search Results
+   ============================================ */
+[dir="rtl"] .search-result-item {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+/* ============================================
+   Tags
+   ============================================ */
+[dir="rtl"] .tag {
+    padding: 4px 8px 4px 20px;
+}
+
+[dir="rtl"] .tag .tag-remove {
+    left: 5px;
+    right: auto;
+}
+
+/* ============================================
+   Rating Stars
+   ============================================ */
+[dir="rtl"] .rating {
+    flex-direction: row-reverse;
+}
+
+/* ============================================
+   QR Code Display
+   ============================================ */
+[dir="rtl"] .qr-container {
+    text-align: center;
+}
+
+/* ============================================
+   Quick Stats Row
+   ============================================ */
+[dir="rtl"] .quick-stats {
+    flex-direction: row-reverse;
+}
+
+/* ============================================
+   Action Buttons Row
+   ============================================ */
+[dir="rtl"] .action-buttons {
+    flex-direction: row-reverse;
+}
+
+/* ============================================
+   Custom Scrollbar for RTL
+   ============================================ */
+[dir="rtl"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[dir="rtl"] ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+[dir="rtl"] ::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+[dir="rtl"] ::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* ============================================
+   Print Styles for RTL
+   ============================================ */
+@media print {
+    [dir="rtl"] body {
+        direction: rtl;
+    }
+
+    [dir="rtl"] .sidebar {
+        display: none;
+    }
+
+    [dir="rtl"] .main-content {
+        margin-right: 0;
+    }
+}
+
+/* ============================================
+   Responsive RTL Adjustments
+   ============================================ */
+@media (max-width: 991.98px) {
+    [dir="rtl"] .sidebar {
+        right: -250px;
+        left: auto;
+    }
+
+    [dir="rtl"] .sidebar.active {
+        right: 0;
+    }
+
+    [dir="rtl"] .main-content,
+    [dir="rtl"] .page-wrapper {
+        margin-right: 0;
+    }
+
+    [dir="rtl"] .mobile-menu-btn {
+        margin-left: auto;
+        margin-right: 0;
+    }
+}
+
+@media (max-width: 767.98px) {
+    [dir="rtl"] .header-search {
+        display: none;
+    }
+
+    [dir="rtl"] .stats-card .icon {
+        display: none;
+    }
+
+    [dir="rtl"] .stats-card .content {
+        padding-left: 15px;
+    }
+}
+
+/* ============================================
+   Font Import (Tajawal for Arabic)
+   ============================================ */
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('https://fonts.gstatic.com/s/tajawal/v9/Iura6YBj_oCad4k1nzGBCg.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('https://fonts.gstatic.com/s/tajawal/v9/Iurf6YBj_oCad4k1l4qjHrRpiYlJ.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('https://fonts.gstatic.com/s/tajawal/v9/Iurf6YBj_oCad4k1l5KmHrRpiYlJ.woff2') format('woff2');
+}
+
+/* ============================================
+   Utility Classes for RTL
+   ============================================ */
+/* Force LTR for specific elements (like phone numbers, codes) */
+.force-ltr {
+    direction: ltr !important;
+    unicode-bidi: embed;
+}
+
+/* Force RTL */
+.force-rtl {
+    direction: rtl !important;
+    unicode-bidi: embed;
+}
+
+/* Mirror icons for RTL */
+[dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+}
+
+/* Don't mirror these icons */
+[dir="rtl"] .no-rtl-flip {
+    transform: none;
+}
+
+/* Text alignment utilities */
+[dir="rtl"] .text-start {
+    text-align: right !important;
+}
+
+[dir="rtl"] .text-end {
+    text-align: left !important;
+}
+
+/* Margin utilities */
+[dir="rtl"] .ms-auto {
+    margin-right: auto !important;
+    margin-left: 0 !important;
+}
+
+[dir="rtl"] .me-auto {
+    margin-left: auto !important;
+    margin-right: 0 !important;
+}
+
+/* Float utilities */
+[dir="rtl"] .float-start {
+    float: right !important;
+}
+
+[dir="rtl"] .float-end {
+    float: left !important;
+}
+
+/* Border utilities */
+[dir="rtl"] .border-start {
+    border-right: 1px solid var(--bs-border-color) !important;
+    border-left: 0 !important;
+}
+
+[dir="rtl"] .border-end {
+    border-left: 1px solid var(--bs-border-color) !important;
+    border-right: 0 !important;
+}
+
+/* Rounded utilities */
+[dir="rtl"] .rounded-start {
+    border-top-right-radius: 0.375rem !important;
+    border-bottom-right-radius: 0.375rem !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+[dir="rtl"] .rounded-end {
+    border-top-left-radius: 0.375rem !important;
+    border-bottom-left-radius: 0.375rem !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+/* ============================================
+   ICONIC TEMPLATE SPECIFIC RTL FIXES
+   ============================================ */
+
+/* Wrapper and Layout */
+[dir="rtl"] #wrapper.theme-cyan,
+[dir="rtl"] #wrapper {
+    direction: rtl;
+}
+
+/* Page Loader */
+[dir="rtl"] .page-loader-wrapper {
+    text-align: center;
+}
+
+/* Navbar Brand Toggle Buttons */
+[dir="rtl"] .navbar-brand .btn-toggle-offcanvas,
+[dir="rtl"] .navbar-brand .btn-toggle-fullwidth {
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+/* Navbar Right Section */
+[dir="rtl"] .navbar-right {
+    float: left;
+}
+
+[dir="rtl"] .navbar-right .dropdown {
+    float: left;
+}
+
+[dir="rtl"] .navbar-right .dropdown-toggle {
+    text-align: right;
+}
+
+/* Dropdown menus */
+[dir="rtl"] .dropdown-menu-right {
+    left: 0;
+    right: auto;
+}
+
+[dir="rtl"] .dropdown-menu {
+    text-align: right;
+}
+
+[dir="rtl"] .dropdown-menu li a {
+    text-align: right;
+}
+
+[dir="rtl"] .dropdown-menu li a i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* User Account Stats Row */
+[dir="rtl"] #left-sidebar .user-account .row {
+    direction: rtl;
+}
+
+[dir="rtl"] #left-sidebar .user-account .list-unstyled.row li {
+    text-align: center;
+}
+
+/* MetisMenu Navigation */
+[dir="rtl"] #main-menu,
+[dir="rtl"] .metismenu {
+    direction: rtl;
+    text-align: right;
+}
+
+[dir="rtl"] .metismenu li {
+    text-align: right;
+}
+
+[dir="rtl"] .metismenu li a {
+    text-align: right;
+}
+
+[dir="rtl"] .metismenu .arrow {
+    float: left;
+    margin-left: 0;
+    transform: rotate(180deg);
+}
+
+[dir="rtl"] .metismenu li.active > a .arrow {
+    transform: rotate(90deg);
+}
+
+/* Flex Row Reverse */
+[dir="rtl"] .d-flex {
+    /* Only reverse for horizontal flex containers in specific contexts */
+}
+
+[dir="rtl"] .d-flex.flex-row {
+    flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .justify-content-between {
+    /* Keep as is, it works for RTL */
+}
+
+/* Nav Tabs */
+[dir="rtl"] .nav-tabs {
+    padding-right: 0;
+}
+
+[dir="rtl"] .nav-tabs .nav-item {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+[dir="rtl"] .nav-tabs .nav-link i {
+    margin-left: 6px;
+    margin-right: 0;
+}
+
+/* Event Tabs */
+[dir="rtl"] #event-tabs {
+    direction: rtl;
+}
+
+[dir="rtl"] #event-tabs .nav-link i {
+    margin-left: 6px;
+    margin-right: 0;
+}
+
+/* Tab Content */
+[dir="rtl"] .tab-content {
+    text-align: right;
+}
+
+[dir="rtl"] .tab-pane {
+    text-align: right;
+}
+
+/* Row and Columns */
+[dir="rtl"] .row {
+    direction: rtl;
+}
+
+/* Container Fluid */
+[dir="rtl"] .container-fluid {
+    direction: rtl;
+}
+
+/* Icon in Button */
+[dir="rtl"] .btn i {
+    margin-left: 5px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .btn i:only-child {
+    margin: 0;
+}
+
+/* Text with Icon */
+[dir="rtl"] i + span,
+[dir="rtl"] i + strong,
+[dir="rtl"] i + small {
+    margin-right: 8px;
+    margin-left: 0;
+}
+
+[dir="rtl"] span + i,
+[dir="rtl"] strong + i,
+[dir="rtl"] small + i {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+/* Filter Section */
+[dir="rtl"] .filter-section {
+    text-align: right;
+}
+
+[dir="rtl"] .filter-section .form-group {
+    text-align: right;
+}
+
+/* Search Input in Card */
+[dir="rtl"] .card .body .input-group .input-group-prepend {
+    order: 2;
+}
+
+[dir="rtl"] .card .body .input-group .form-control {
+    order: 1;
+    text-align: right;
+}
+
+/* Empty State */
+[dir="rtl"] .empty-state {
+    text-align: center;
+}
+
+/* Skeleton Loaders */
+[dir="rtl"] .skeleton-text {
+    margin-right: 0;
+}
+
+/* Alert Messages */
+[dir="rtl"] .alert {
+    text-align: right;
+}
+
+[dir="rtl"] .alert i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .alert-dismissible .btn-close,
+[dir="rtl"] .alert-dismissible .close {
+    left: 0;
+    right: auto;
+}
+
+/* Toastr Notifications */
+[dir="rtl"] .toast {
+    text-align: right;
+}
+
+[dir="rtl"] .toast-message {
+    text-align: right;
+}
+
+[dir="rtl"] .toast-close-button {
+    float: left;
+}
+
+[dir="rtl"] #toast-container > div {
+    direction: rtl;
+}
+
+/* SweetAlert2 */
+[dir="rtl"] .swal2-popup {
+    direction: rtl;
+}
+
+[dir="rtl"] .swal2-title {
+    text-align: center;
+}
+
+[dir="rtl"] .swal2-html-container {
+    text-align: right;
+}
+
+[dir="rtl"] .swal2-actions {
+    flex-direction: row-reverse;
+}
+
+/* Bootstrap List Group */
+[dir="rtl"] .list-group {
+    padding-right: 0;
+}
+
+[dir="rtl"] .list-group-item {
+    text-align: right;
+}
+
+/* Bootstrap Card Footer Link */
+[dir="rtl"] .card-footer a {
+    text-align: right;
+}
+
+[dir="rtl"] .card-footer a i {
+    margin-left: 5px;
+    margin-right: 0;
+}
+
+/* Quick Actions Grid */
+[dir="rtl"] .quick-actions .card {
+    text-align: center;
+}
+
+/* Statistics Numbers */
+[dir="rtl"] .stat-number,
+[dir="rtl"] .h1, [dir="rtl"] .h2, [dir="rtl"] .h3,
+[dir="rtl"] .h4, [dir="rtl"] .h5, [dir="rtl"] .h6 {
+    text-align: right;
+}
+
+/* Phone Numbers - Keep LTR */
+[dir="rtl"] .phone-number,
+[dir="rtl"] [dir="ltr"],
+[dir="rtl"] .ticket-id,
+[dir="rtl"] .coupon-code {
+    direction: ltr;
+    unicode-bidi: embed;
+    text-align: right;
+}
+
+/* Sparkline Charts */
+[dir="rtl"] .sparkline {
+    direction: ltr;
+}
+
+/* C3 Charts */
+[dir="rtl"] .c3 {
+    direction: ltr;
+}
+
+[dir="rtl"] .c3-legend-item {
+    text-align: right;
+}
+
+/* Company Stats Row */
+[dir="rtl"] #company-stats-row .card {
+    text-align: center;
+}
+
+/* Event Form Specific */
+[dir="rtl"] #event-form label {
+    text-align: right;
+    display: block;
+}
+
+[dir="rtl"] #event-form .form-group {
+    text-align: right;
+}
+
+[dir="rtl"] #event-form .custom-control {
+    padding-right: 1.5rem;
+    padding-left: 0;
+}
+
+/* Schedule Items */
+[dir="rtl"] .schedule-item {
+    text-align: right;
+}
+
+[dir="rtl"] .schedule-item .d-flex {
+    flex-direction: row-reverse;
+}
+
+/* FAQ Items */
+[dir="rtl"] .faq-item {
+    text-align: right;
+}
+
+/* Ticket Items */
+[dir="rtl"] .ticket-item,
+[dir="rtl"] .ticket-card {
+    text-align: right;
+}
+
+/* Speaker Cards */
+[dir="rtl"] .speaker-card {
+    text-align: center;
+}
+
+[dir="rtl"] .speaker-social-links {
+    direction: ltr;
+}
+
+/* Organizer Cards */
+[dir="rtl"] .organizer-card {
+    text-align: right;
+}
+
+/* Venue Cards */
+[dir="rtl"] .venue-card {
+    text-align: right;
+}
+
+/* Attendee Modal */
+[dir="rtl"] #attendeeModal .modal-body {
+    text-align: right;
+}
+
+[dir="rtl"] #attendeeModal label {
+    text-align: right;
+}
+
+/* User Selection Section */
+[dir="rtl"] #user-selection-section {
+    text-align: right;
+}
+
+/* Coupon Cards */
+[dir="rtl"] .coupon-stats-card {
+    text-align: right;
+    border-left: none;
+    border-right: 4px solid;
+}
+
+[dir="rtl"] .coupon-stats-card.total {
+    border-right-color: #007bff;
+}
+
+[dir="rtl"] .coupon-stats-card.active {
+    border-right-color: #28a745;
+}
+
+[dir="rtl"] .coupon-stats-card.expired {
+    border-right-color: #dc3545;
+}
+
+[dir="rtl"] .coupon-stats-card.usage {
+    border-right-color: #17a2b8;
+}
+
+/* Scanner Page */
+[dir="rtl"] #scanner-container {
+    text-align: center;
+}
+
+[dir="rtl"] .scan-result-card {
+    text-align: right;
+    border-left: none;
+    border-right: 4px solid;
+}
+
+[dir="rtl"] .scan-result-card.success {
+    border-right-color: #28a745;
+}
+
+[dir="rtl"] .scan-result-card.warning {
+    border-right-color: #ffc107;
+}
+
+[dir="rtl"] .scan-result-card.error {
+    border-right-color: #dc3545;
+}
+
+/* Reports Page */
+[dir="rtl"] .stat-card {
+    text-align: center;
+}
+
+/* Settings Page */
+[dir="rtl"] .settings-section {
+    text-align: right;
+}
+
+[dir="rtl"] .settings-section-title {
+    text-align: right;
+}
+
+/* Support Page */
+[dir="rtl"] .ticket-item {
+    text-align: right;
+}
+
+[dir="rtl"] .ticket-priority {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+/* Mobile Sidebar Toggle */
+[dir="rtl"] .sidebar-toggle {
+    left: 20px;
+    right: auto;
+}
+
+[dir="rtl"] .sidebar-overlay {
+    /* Keep as is */
+}
+
+/* Mobile Responsive */
+@media (max-width: 991.98px) {
+    [dir="rtl"] #left-sidebar {
+        right: -280px;
+        left: auto !important;
+    }
+
+    [dir="rtl"] #left-sidebar.sidebar--visible {
+        right: 0;
+    }
+
+    [dir="rtl"] #main-content,
+    [dir="rtl"] .main-content {
+        margin-right: 0 !important;
+        margin-left: 0 !important;
+    }
+
+    [dir="rtl"] .sidebar-toggle {
+        left: 20px;
+        right: auto;
+    }
+
+    /* Navbar full width on mobile - RTL */
+    [dir="rtl"] nav.navbar.navbar-fixed-top {
+        width: 100% !important;
+        right: 0 !important;
+        left: 0 !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    [dir="rtl"] .block-header h2 {
+        float: none;
+        text-align: right;
+    }
+
+    [dir="rtl"] .block-header .page_action {
+        float: none;
+        text-align: right;
+        margin-top: 10px;
+    }
+
+    [dir="rtl"] .block-header .page_action .btn {
+        margin-right: 0;
+        margin-bottom: 8px;
+        display: block;
+        width: 100%;
+    }
+}
+
+/* ============================================
+   Additional Bootstrap RTL Overrides
+   ============================================ */
+
+/* Margin Start/End */
+[dir="rtl"] .ms-1 { margin-right: 0.25rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ms-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ms-3 { margin-right: 1rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ms-4 { margin-right: 1.5rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ms-5 { margin-right: 3rem !important; margin-left: 0 !important; }
+
+[dir="rtl"] .me-1 { margin-left: 0.25rem !important; margin-right: 0 !important; }
+[dir="rtl"] .me-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
+[dir="rtl"] .me-3 { margin-left: 1rem !important; margin-right: 0 !important; }
+[dir="rtl"] .me-4 { margin-left: 1.5rem !important; margin-right: 0 !important; }
+[dir="rtl"] .me-5 { margin-left: 3rem !important; margin-right: 0 !important; }
+
+/* Padding Start/End */
+[dir="rtl"] .ps-1 { padding-right: 0.25rem !important; padding-left: 0 !important; }
+[dir="rtl"] .ps-2 { padding-right: 0.5rem !important; padding-left: 0 !important; }
+[dir="rtl"] .ps-3 { padding-right: 1rem !important; padding-left: 0 !important; }
+[dir="rtl"] .ps-4 { padding-right: 1.5rem !important; padding-left: 0 !important; }
+[dir="rtl"] .ps-5 { padding-right: 3rem !important; padding-left: 0 !important; }
+
+[dir="rtl"] .pe-1 { padding-left: 0.25rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pe-2 { padding-left: 0.5rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pe-3 { padding-left: 1rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pe-4 { padding-left: 1.5rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pe-5 { padding-left: 3rem !important; padding-right: 0 !important; }
+
+/* Border Start/End - Extended */
+[dir="rtl"] .border-start-0 { border-right: 0 !important; }
+[dir="rtl"] .border-end-0 { border-left: 0 !important; }
+
+/* Text Alignment on small screens */
+@media (max-width: 576px) {
+    [dir="rtl"] .text-sm-start { text-align: right !important; }
+    [dir="rtl"] .text-sm-end { text-align: left !important; }
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+    [dir="rtl"] .text-md-start { text-align: right !important; }
+    [dir="rtl"] .text-md-end { text-align: left !important; }
+}
+
+/* ============================================
+   Fix Common Visual Issues
+   ============================================ */
+
+/* Fix icon alignment in cards */
+[dir="rtl"] .card .header h2 i,
+[dir="rtl"] .card-title i {
+    float: right;
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* Fix button icons */
+[dir="rtl"] .btn > i:first-child {
+    margin-left: 5px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .btn > i:last-child:not(:first-child) {
+    margin-right: 5px;
+    margin-left: 0;
+}
+
+/* Fix form labels with required asterisk */
+[dir="rtl"] label.required::after,
+[dir="rtl"] label .text-danger {
+    margin-right: 4px;
+}
+
+/* Fix stat boxes alignment */
+[dir="rtl"] .card.text-center {
+    text-align: center !important;
+}
+
+/* Fix header dropdown */
+[dir="rtl"] .header-dropdown {
+    left: 0;
+    right: auto;
+}
+
+[dir="rtl"] .header-dropdown li a {
+    text-align: right;
+}
+
+/* Fix page action buttons */
+[dir="rtl"] .page_action {
+    text-align: left;
+}
+
+[dir="rtl"] .page_action .btn + .btn {
+    margin-right: 8px;
+    margin-left: 0;
+}
+
+/* Fix card footer arrows */
+[dir="rtl"] .card-footer .fa-chevron-right::before {
+    content: "\f053";
+}
+
+[dir="rtl"] .card-footer .fa-arrow-right::before {
+    content: "\f060";
+}
+
+/* Fix breadcrumb separator */
+[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
+    content: "\f104";
+    font-family: FontAwesome;
+    float: right;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+/* Fix checkbox/radio alignment */
+[dir="rtl"] .custom-control {
+    padding-right: 1.5rem;
+    padding-left: 0;
+}
+
+[dir="rtl"] .custom-control-label::before,
+[dir="rtl"] .custom-control-label::after {
+    right: -1.5rem;
+    left: auto;
+}
+
+/* Fix switch alignment */
+[dir="rtl"] .custom-switch {
+    padding-right: 2.25rem;
+    padding-left: 0;
+}
+
+[dir="rtl"] .custom-switch .custom-control-label::before {
+    right: -2.25rem;
+    left: auto;
+}
+
+[dir="rtl"] .custom-switch .custom-control-label::after {
+    right: calc(-2.25rem + 2px);
+    left: auto;
+}
+
+/* ============================================
+   NAVBAR DROPDOWNS RTL - Language & User Profile
+   ============================================ */
+
+/* Language Switcher RTL */
+[dir="rtl"] nav.navbar .language-switcher > a.dropdown-toggle {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] nav.navbar .language-switcher > a.dropdown-toggle i {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+[dir="rtl"] nav.navbar .language-switcher .dropdown-menu {
+    left: 0;
+    right: auto;
+}
+
+[dir="rtl"] nav.navbar .language-switcher .dropdown-menu li a {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] nav.navbar .language-switcher .dropdown-menu li a .lang-flag {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* User Profile Dropdown RTL */
+[dir="rtl"] nav.navbar .user-profile .dropdown-menu {
+    left: 0;
+    right: auto;
+}
+
+[dir="rtl"] nav.navbar .user-profile .dropdown-menu li.dropdown-header {
+    text-align: right;
+}
+
+[dir="rtl"] nav.navbar .user-profile .dropdown-menu li a {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] nav.navbar .user-profile .dropdown-menu li a i {
+    margin-left: 0;
+    margin-right: 12px;
+}
+
+/* Navbar Right RTL */
+[dir="rtl"] nav.navbar .navbar-right {
+    flex-direction: row-reverse;
+}

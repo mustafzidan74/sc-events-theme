@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC Events - System Overview</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #28a745;
+            --info: #17a2b8;
+            --warning: #ffc107;
+            --danger: #dc3545;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 60px 0;
+            margin-bottom: 40px;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+
+        .section-title {
+            color: var(--primary);
+            border-bottom: 3px solid var(--secondary);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        .entity-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
+
+        .entity-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .entity-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .relation-diagram {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .relation-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            margin: 10px;
+        }
+
+        .relation-line {
+            border-left: 3px dashed var(--primary);
+            height: 30px;
+            margin: 0 auto;
+            width: 0;
+        }
+
+        .relation-arrow {
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list i {
+            color: var(--success);
+            margin-left: 10px;
+        }
+
+        .target-audience {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .audience-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .audience-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 15px;
+            font-size: 20px;
+            color: white;
+        }
+
+        .flow-chart {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .flow-step {
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 15px 20px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .flow-arrow {
+            color: var(--primary);
+            font-size: 24px;
+        }
+
+        .stats-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stats-box h3 {
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+        }
+
+        .mermaid-like {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+
+        .table-relations {
+            width: 100%;
+        }
+
+        .table-relations th {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        .badge-relation {
+            font-size: 0.9rem;
+        }
+
+        @media print {
+            .hero {
+                background: #667eea !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero Section -->
+<div class="hero text-center">
+    <div class="container">
+        <h1><i class="fas fa-calendar-alt me-3"></i>SC Events</h1>
+        <p class="lead mb-0">نظام إدارة الفعاليات والمؤتمرات المتكامل</p>
+        <p class="mt-2">Comprehensive Event Management System</p>
+    </div>
+</div>
+
+<div class="container pb-5">
+
+    <!-- Target Audience -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-users me-2"></i>مين يقدر يستخدم النظام؟</h2>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="audience-item">
+                    <div class="audience-icon" style="background: var(--primary)">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">الشركات والمؤسسات</h5>
+                        <small class="text-muted">لإدارة مؤتمراتها وورش العمل</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="audience-item">
+                    <div class="audience-icon" style="background: var(--success)">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">الجامعات والمعاهد</h5>
+                        <small class="text-muted">للندوات والمحاضرات والتخرج</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="audience-item">
+                    <div class="audience-icon" style="background: var(--info)">
+                        <i class="fas fa-hospital"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">المستشفيات والمراكز الطبية</h5>
+                        <small class="text-muted">للمؤتمرات الطبية والتدريب</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="audience-item">
+                    <div class="audience-icon" style="background: var(--warning)">
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">منظمي الفعاليات</h5>
+                        <small class="text-muted">Event Organizers & Planners</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="audience-item">
+                    <div class="audience-icon" style="background: var(--danger)">
+                        <i class="fas fa-mosque"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">الجمعيات والمنظمات</h5>
+                        <small class="text-muted">للفعاليات الخيرية والمجتمعية</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="audience-item">
+                    <div class="audience-icon" style="background: var(--secondary)">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">مراكز التدريب</h5>
+                        <small class="text-muted">للدورات وورش العمل</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Detailed User Type Usage -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-briefcase me-2"></i>تفاصيل استخدام كل فئة</h2>
+        <p class="text-muted mb-4">كل فئة من المستخدمين تستفيد من النظام بطريقة مختلفة حسب احتياجاتها</p>
+
+        <div class="row">
+            <!-- Corporates -->
+            <div class="col-lg-6 mb-4">
+                <div class="entity-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="entity-icon me-3" style="background: linear-gradient(135deg, #667eea, #764ba2)">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">الشركات والمؤسسات</h4>
+                            <small class="text-muted">Corporates & Enterprises</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-2"><i class="fas fa-cubes me-1"></i> الموديلات المستخدمة:</h6>
+                    <div class="mb-3">
+                        <span class="badge bg-primary m-1">Event</span>
+                        <span class="badge bg-primary m-1">Ticket</span>
+                        <span class="badge bg-primary m-1">Attendee</span>
+                        <span class="badge bg-primary m-1">Speaker</span>
+                        <span class="badge bg-primary m-1">Session</span>
+                        <span class="badge bg-primary m-1">Sponsor</span>
+                        <span class="badge bg-primary m-1">Check-in</span>
+                        <span class="badge bg-primary m-1">Certificate</span>
+                    </div>
+
+                    <h6 class="text-success mb-2"><i class="fas fa-star me-1"></i> الفوائد:</h6>
+                    <ul class="feature-list small">
+                        <li><i class="fas fa-check"></i>إدارة مؤتمرات الشركة السنوية</li>
+                        <li><i class="fas fa-check"></i>تنظيم ورش العمل للموظفين</li>
+                        <li><i class="fas fa-check"></i>إدارة فعاليات Team Building</li>
+                        <li><i class="fas fa-check"></i>تتبع حضور الموظفين</li>
+                        <li><i class="fas fa-check"></i>إصدار شهادات التدريب</li>
+                        <li><i class="fas fa-check"></i>إدارة الرعاة والشركاء</li>
+                    </ul>
+
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fas fa-lightbulb text-warning me-1"></i>
+                        <strong>مثال:</strong> مؤتمر سنوي بـ 500 موظف، 10 جلسات، 5 متحدثين، و3 رعاة
+                    </div>
+                </div>
+            </div>
+
+            <!-- Universities -->
+            <div class="col-lg-6 mb-4">
+                <div class="entity-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="entity-icon me-3" style="background: linear-gradient(135deg, #28a745, #20c997)">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">الجامعات والمعاهد</h4>
+                            <small class="text-muted">Universities & Institutes</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-2"><i class="fas fa-cubes me-1"></i> الموديلات المستخدمة:</h6>
+                    <div class="mb-3">
+                        <span class="badge bg-success m-1">Event</span>
+                        <span class="badge bg-success m-1">Ticket</span>
+                        <span class="badge bg-success m-1">Attendee</span>
+                        <span class="badge bg-success m-1">Speaker</span>
+                        <span class="badge bg-success m-1">Session</span>
+                        <span class="badge bg-success m-1">Certificate</span>
+                        <span class="badge bg-success m-1">Check-in</span>
+                    </div>
+
+                    <h6 class="text-success mb-2"><i class="fas fa-star me-1"></i> الفوائد:</h6>
+                    <ul class="feature-list small">
+                        <li><i class="fas fa-check"></i>تنظيم حفلات التخرج</li>
+                        <li><i class="fas fa-check"></i>إدارة الندوات الأكاديمية</li>
+                        <li><i class="fas fa-check"></i>المحاضرات العامة</li>
+                        <li><i class="fas fa-check"></i>ورش العمل البحثية</li>
+                        <li><i class="fas fa-check"></i>تسجيل حضور الطلاب</li>
+                        <li><i class="fas fa-check"></i>شهادات المشاركة</li>
+                    </ul>
+
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fas fa-lightbulb text-warning me-1"></i>
+                        <strong>مثال:</strong> حفل تخرج لـ 2000 طالب مع تسجيل QR Code
+                    </div>
+                </div>
+            </div>
+
+            <!-- Healthcare -->
+            <div class="col-lg-6 mb-4">
+                <div class="entity-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="entity-icon me-3" style="background: linear-gradient(135deg, #17a2b8, #6f42c1)">
+                            <i class="fas fa-hospital"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">المستشفيات والمراكز الطبية</h4>
+                            <small class="text-muted">Healthcare & Medical</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-2"><i class="fas fa-cubes me-1"></i> الموديلات المستخدمة:</h6>
+                    <div class="mb-3">
+                        <span class="badge bg-info m-1">Event</span>
+                        <span class="badge bg-info m-1">Ticket</span>
+                        <span class="badge bg-info m-1">Attendee</span>
+                        <span class="badge bg-info m-1">Speaker</span>
+                        <span class="badge bg-info m-1">Session</span>
+                        <span class="badge bg-info m-1">Certificate</span>
+                        <span class="badge bg-info m-1">Sponsor</span>
+                    </div>
+
+                    <h6 class="text-success mb-2"><i class="fas fa-star me-1"></i> الفوائد:</h6>
+                    <ul class="feature-list small">
+                        <li><i class="fas fa-check"></i>مؤتمرات طبية CME معتمدة</li>
+                        <li><i class="fas fa-check"></i>ورش تدريب الأطباء</li>
+                        <li><i class="fas fa-check"></i>ندوات التوعية الصحية</li>
+                        <li><i class="fas fa-check"></i>شهادات الساعات المعتمدة</li>
+                        <li><i class="fas fa-check"></i>إدارة رعاية شركات الأدوية</li>
+                        <li><i class="fas fa-check"></i>تتبع حضور المتدربين</li>
+                    </ul>
+
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fas fa-lightbulb text-warning me-1"></i>
+                        <strong>مثال:</strong> مؤتمر طبي بـ 200 طبيب، 15 ساعة CME، و10 شركات أدوية راعية
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Organizers -->
+            <div class="col-lg-6 mb-4">
+                <div class="entity-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="entity-icon me-3" style="background: linear-gradient(135deg, #ffc107, #fd7e14)">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">منظمي الفعاليات</h4>
+                            <small class="text-muted">Event Organizers & Planners</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-2"><i class="fas fa-cubes me-1"></i> الموديلات المستخدمة:</h6>
+                    <div class="mb-3">
+                        <span class="badge bg-warning text-dark m-1">Event</span>
+                        <span class="badge bg-warning text-dark m-1">Ticket</span>
+                        <span class="badge bg-warning text-dark m-1">Attendee</span>
+                        <span class="badge bg-warning text-dark m-1">Speaker</span>
+                        <span class="badge bg-warning text-dark m-1">Session</span>
+                        <span class="badge bg-warning text-dark m-1">Transaction</span>
+                        <span class="badge bg-warning text-dark m-1">Coupon</span>
+                        <span class="badge bg-warning text-dark m-1">Sponsor</span>
+                        <span class="badge bg-warning text-dark m-1">Exhibitor</span>
+                        <span class="badge bg-warning text-dark m-1">Check-in</span>
+                        <span class="badge bg-warning text-dark m-1">Certificate</span>
+                    </div>
+
+                    <h6 class="text-success mb-2"><i class="fas fa-star me-1"></i> الفوائد:</h6>
+                    <ul class="feature-list small">
+                        <li><i class="fas fa-check"></i>إدارة كل أنواع الفعاليات</li>
+                        <li><i class="fas fa-check"></i>بيع التذاكر أونلاين</li>
+                        <li><i class="fas fa-check"></i>إدارة المعارض والعارضين</li>
+                        <li><i class="fas fa-check"></i>أكواد الخصم والعروض</li>
+                        <li><i class="fas fa-check"></i>تقارير مالية شاملة</li>
+                        <li><i class="fas fa-check"></i>إدارة كل المكونات</li>
+                    </ul>
+
+                    <div class="alert alert-warning border small mb-0">
+                        <i class="fas fa-crown text-warning me-1"></i>
+                        <strong>ملاحظة:</strong> منظمو الفعاليات يستخدمون كل الموديلات المتاحة
+                    </div>
+                </div>
+            </div>
+
+            <!-- NGOs -->
+            <div class="col-lg-6 mb-4">
+                <div class="entity-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="entity-icon me-3" style="background: linear-gradient(135deg, #dc3545, #e83e8c)">
+                            <i class="fas fa-mosque"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">الجمعيات والمنظمات</h4>
+                            <small class="text-muted">NGOs & Non-Profits</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-2"><i class="fas fa-cubes me-1"></i> الموديلات المستخدمة:</h6>
+                    <div class="mb-3">
+                        <span class="badge bg-danger m-1">Event</span>
+                        <span class="badge bg-danger m-1">Ticket</span>
+                        <span class="badge bg-danger m-1">Attendee</span>
+                        <span class="badge bg-danger m-1">Speaker</span>
+                        <span class="badge bg-danger m-1">Sponsor</span>
+                        <span class="badge bg-danger m-1">Certificate</span>
+                        <span class="badge bg-danger m-1">Check-in</span>
+                    </div>
+
+                    <h6 class="text-success mb-2"><i class="fas fa-star me-1"></i> الفوائد:</h6>
+                    <ul class="feature-list small">
+                        <li><i class="fas fa-check"></i>فعاليات التبرع والجمع</li>
+                        <li><i class="fas fa-check"></i>الفعاليات الخيرية المجانية</li>
+                        <li><i class="fas fa-check"></i>حملات التوعية</li>
+                        <li><i class="fas fa-check"></i>إدارة المتطوعين</li>
+                        <li><i class="fas fa-check"></i>شهادات التطوع</li>
+                        <li><i class="fas fa-check"></i>تتبع المشاركات</li>
+                    </ul>
+
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fas fa-lightbulb text-warning me-1"></i>
+                        <strong>مثال:</strong> حفل خيري بـ 300 متطوع وتذاكر مجانية
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Centers -->
+            <div class="col-lg-6 mb-4">
+                <div class="entity-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="entity-icon me-3" style="background: linear-gradient(135deg, #764ba2, #667eea)">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">مراكز التدريب</h4>
+                            <small class="text-muted">Training Centers</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-2"><i class="fas fa-cubes me-1"></i> الموديلات المستخدمة:</h6>
+                    <div class="mb-3">
+                        <span class="badge bg-secondary m-1">Event</span>
+                        <span class="badge bg-secondary m-1">Ticket</span>
+                        <span class="badge bg-secondary m-1">Attendee</span>
+                        <span class="badge bg-secondary m-1">Transaction</span>
+                        <span class="badge bg-secondary m-1">Coupon</span>
+                        <span class="badge bg-secondary m-1">Session</span>
+                        <span class="badge bg-secondary m-1">Check-in</span>
+                        <span class="badge bg-secondary m-1">Certificate</span>
+                    </div>
+
+                    <h6 class="text-success mb-2"><i class="fas fa-star me-1"></i> الفوائد:</h6>
+                    <ul class="feature-list small">
+                        <li><i class="fas fa-check"></i>إدارة الدورات التدريبية</li>
+                        <li><i class="fas fa-check"></i>بيع تذاكر الدورات</li>
+                        <li><i class="fas fa-check"></i>أكواد خصم للشركات</li>
+                        <li><i class="fas fa-check"></i>تتبع حضور المتدربين</li>
+                        <li><i class="fas fa-check"></i>شهادات إتمام الدورة</li>
+                        <li><i class="fas fa-check"></i>تقارير المبيعات</li>
+                    </ul>
+
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fas fa-lightbulb text-warning me-1"></i>
+                        <strong>مثال:</strong> دورة Excel لـ 30 متدرب، 5 جلسات، شهادة معتمدة
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Table -->
+        <div class="relation-diagram mt-4">
+            <h5 class="mb-3"><i class="fas fa-table me-2"></i>ملخص الموديلات لكل فئة</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead style="background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white;">
+                        <tr>
+                            <th>الفئة</th>
+                            <th class="text-center">Event</th>
+                            <th class="text-center">Ticket</th>
+                            <th class="text-center">Attendee</th>
+                            <th class="text-center">Speaker</th>
+                            <th class="text-center">Session</th>
+                            <th class="text-center">Transaction</th>
+                            <th class="text-center">Coupon</th>
+                            <th class="text-center">Sponsor</th>
+                            <th class="text-center">Exhibitor</th>
+                            <th class="text-center">Check-in</th>
+                            <th class="text-center">Certificate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong><i class="fas fa-building text-primary me-1"></i> الشركات</strong></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-graduation-cap text-success me-1"></i> الجامعات</strong></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-hospital text-info me-1"></i> المستشفيات</strong></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr class="table-warning">
+                            <td><strong><i class="fas fa-users-cog text-warning me-1"></i> منظمي الفعاليات</strong></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-mosque text-danger me-1"></i> الجمعيات</strong></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-chalkboard-teacher text-secondary me-1"></i> مراكز التدريب</strong></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-minus text-muted"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3 text-center">
+                <small class="text-muted">
+                    <i class="fas fa-check text-success me-1"></i> = يستخدم الموديل
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-minus text-muted me-1"></i> = لا يحتاجه عادةً
+                </small>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Entities -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-database me-2"></i>مكونات النظام الأساسية</h2>
+        <div class="row">
+            <!-- Event -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #667eea, #764ba2)">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h4>Event (الفعالية)</h4>
+                    <p class="text-muted">العنصر الرئيسي في النظام</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>عنوان ووصف</li>
+                        <li><i class="fas fa-check"></i>تاريخ البداية والنهاية</li>
+                        <li><i class="fas fa-check"></i>المكان (حضوري/أونلاين)</li>
+                        <li><i class="fas fa-check"></i>الصور والجاليري</li>
+                        <li><i class="fas fa-check"></i>إعدادات التسجيل</li>
+                        <li><i class="fas fa-check"></i>حالة النشر</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Ticket -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c)">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <h4>Ticket (التذكرة)</h4>
+                    <p class="text-muted">أنواع التذاكر للفعالية</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>اسم التذكرة</li>
+                        <li><i class="fas fa-check"></i>السعر</li>
+                        <li><i class="fas fa-check"></i>الكمية المتاحة</li>
+                        <li><i class="fas fa-check"></i>تاريخ بداية/نهاية البيع</li>
+                        <li><i class="fas fa-check"></i>الحد الأقصى للشراء</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Attendee -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe)">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <h4>Attendee (الحاضر)</h4>
+                    <p class="text-muted">المسجلين في الفعالية</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>البيانات الشخصية</li>
+                        <li><i class="fas fa-check"></i>كود التذكرة (QR)</li>
+                        <li><i class="fas fa-check"></i>حالة التسجيل</li>
+                        <li><i class="fas fa-check"></i>حالة الدفع</li>
+                        <li><i class="fas fa-check"></i>الحقول المخصصة</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Speaker -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #fa709a, #fee140)">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                    <h4>Speaker (المتحدث)</h4>
+                    <p class="text-muted">المتحدثين والمحاضرين</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>الاسم والصورة</li>
+                        <li><i class="fas fa-check"></i>المسمى الوظيفي</li>
+                        <li><i class="fas fa-check"></i>السيرة الذاتية</li>
+                        <li><i class="fas fa-check"></i>روابط السوشيال ميديا</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Session -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #a8edea, #fed6e3)">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h4>Session (الجلسة)</h4>
+                    <p class="text-muted">جلسات داخل الفعالية</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>عنوان الجلسة</li>
+                        <li><i class="fas fa-check"></i>الوقت والمدة</li>
+                        <li><i class="fas fa-check"></i>القاعة/المكان</li>
+                        <li><i class="fas fa-check"></i>المتحدثين</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Transaction -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7)">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <h4>Transaction (المعاملة)</h4>
+                    <p class="text-muted">سجل المدفوعات</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>المبلغ والعملة</li>
+                        <li><i class="fas fa-check"></i>بوابة الدفع</li>
+                        <li><i class="fas fa-check"></i>حالة الدفع</li>
+                        <li><i class="fas fa-check"></i>رقم المرجع</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Check-in -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #fa709a, #fee140)">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h4>Check-in (تسجيل الحضور)</h4>
+                    <p class="text-muted">تسجيل الدخول والخروج</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>وقت الدخول</li>
+                        <li><i class="fas fa-check"></i>وقت الخروج</li>
+                        <li><i class="fas fa-check"></i>مسح QR Code</li>
+                        <li><i class="fas fa-check"></i>الموظف المسؤول</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Certificate -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #667eea, #764ba2)">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <h4>Certificate (الشهادة)</h4>
+                    <p class="text-muted">شهادات الحضور</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>قالب الشهادة</li>
+                        <li><i class="fas fa-check"></i>كود التحقق</li>
+                        <li><i class="fas fa-check"></i>تاريخ الإصدار</li>
+                        <li><i class="fas fa-check"></i>تحميل PDF</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Coupon -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c)">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                    <h4>Coupon (كوبون الخصم)</h4>
+                    <p class="text-muted">أكواد الخصم</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>كود الخصم</li>
+                        <li><i class="fas fa-check"></i>نسبة/قيمة الخصم</li>
+                        <li><i class="fas fa-check"></i>تاريخ الصلاحية</li>
+                        <li><i class="fas fa-check"></i>حد الاستخدام</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Sponsor -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe)">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <h4>Sponsor (الراعي)</h4>
+                    <p class="text-muted">رعاة الفعالية</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>اسم الراعي</li>
+                        <li><i class="fas fa-check"></i>اللوجو</li>
+                        <li><i class="fas fa-check"></i>مستوى الرعاية</li>
+                        <li><i class="fas fa-check"></i>الموقع الإلكتروني</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Exhibitor -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="entity-card">
+                    <div class="entity-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7)">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <h4>Exhibitor (العارض)</h4>
+                    <p class="text-muted">العارضين في المعرض</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>اسم الشركة</li>
+                        <li><i class="fas fa-check"></i>رقم البوث</li>
+                        <li><i class="fas fa-check"></i>وصف المنتجات</li>
+                        <li><i class="fas fa-check"></i>معلومات التواصل</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Relationships Diagram -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-project-diagram me-2"></i>العلاقات بين المكونات</h2>
+
+        <div class="relation-diagram mb-4">
+            <h4 class="text-center mb-4">Event (الفعالية) - المركز الرئيسي</h4>
+
+            <div class="row justify-content-center">
+                <div class="col-12 text-center mb-4">
+                    <div class="relation-box d-inline-block" style="font-size: 1.2rem;">
+                        <i class="fas fa-calendar-alt me-2"></i>EVENT
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 col-lg-3 text-center mb-3">
+                    <div class="relation-line"></div>
+                    <i class="fas fa-arrow-down relation-arrow"></i>
+                    <div class="relation-box" style="background: linear-gradient(135deg, #f093fb, #f5576c)">
+                        <i class="fas fa-ticket-alt me-2"></i>Tickets
+                    </div>
+                    <small class="text-muted d-block mt-2">1 Event → ∞ Tickets</small>
+                </div>
+                <div class="col-md-6 col-lg-3 text-center mb-3">
+                    <div class="relation-line"></div>
+                    <i class="fas fa-arrow-down relation-arrow"></i>
+                    <div class="relation-box" style="background: linear-gradient(135deg, #4facfe, #00f2fe)">
+                        <i class="fas fa-user-check me-2"></i>Attendees
+                    </div>
+                    <small class="text-muted d-block mt-2">1 Event → ∞ Attendees</small>
+                </div>
+                <div class="col-md-6 col-lg-3 text-center mb-3">
+                    <div class="relation-line"></div>
+                    <i class="fas fa-arrow-down relation-arrow"></i>
+                    <div class="relation-box" style="background: linear-gradient(135deg, #fa709a, #fee140)">
+                        <i class="fas fa-microphone me-2"></i>Speakers
+                    </div>
+                    <small class="text-muted d-block mt-2">∞ Events ↔ ∞ Speakers</small>
+                </div>
+                <div class="col-md-6 col-lg-3 text-center mb-3">
+                    <div class="relation-line"></div>
+                    <i class="fas fa-arrow-down relation-arrow"></i>
+                    <div class="relation-box" style="background: linear-gradient(135deg, #a8edea, #fed6e3); color: #333;">
+                        <i class="fas fa-clock me-2"></i>Sessions
+                    </div>
+                    <small class="text-muted d-block mt-2">1 Event → ∞ Sessions</small>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-4 text-center mb-3">
+                    <div class="relation-box" style="background: linear-gradient(135deg, #43e97b, #38f9d7); color: #333;">
+                        <i class="fas fa-handshake me-2"></i>Sponsors
+                    </div>
+                    <small class="text-muted d-block mt-2">∞ Events ↔ ∞ Sponsors</small>
+                </div>
+                <div class="col-md-4 text-center mb-3">
+                    <div class="relation-box" style="background: linear-gradient(135deg, #667eea, #764ba2)">
+                        <i class="fas fa-percent me-2"></i>Coupons
+                    </div>
+                    <small class="text-muted d-block mt-2">1 Event → ∞ Coupons</small>
+                </div>
+                <div class="col-md-4 text-center mb-3">
+                    <div class="relation-box" style="background: linear-gradient(135deg, #f093fb, #f5576c)">
+                        <i class="fas fa-store me-2"></i>Exhibitors
+                    </div>
+                    <small class="text-muted d-block mt-2">1 Event → ∞ Exhibitors</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Relations Table -->
+        <div class="table-responsive">
+            <table class="table table-relations table-bordered">
+                <thead>
+                    <tr>
+                        <th>الكيان (Entity)</th>
+                        <th>العلاقة</th>
+                        <th>مرتبط بـ</th>
+                        <th>نوع العلاقة</th>
+                        <th>ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Event</strong></td>
+                        <td>→</td>
+                        <td>Tickets</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>كل فعالية لها أنواع تذاكر متعددة</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Event</strong></td>
+                        <td>→</td>
+                        <td>Attendees</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>كل فعالية لها حضور متعددين</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Event</strong></td>
+                        <td>↔</td>
+                        <td>Speakers</td>
+                        <td><span class="badge bg-success badge-relation">Many to Many</span></td>
+                        <td>متحدث يمكن أن يشارك في عدة فعاليات</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Event</strong></td>
+                        <td>→</td>
+                        <td>Sessions</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>فعالية كبيرة = عدة جلسات</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Session</strong></td>
+                        <td>↔</td>
+                        <td>Speakers</td>
+                        <td><span class="badge bg-success badge-relation">Many to Many</span></td>
+                        <td>جلسة يمكن أن يكون لها عدة متحدثين</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Attendee</strong></td>
+                        <td>→</td>
+                        <td>Ticket</td>
+                        <td><span class="badge bg-info badge-relation">Many to One</span></td>
+                        <td>كل حاضر مسجل بنوع تذكرة معين</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Attendee</strong></td>
+                        <td>→</td>
+                        <td>Transaction</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>يمكن أن يكون له عدة معاملات</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Attendee</strong></td>
+                        <td>→</td>
+                        <td>Check-ins</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>تسجيل دخول/خروج متعدد</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Attendee</strong></td>
+                        <td>→</td>
+                        <td>Certificates</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>شهادات متعددة لفعاليات مختلفة</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Event</strong></td>
+                        <td>↔</td>
+                        <td>Sponsors</td>
+                        <td><span class="badge bg-success badge-relation">Many to Many</span></td>
+                        <td>راعي يمكن أن يرعى عدة فعاليات</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Event</strong></td>
+                        <td>→</td>
+                        <td>Coupons</td>
+                        <td><span class="badge bg-primary badge-relation">One to Many</span></td>
+                        <td>أكواد خصم خاصة بكل فعالية</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Event Types -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-layer-group me-2"></i>أنواع الفعاليات المدعومة</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="entity-card text-center">
+                    <i class="fas fa-chalkboard-teacher fa-3x mb-3" style="color: var(--primary)"></i>
+                    <h5>مؤتمر / Conference</h5>
+                    <p class="text-muted">مؤتمرات كبيرة بعدة جلسات ومتحدثين</p>
+                    <ul class="text-start feature-list">
+                        <li><i class="fas fa-check"></i>جلسات متعددة</li>
+                        <li><i class="fas fa-check"></i>متحدثين متعددين</li>
+                        <li><i class="fas fa-check"></i>رعاة</li>
+                        <li><i class="fas fa-check"></i>معرض مصاحب</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="entity-card text-center">
+                    <i class="fas fa-tools fa-3x mb-3" style="color: var(--success)"></i>
+                    <h5>ورشة عمل / Workshop</h5>
+                    <p class="text-muted">تدريب عملي تفاعلي</p>
+                    <ul class="text-start feature-list">
+                        <li><i class="fas fa-check"></i>عدد محدود من المشاركين</li>
+                        <li><i class="fas fa-check"></i>شهادات حضور</li>
+                        <li><i class="fas fa-check"></i>مواد تدريبية</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="entity-card text-center">
+                    <i class="fas fa-video fa-3x mb-3" style="color: var(--info)"></i>
+                    <h5>ويبينار / Webinar</h5>
+                    <p class="text-muted">فعالية أونلاين</p>
+                    <ul class="text-start feature-list">
+                        <li><i class="fas fa-check"></i>بث مباشر</li>
+                        <li><i class="fas fa-check"></i>رابط الانضمام</li>
+                        <li><i class="fas fa-check"></i>تسجيل الجلسة</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="entity-card text-center">
+                    <i class="fas fa-music fa-3x mb-3" style="color: var(--warning)"></i>
+                    <h5>حفل / Gala</h5>
+                    <p class="text-muted">حفلات ومناسبات</p>
+                    <ul class="text-start feature-list">
+                        <li><i class="fas fa-check"></i>تذاكر VIP</li>
+                        <li><i class="fas fa-check"></i>جدول الفقرات</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="entity-card text-center">
+                    <i class="fas fa-store fa-3x mb-3" style="color: var(--danger)"></i>
+                    <h5>معرض / Exhibition</h5>
+                    <p class="text-muted">معارض تجارية</p>
+                    <ul class="text-start feature-list">
+                        <li><i class="fas fa-check"></i>عارضين متعددين</li>
+                        <li><i class="fas fa-check"></i>خريطة المعرض</li>
+                        <li><i class="fas fa-check"></i>بوثات</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="entity-card text-center">
+                    <i class="fas fa-running fa-3x mb-3" style="color: var(--secondary)"></i>
+                    <h5>سباق / Race</h5>
+                    <p class="text-muted">فعاليات رياضية</p>
+                    <ul class="text-start feature-list">
+                        <li><i class="fas fa-check"></i>فئات المشاركة</li>
+                        <li><i class="fas fa-check"></i>تسجيل الأوقات</li>
+                        <li><i class="fas fa-check"></i>الترتيب</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- User Flow -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-route me-2"></i>رحلة المستخدم (User Journey)</h2>
+
+        <div class="relation-diagram">
+            <h5 class="mb-4">رحلة الحاضر (Attendee Journey)</h5>
+            <div class="flow-chart">
+                <div class="flow-step">
+                    <i class="fas fa-search fa-2x mb-2 d-block" style="color: var(--primary)"></i>
+                    <small>استعراض الفعاليات</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-mouse-pointer fa-2x mb-2 d-block" style="color: var(--info)"></i>
+                    <small>اختيار فعالية</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-ticket-alt fa-2x mb-2 d-block" style="color: var(--warning)"></i>
+                    <small>اختيار التذكرة</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-edit fa-2x mb-2 d-block" style="color: var(--secondary)"></i>
+                    <small>ملء البيانات</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-credit-card fa-2x mb-2 d-block" style="color: var(--success)"></i>
+                    <small>الدفع</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-qrcode fa-2x mb-2 d-block" style="color: var(--primary)"></i>
+                    <small>استلام التذكرة</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-check-circle fa-2x mb-2 d-block" style="color: var(--success)"></i>
+                    <small>تسجيل الحضور</small>
+                </div>
+                <i class="fas fa-arrow-left flow-arrow d-none d-md-inline"></i>
+                <i class="fas fa-arrow-down flow-arrow d-md-none"></i>
+                <div class="flow-step">
+                    <i class="fas fa-certificate fa-2x mb-2 d-block" style="color: var(--warning)"></i>
+                    <small>الشهادة</small>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Features -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-tachometer-alt me-2"></i>مميزات لوحة التحكم</h2>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="entity-card">
+                    <h5><i class="fas fa-chart-line text-primary me-2"></i>التقارير والإحصائيات</h5>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>إحصائيات الحضور الفورية</li>
+                        <li><i class="fas fa-check"></i>تقارير المبيعات</li>
+                        <li><i class="fas fa-check"></i>تحليل مصادر التسجيل</li>
+                        <li><i class="fas fa-check"></i>تصدير Excel/PDF</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="entity-card">
+                    <h5><i class="fas fa-mobile-alt text-success me-2"></i>تطبيق المسح (Scanner)</h5>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>مسح QR Code</li>
+                        <li><i class="fas fa-check"></i>تسجيل دخول/خروج</li>
+                        <li><i class="fas fa-check"></i>يعمل أوفلاين</li>
+                        <li><i class="fas fa-check"></i>إحصائيات لحظية</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="entity-card">
+                    <h5><i class="fas fa-envelope text-info me-2"></i>الإشعارات</h5>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>إيميل تأكيد التسجيل</li>
+                        <li><i class="fas fa-check"></i>تذكير قبل الفعالية</li>
+                        <li><i class="fas fa-check"></i>إرسال الشهادات</li>
+                        <li><i class="fas fa-check"></i>رسائل مخصصة</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="entity-card">
+                    <h5><i class="fas fa-shield-alt text-danger me-2"></i>الأمان</h5>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-check"></i>المصادقة الثنائية (2FA)</li>
+                        <li><i class="fas fa-check"></i>سجل النشاطات</li>
+                        <li><i class="fas fa-check"></i>صلاحيات المستخدمين</li>
+                        <li><i class="fas fa-check"></i>تسجيل الأخطاء</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Payment Gateways -->
+    <section class="mb-5">
+        <h2 class="section-title"><i class="fas fa-credit-card me-2"></i>بوابات الدفع المدعومة</h2>
+        <div class="row text-center">
+            <div class="col-6 col-md-3 mb-3">
+                <div class="entity-card">
+                    <img src="https://www.paymob.com/images/paymobLogo.svg" alt="Paymob" style="height: 40px; margin-bottom: 10px;">
+                    <h6>Paymob</h6>
+                    <small class="text-muted">مصر</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 mb-3">
+                <div class="entity-card">
+                    <i class="fab fa-cc-stripe fa-3x mb-2" style="color: #6772e5;"></i>
+                    <h6>Stripe</h6>
+                    <small class="text-muted">دولي</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 mb-3">
+                <div class="entity-card">
+                    <i class="fas fa-money-bill-wave fa-3x mb-2" style="color: #2196F3;"></i>
+                    <h6>MyFatoorah</h6>
+                    <small class="text-muted">الخليج</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 mb-3">
+                <div class="entity-card">
+                    <i class="fas fa-university fa-3x mb-2" style="color: #4CAF50;"></i>
+                    <h6>Kashier</h6>
+                    <small class="text-muted">مصر</small>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="text-center py-4">
+        <p class="text-muted">
+            <strong>SC Events</strong> - نظام إدارة الفعاليات المتكامل
+            <br>
+            <small>Built with ❤️ using WordPress</small>
+        </p>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

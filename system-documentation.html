@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دليل نظام إدارة الفعاليات | SC Events</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --primary-dark: #2563EB;
+            --secondary: #8B5CF6;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --info: #06B6D4;
+            --dark: #1F2937;
+            --gray: #6B7280;
+            --light: #F3F4F6;
+            --white: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            line-height: 1.8;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-logo {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 3rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Navigation */
+        .nav-container {
+            background: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .nav-pills {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .nav-pill {
+            padding: 12px 24px;
+            background: var(--light);
+            border-radius: 50px;
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-pill:hover, .nav-pill.active {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Section Styles */
+        .section {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .section-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: white;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .section-subtitle {
+            color: var(--gray);
+            font-size: 1rem;
+        }
+
+        /* Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .feature-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+
+        .feature-desc {
+            color: var(--gray);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        /* Architecture Diagram */
+        .architecture {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+            color: white;
+        }
+
+        .arch-title {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 40px;
+            color: #e2e8f0;
+        }
+
+        .arch-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .arch-layer {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .arch-box {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 16px 24px;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .arch-box i {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .arch-box.primary { border-color: var(--primary); background: rgba(59, 130, 246, 0.2); }
+        .arch-box.success { border-color: var(--success); background: rgba(16, 185, 129, 0.2); }
+        .arch-box.warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.2); }
+        .arch-box.secondary { border-color: var(--secondary); background: rgba(139, 92, 246, 0.2); }
+        .arch-box.info { border-color: var(--info); background: rgba(6, 182, 212, 0.2); }
+
+        .arch-arrow {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        /* Module Connection */
+        .connections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        .connection-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 2px solid var(--light);
+            position: relative;
+        }
+
+        .connection-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            opacity: 0.05;
+            border-radius: 0 16px 0 100%;
+        }
+
+        .connection-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .connection-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .connection-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .connection-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .connection-list li {
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--gray);
+        }
+
+        .connection-list li:last-child {
+            border-bottom: none;
+        }
+
+        .connection-list li i {
+            color: var(--success);
+            font-size: 0.8rem;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 16px;
+            padding: 24px;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+
+        .stat-label {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        /* Flow Diagram */
+        .flow-container {
+            overflow-x: auto;
+            padding: 20px 0;
+        }
+
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            min-width: max-content;
+            padding: 20px;
+        }
+
+        .flow-step {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            min-width: 180px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-top: 4px solid var(--primary);
+        }
+
+        .flow-step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin: 0 auto 12px;
+        }
+
+        .flow-arrow {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        /* Tables */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .info-table th, .info-table td {
+            padding: 16px;
+            text-align: right;
+            border-bottom: 1px solid var(--light);
+        }
+
+        .info-table th {
+            background: var(--light);
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .info-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .badge-primary { background: rgba(59, 130, 246, 0.1); color: var(--primary); }
+        .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        .badge-secondary { background: rgba(139, 92, 246, 0.1); color: var(--secondary); }
+
+        /* Module Cards */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .module-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .module-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .module-header {
+            padding: 30px;
+            color: white;
+            position: relative;
+        }
+
+        .module-header h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .module-header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .module-body {
+            padding: 24px 30px;
+        }
+
+        .module-features {
+            list-style: none;
+            padding: 0;
+        }
+
+        .module-features li {
+            padding: 10px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: var(--gray);
+        }
+
+        .module-features li i {
+            color: var(--success);
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        .footer p {
+            opacity: 0.7;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .section {
+                padding: 24px;
+            }
+
+            .nav-pills {
+                gap: 8px;
+            }
+
+            .nav-pill {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .nav-container {
+                display: none;
+            }
+
+            .section {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-logo">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <h1>نظام إدارة الفعاليات SC Events</h1>
+            <p>منصة متكاملة لإدارة الفعاليات والمؤتمرات بكل احترافية - من التسجيل حتى إصدار الشهادات</p>
+        </div>
+    </section>
+
+    <!-- Navigation -->
+    <nav class="nav-container">
+        <div class="nav-pills">
+            <a href="#overview" class="nav-pill active"><i class="fas fa-home"></i> نظرة عامة</a>
+            <a href="#modules" class="nav-pill"><i class="fas fa-puzzle-piece"></i> الموديولات</a>
+            <a href="#events" class="nav-pill"><i class="fas fa-calendar"></i> الفعاليات</a>
+            <a href="#attendees" class="nav-pill"><i class="fas fa-users"></i> الحضور</a>
+            <a href="#sessions" class="nav-pill"><i class="fas fa-chalkboard"></i> الجلسات</a>
+            <a href="#certificates" class="nav-pill"><i class="fas fa-certificate"></i> الشهادات</a>
+            <a href="#scanner" class="nav-pill"><i class="fas fa-qrcode"></i> المسح</a>
+            <a href="#coupons" class="nav-pill"><i class="fas fa-tags"></i> الكوبونات</a>
+            <a href="#sponsors" class="nav-pill"><i class="fas fa-building"></i> الرعاة</a>
+            <a href="#staff" class="nav-pill"><i class="fas fa-id-badge"></i> الموظفين</a>
+            <a href="#chat" class="nav-pill"><i class="fas fa-comments"></i> المحادثة</a>
+            <a href="#booths" class="nav-pill"><i class="fas fa-store"></i> الأجنحة</a>
+            <a href="#reports" class="nav-pill"><i class="fas fa-chart-bar"></i> التقارير</a>
+            <a href="#connections" class="nav-pill"><i class="fas fa-link"></i> الترابط</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <!-- Overview Section -->
+        <section id="overview" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--primary), var(--secondary));">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">نظرة عامة على النظام</h2>
+                    <p class="section-subtitle">فهم شامل لكيفية عمل النظام ومكوناته</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number">12+</div>
+                    <div class="stat-label">موديول قابل للتفعيل</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, var(--success), #34d399);">
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">ميزة متكاملة</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, var(--warning), #fbbf24);">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">عربي بالكامل</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, var(--secondary), #a78bfa);">
+                    <div class="stat-number">API</div>
+                    <div class="stat-label">واجهة برمجية</div>
+                </div>
+            </div>
+
+            <!-- Architecture -->
+            <div class="architecture">
+                <h3 class="arch-title"><i class="fas fa-sitemap"></i> البنية المعمارية للنظام</h3>
+                <div class="arch-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box primary">
+                            <i class="fas fa-desktop"></i>
+                            لوحة التحكم
+                        </div>
+                        <div class="arch-box primary">
+                            <i class="fas fa-mobile-alt"></i>
+                            واجهة الجوال
+                        </div>
+                        <div class="arch-box primary">
+                            <i class="fas fa-qrcode"></i>
+                            تطبيق المسح
+                        </div>
+                    </div>
+
+                    <i class="fas fa-arrow-down arch-arrow"></i>
+
+                    <div class="arch-layer">
+                        <div class="arch-box success">
+                            <i class="fas fa-cogs"></i>
+                            Module Manager
+                        </div>
+                    </div>
+
+                    <i class="fas fa-arrow-down arch-arrow"></i>
+
+                    <div class="arch-layer">
+                        <div class="arch-box warning">
+                            <i class="fas fa-calendar"></i>
+                            الفعاليات
+                        </div>
+                        <div class="arch-box warning">
+                            <i class="fas fa-users"></i>
+                            الحضور
+                        </div>
+                        <div class="arch-box warning">
+                            <i class="fas fa-chalkboard"></i>
+                            الجلسات
+                        </div>
+                        <div class="arch-box warning">
+                            <i class="fas fa-certificate"></i>
+                            الشهادات
+                        </div>
+                        <div class="arch-box warning">
+                            <i class="fas fa-map-marker"></i>
+                            الأماكن
+                        </div>
+                    </div>
+
+                    <i class="fas fa-arrow-down arch-arrow"></i>
+
+                    <div class="arch-layer">
+                        <div class="arch-box secondary">
+                            <i class="fas fa-database"></i>
+                            قاعدة البيانات
+                        </div>
+                        <div class="arch-box info">
+                            <i class="fas fa-plug"></i>
+                            REST API
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 30px 0 20px;"><i class="fas fa-info-circle"></i> كيف يعمل النظام؟</h3>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    <h4 class="feature-title">نظام الموديولات</h4>
+                    <p class="feature-desc">كل ميزة عبارة عن موديول مستقل يمكن تفعيله أو تعطيله حسب الحاجة. عند التعطيل يختفي الموديول تماماً من كل مكان.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h4 class="feature-title">نظام الصلاحيات</h4>
+                    <p class="feature-desc">3 أدوار رئيسية: مدير النظام، مدير الفعاليات، وماسح التذاكر. كل دور له صلاحيات محددة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <h4 class="feature-title">التحديث اللحظي</h4>
+                    <p class="feature-desc">جميع البيانات تُحدث لحظياً عبر AJAX بدون إعادة تحميل الصفحة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-language"></i>
+                    </div>
+                    <h4 class="feature-title">ثنائي اللغة</h4>
+                    <p class="feature-desc">دعم كامل للعربية والإنجليزية مع إمكانية إدخال المحتوى باللغتين.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modules Section -->
+        <section id="modules" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--success), #34d399);">
+                    <i class="fas fa-puzzle-piece"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">نظام الموديولات (Module Manager)</h2>
+                    <p class="section-subtitle">تحكم كامل في مميزات النظام</p>
+                </div>
+            </div>
+
+            <p style="font-size: 1.1rem; color: var(--gray); margin-bottom: 30px;">
+                نظام الموديولات يتيح لك تفعيل أو تعطيل أي ميزة في النظام. عند تعطيل موديول:
+            </p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-eye-slash"></i>
+                    </div>
+                    <h4 class="feature-title">يختفي من السايدبار</h4>
+                    <p class="feature-desc">لا يظهر الرابط في القائمة الجانبية</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-ban"></i>
+                    </div>
+                    <h4 class="feature-title">لا يمكن الوصول للصفحة</h4>
+                    <p class="feature-desc">إذا حاول أحد الوصول مباشرة يُعاد توجيهه</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h4 class="feature-title">تتوقف الـ APIs</h4>
+                    <p class="feature-desc">جميع طلبات AJAX للموديول ترجع خطأ</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h4 class="feature-title">تختفي الإحصائيات</h4>
+                    <p class="feature-desc">لا تظهر في الصفحة الرئيسية</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-list"></i> قائمة الموديولات</h3>
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>الموديول</th>
+                        <th>المعرف</th>
+                        <th>الوصف</th>
+                        <th>النوع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><i class="fas fa-calendar text-primary"></i> الفعاليات</td>
+                        <td><code>events</code></td>
+                        <td>إدارة الفعاليات والمؤتمرات</td>
+                        <td><span class="badge badge-primary">أساسي</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-users text-success"></i> الحضور</td>
+                        <td><code>attendees</code></td>
+                        <td>إدارة المشاركين والتسجيلات</td>
+                        <td><span class="badge badge-primary">أساسي</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-ticket-alt text-warning"></i> التذاكر</td>
+                        <td><code>tickets</code></td>
+                        <td>أنواع التذاكر والأسعار</td>
+                        <td><span class="badge badge-primary">أساسي</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-chalkboard text-info"></i> الجلسات</td>
+                        <td><code>sessions</code></td>
+                        <td>جلسات الفعالية والمحاضرات</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-map-marker-alt text-secondary"></i> الأماكن</td>
+                        <td><code>venues</code></td>
+                        <td>المواقع والقاعات والبوابات</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-certificate text-warning"></i> الشهادات</td>
+                        <td><code>certificates</code></td>
+                        <td>إصدار شهادات الحضور</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-comments text-primary"></i> الشات</td>
+                        <td><code>chat</code></td>
+                        <td>التواصل مع الحضور</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-id-badge text-info"></i> الموظفين</td>
+                        <td><code>staff</code></td>
+                        <td>إدارة فريق العمل</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-store text-secondary"></i> الأجنحة</td>
+                        <td><code>booths</code></td>
+                        <td>أجنحة المعارض</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-chart-line text-success"></i> الحشود</td>
+                        <td><code>crowd</code></td>
+                        <td>تحليلات الازدحام</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-exclamation-triangle text-danger"></i> الطوارئ</td>
+                        <td><code>emergency</code></td>
+                        <td>نظام الإنذارات</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-tags text-warning"></i> الخصومات</td>
+                        <td><code>coupons</code></td>
+                        <td>كوبونات الخصم</td>
+                        <td><span class="badge badge-success">اختياري</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Events Section -->
+        <section id="events" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #3B82F6, #60A5FA);">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">إدارة الفعاليات</h2>
+                    <p class="section-subtitle">القلب النابض للنظام</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <h4 class="feature-title">إنشاء فعالية</h4>
+                    <p class="feature-desc">أنشئ فعاليات بمعلومات كاملة: العنوان، الوصف، التواريخ، الصورة، والموقع.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <h4 class="feature-title">أنواع التذاكر</h4>
+                    <p class="feature-desc">حدد أنواع تذاكر مختلفة: VIP، عادي، طالب... مع أسعار وحدود مختلفة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <h4 class="feature-title">إعدادات متقدمة</h4>
+                    <p class="feature-desc">تحكم في التسجيل، البريد التأكيدي، والحقول المطلوبة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h4 class="feature-title">إحصائيات شاملة</h4>
+                    <p class="feature-desc">تابع المسجلين، الحضور الفعلي، والإيرادات لحظياً.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-project-diagram"></i> دورة حياة الفعالية</h3>
+            <div class="flow-container">
+                <div class="flow">
+                    <div class="flow-step">
+                        <div class="flow-step-number">1</div>
+                        <strong>الإنشاء</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">إضافة معلومات الفعالية</p>
+                    </div>
+                    <i class="fas fa-arrow-left flow-arrow"></i>
+                    <div class="flow-step">
+                        <div class="flow-step-number">2</div>
+                        <strong>التذاكر</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">تحديد أنواع التذاكر</p>
+                    </div>
+                    <i class="fas fa-arrow-left flow-arrow"></i>
+                    <div class="flow-step">
+                        <div class="flow-step-number">3</div>
+                        <strong>النشر</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">فتح باب التسجيل</p>
+                    </div>
+                    <i class="fas fa-arrow-left flow-arrow"></i>
+                    <div class="flow-step">
+                        <div class="flow-step-number">4</div>
+                        <strong>التسجيلات</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">استقبال المشاركين</p>
+                    </div>
+                    <i class="fas fa-arrow-left flow-arrow"></i>
+                    <div class="flow-step">
+                        <div class="flow-step-number">5</div>
+                        <strong>الفعالية</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">مسح الحضور</p>
+                    </div>
+                    <i class="fas fa-arrow-left flow-arrow"></i>
+                    <div class="flow-step">
+                        <div class="flow-step-number">6</div>
+                        <strong>الختام</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">إصدار الشهادات</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Attendees Section -->
+        <section id="attendees" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #10B981, #34D399);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">إدارة الحضور</h2>
+                    <p class="section-subtitle">كل ما يتعلق بالمشاركين</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h4 class="feature-title">تسجيل جديد</h4>
+                    <p class="feature-desc">أضف مشاركين يدوياً أو عبر نموذج التسجيل العام.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h4 class="feature-title">تذكرة QR</h4>
+                    <p class="feature-desc">كل مشارك يحصل على تذكرة برمز QR فريد للمسح.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h4 class="feature-title">بريد تأكيدي</h4>
+                    <p class="feature-desc">إرسال تأكيد التسجيل والتذكرة تلقائياً.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-filter"></i>
+                    </div>
+                    <h4 class="feature-title">تصفية وبحث</h4>
+                    <p class="feature-desc">ابحث بالاسم، البريد، رقم التذكرة، أو الحالة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <h4 class="feature-title">استيراد/تصدير</h4>
+                    <p class="feature-desc">استورد قوائم من Excel أو صدّر البيانات.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h4 class="feature-title">سجل النشاط</h4>
+                    <p class="feature-desc">تتبع كل عمليات الدخول والخروج.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-info-circle"></i> حالات الحضور</h3>
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>الحالة</th>
+                        <th>الوصف</th>
+                        <th>اللون</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>مسجل (Registered)</td>
+                        <td>أكمل التسجيل ولم يحضر بعد</td>
+                        <td><span class="badge badge-warning">برتقالي</span></td>
+                    </tr>
+                    <tr>
+                        <td>حضر (Checked-in)</td>
+                        <td>تم مسح تذكرته ودخل الفعالية</td>
+                        <td><span class="badge badge-success">أخضر</span></td>
+                    </tr>
+                    <tr>
+                        <td>غادر (Checked-out)</td>
+                        <td>خرج من الفعالية</td>
+                        <td><span class="badge badge-secondary">رمادي</span></td>
+                    </tr>
+                    <tr>
+                        <td>ملغي (Cancelled)</td>
+                        <td>تم إلغاء تسجيله</td>
+                        <td><span class="badge" style="background: rgba(239,68,68,0.1); color: var(--danger);">أحمر</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Sessions Section -->
+        <section id="sessions" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول الجلسات</h2>
+                    <p class="section-subtitle">إدارة محاضرات وورش عمل الفعالية</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-calendar-plus"></i>
+                    </div>
+                    <h4 class="feature-title">إنشاء جلسات</h4>
+                    <p class="feature-desc">أنشئ جلسات متعددة لكل فعالية مع تحديد الوقت والقاعة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h4 class="feature-title">المتحدثون</h4>
+                    <p class="feature-desc">أضف متحدثين لكل جلسة مع أدوارهم (متحدث، مدير جلسة...).</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h4 class="feature-title">المسارات</h4>
+                    <p class="feature-desc">نظم الجلسات في مسارات (tracks) مختلفة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <h4 class="feature-title">ساعات CME</h4>
+                    <p class="feature-desc">احتساب ساعات التعليم المستمر تلقائياً.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <h4 class="feature-title">حضور الجلسات</h4>
+                    <p class="feature-desc">تسجيل دخول/خروج منفصل لكل جلسة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <h4 class="feature-title">شهادة الجلسة</h4>
+                    <p class="feature-desc">إصدار شهادة خاصة بكل جلسة.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-palette"></i> أنواع الجلسات</h3>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <span style="padding: 8px 16px; border-radius: 20px; background: rgba(59,130,246,0.1); color: #3B82F6;"><i class="fas fa-graduation-cap"></i> محاضرة</span>
+                <span style="padding: 8px 16px; border-radius: 20px; background: rgba(16,185,129,0.1); color: #10B981;"><i class="fas fa-wrench"></i> ورشة عمل</span>
+                <span style="padding: 8px 16px; border-radius: 20px; background: rgba(139,92,246,0.1); color: #8B5CF6;"><i class="fas fa-users"></i> حلقة نقاش</span>
+                <span style="padding: 8px 16px; border-radius: 20px; background: rgba(245,158,11,0.1); color: #F59E0B;"><i class="fas fa-star"></i> كلمة رئيسية</span>
+                <span style="padding: 8px 16px; border-radius: 20px; background: rgba(107,114,128,0.1); color: #6B7280;"><i class="fas fa-coffee"></i> استراحة</span>
+                <span style="padding: 8px 16px; border-radius: 20px; background: rgba(236,72,153,0.1); color: #EC4899;"><i class="fas fa-exchange-alt"></i> تواصل</span>
+            </div>
+        </section>
+
+        <!-- Certificates Section -->
+        <section id="certificates" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">
+                    <i class="fas fa-certificate"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول الشهادات</h2>
+                    <p class="section-subtitle">إصدار شهادات احترافية</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-paint-brush"></i>
+                    </div>
+                    <h4 class="feature-title">مصمم مرئي</h4>
+                    <p class="feature-desc">صمم قوالب الشهادات بالسحب والإفلات (Drag & Drop).</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <h4 class="feature-title">تصدير PDF</h4>
+                    <p class="feature-desc">تحميل الشهادات بصيغة PDF عالية الجودة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h4 class="feature-title">التحقق</h4>
+                    <p class="feature-desc">رابط تحقق فريد لكل شهادة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <h4 class="feature-title">إصدار تلقائي</h4>
+                    <p class="feature-desc">إصدار الشهادات تلقائياً عند انتهاء الفعالية.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-code"></i> المتغيرات المتاحة في القوالب</h3>
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>المتغير</th>
+                        <th>الوصف</th>
+                        <th>مثال</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{attendee_name}</code></td>
+                        <td>اسم الحاضر</td>
+                        <td>أحمد محمد</td>
+                    </tr>
+                    <tr>
+                        <td><code>{event_name}</code></td>
+                        <td>اسم الفعالية</td>
+                        <td>مؤتمر التقنية 2025</td>
+                    </tr>
+                    <tr>
+                        <td><code>{event_date}</code></td>
+                        <td>تاريخ الفعالية</td>
+                        <td>15 يناير 2025</td>
+                    </tr>
+                    <tr>
+                        <td><code>{certificate_id}</code></td>
+                        <td>رقم الشهادة</td>
+                        <td>CERT-2025-001</td>
+                    </tr>
+                    <tr>
+                        <td><code>{cme_hours}</code></td>
+                        <td>ساعات CME</td>
+                        <td>5</td>
+                    </tr>
+                    <tr>
+                        <td><code>{qr_code}</code></td>
+                        <td>رمز التحقق</td>
+                        <td>[صورة QR]</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Scanner Section -->
+        <section id="scanner" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #06B6D4, #22D3EE);">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">نظام المسح (Scanner)</h2>
+                    <p class="section-subtitle">تسجيل الدخول والخروج</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <h4 class="feature-title">مسح بالكاميرا</h4>
+                    <p class="feature-desc">استخدم كاميرا الجهاز لمسح رموز QR.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-sign-in-alt"></i>
+                    </div>
+                    <h4 class="feature-title">Check-in / Check-out</h4>
+                    <p class="feature-desc">تبديل بين وضع الدخول والخروج.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-keyboard"></i>
+                    </div>
+                    <h4 class="feature-title">إدخال يدوي</h4>
+                    <p class="feature-desc">أدخل رمز التذكرة يدوياً كبديل.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-door-open"></i>
+                    </div>
+                    <h4 class="feature-title">اختيار البوابة</h4>
+                    <p class="feature-desc">حدد البوابة لتتبع حركة الدخول.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-volume-up"></i>
+                    </div>
+                    <h4 class="feature-title">تنبيهات صوتية</h4>
+                    <p class="feature-desc">صوت مختلف للنجاح والخطأ.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h4 class="feature-title">سجل لحظي</h4>
+                    <p class="feature-desc">عرض آخر عمليات المسح.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-mobile-alt"></i> أنواع الماسحات</h3>
+            <div class="connections">
+                <div class="connection-card">
+                    <div class="connection-header">
+                        <div class="connection-icon" style="background: var(--primary);">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <span class="connection-title">ماسح الفعالية</span>
+                    </div>
+                    <ul class="connection-list">
+                        <li><i class="fas fa-check"></i> مسح عام للفعالية</li>
+                        <li><i class="fas fa-check"></i> اختيار البوابة</li>
+                        <li><i class="fas fa-check"></i> تسجيل دخول/خروج</li>
+                        <li><i class="fas fa-check"></i> إحصائيات لحظية</li>
+                    </ul>
+                </div>
+                <div class="connection-card">
+                    <div class="connection-header">
+                        <div class="connection-icon" style="background: var(--secondary);">
+                            <i class="fas fa-chalkboard"></i>
+                        </div>
+                        <span class="connection-title">ماسح الجلسة</span>
+                    </div>
+                    <ul class="connection-list">
+                        <li><i class="fas fa-check"></i> مسح خاص بالجلسة</li>
+                        <li><i class="fas fa-check"></i> احتساب وقت الحضور</li>
+                        <li><i class="fas fa-check"></i> احتساب CME تلقائياً</li>
+                        <li><i class="fas fa-check"></i> تتبع التأخير</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Coupons Section -->
+        <section id="coupons" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">
+                    <i class="fas fa-tags"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول الكوبونات والخصومات</h2>
+                    <p class="section-subtitle">نظام متكامل للعروض والتخفيضات</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                    <h4 class="feature-title">أنواع الخصم</h4>
+                    <p class="feature-desc">خصم نسبة مئوية أو مبلغ ثابت على التذاكر.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <h4 class="feature-title">رمز الكوبون</h4>
+                    <p class="feature-desc">إنشاء رموز فريدة يدخلها الحضور عند التسجيل.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <h4 class="feature-title">صلاحية محددة</h4>
+                    <p class="feature-desc">تحديد تاريخ بداية ونهاية للكوبون.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h4 class="feature-title">حد الاستخدام</h4>
+                    <p class="feature-desc">تحديد عدد مرات استخدام الكوبون.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <h4 class="feature-title">استهداف التذاكر</h4>
+                    <p class="feature-desc">تطبيق الخصم على أنواع تذاكر محددة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4 class="feature-title">تتبع الاستخدام</h4>
+                    <p class="feature-desc">إحصائيات استخدام كل كوبون.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-cog"></i> إعدادات الكوبون</h3>
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>الإعداد</th>
+                        <th>الوصف</th>
+                        <th>مثال</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>رمز الكوبون</td>
+                        <td>الكود الذي يدخله المستخدم</td>
+                        <td><code>SUMMER25</code></td>
+                    </tr>
+                    <tr>
+                        <td>نوع الخصم</td>
+                        <td>نسبة مئوية أو مبلغ ثابت</td>
+                        <td>25% أو 50 ريال</td>
+                    </tr>
+                    <tr>
+                        <td>الحد الأقصى</td>
+                        <td>عدد مرات الاستخدام المسموحة</td>
+                        <td>100 مرة</td>
+                    </tr>
+                    <tr>
+                        <td>تاريخ الانتهاء</td>
+                        <td>آخر يوم لاستخدام الكوبون</td>
+                        <td>31/12/2025</td>
+                    </tr>
+                    <tr>
+                        <td>الحد الأدنى</td>
+                        <td>الحد الأدنى للمشتريات</td>
+                        <td>200 ريال</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Sponsors Section -->
+        <section id="sponsors" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول الرعاة والشركات</h2>
+                    <p class="section-subtitle">إدارة الشركات الراعية والشريكة</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h4 class="feature-title">ملف الشركة</h4>
+                    <p class="feature-desc">معلومات كاملة: الاسم، الشعار، الوصف، ووسائل التواصل.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <h4 class="feature-title">مستويات الرعاية</h4>
+                    <p class="feature-desc">تصنيف الرعاة: بلاتيني، ذهبي، فضي، برونزي.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h4 class="feature-title">ربط بالفعاليات</h4>
+                    <p class="feature-desc">ربط كل راعي بالفعاليات التي يرعاها.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-ad"></i>
+                    </div>
+                    <h4 class="feature-title">عرض الشعارات</h4>
+                    <p class="feature-desc">عرض شعارات الرعاة في صفحة الفعالية.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                    <h4 class="feature-title">ممثلي الشركة</h4>
+                    <p class="feature-desc">إضافة جهات اتصال لكل شركة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <h4 class="feature-title">تتبع العقود</h4>
+                    <p class="feature-desc">حفظ تفاصيل الاتفاقيات والمبالغ.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-medal"></i> مستويات الرعاية</h3>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <div style="background: linear-gradient(135deg, #E5E4E2, #BCC6CC); padding: 20px 30px; border-radius: 12px; text-align: center; min-width: 150px;">
+                    <i class="fas fa-gem" style="font-size: 2rem; color: #8B8B8B;"></i>
+                    <h4 style="margin-top: 10px;">بلاتيني</h4>
+                    <p style="font-size: 0.85rem; color: #666;">الراعي الرئيسي</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px 30px; border-radius: 12px; text-align: center; min-width: 150px;">
+                    <i class="fas fa-crown" style="font-size: 2rem; color: #B8860B;"></i>
+                    <h4 style="margin-top: 10px;">ذهبي</h4>
+                    <p style="font-size: 0.85rem; color: #666;">راعي متميز</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8); padding: 20px 30px; border-radius: 12px; text-align: center; min-width: 150px;">
+                    <i class="fas fa-award" style="font-size: 2rem; color: #6B6B6B;"></i>
+                    <h4 style="margin-top: 10px;">فضي</h4>
+                    <p style="font-size: 0.85rem; color: #666;">راعي داعم</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #CD7F32, #8B4513); padding: 20px 30px; border-radius: 12px; text-align: center; min-width: 150px; color: white;">
+                    <i class="fas fa-star" style="font-size: 2rem;"></i>
+                    <h4 style="margin-top: 10px;">برونزي</h4>
+                    <p style="font-size: 0.85rem; opacity: 0.9;">راعي مشارك</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Staff Section -->
+        <section id="staff" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #10B981, #34D399);">
+                    <i class="fas fa-id-badge"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول إدارة الموظفين</h2>
+                    <p class="section-subtitle">تنظيم فريق العمل والمهام</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h4 class="feature-title">إضافة موظفين</h4>
+                    <p class="feature-desc">تسجيل بيانات الموظفين وتعيين أدوارهم.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-user-tag"></i>
+                    </div>
+                    <h4 class="feature-title">أنواع الأدوار</h4>
+                    <p class="feature-desc">ماسح تذاكر، مشرف، منسق، استقبال، أمن.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h4 class="feature-title">جدولة الورديات</h4>
+                    <p class="feature-desc">تحديد أوقات عمل كل موظف.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-map-pin"></i>
+                    </div>
+                    <h4 class="feature-title">التوزيع على المواقع</h4>
+                    <p class="feature-desc">تعيين الموظفين على البوابات والقاعات.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h4 class="feature-title">حسابات المسح</h4>
+                    <p class="feature-desc">إنشاء حساب Scanner لكل موظف.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <h4 class="feature-title">تسجيل الحضور</h4>
+                    <p class="feature-desc">تتبع حضور وانصراف الموظفين.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-users-cog"></i> أدوار الموظفين</h3>
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>الدور</th>
+                        <th>المهام</th>
+                        <th>الصلاحيات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><i class="fas fa-qrcode text-primary"></i> ماسح التذاكر</td>
+                        <td>مسح تذاكر الحضور عند البوابات</td>
+                        <td><span class="badge badge-success">Scanner فقط</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-eye text-info"></i> مشرف</td>
+                        <td>مراقبة سير الفعالية والإشراف</td>
+                        <td><span class="badge badge-primary">عرض + تقارير</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-tasks text-warning"></i> منسق</td>
+                        <td>تنسيق الجلسات والمتحدثين</td>
+                        <td><span class="badge badge-warning">إدارة الجلسات</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-headset text-secondary"></i> استقبال</td>
+                        <td>استقبال الحضور ومساعدتهم</td>
+                        <td><span class="badge badge-secondary">عرض الحضور</span></td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-shield-alt text-danger"></i> أمن</td>
+                        <td>تأمين المداخل والمخارج</td>
+                        <td><span class="badge" style="background: rgba(239,68,68,0.1); color: var(--danger);">Scanner + طوارئ</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Chat Section -->
+        <section id="chat" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #3B82F6, #60A5FA);">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول المحادثات</h2>
+                    <p class="section-subtitle">التواصل المباشر مع الحضور</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-comment-dots"></i>
+                    </div>
+                    <h4 class="feature-title">محادثة مباشرة</h4>
+                    <p class="feature-desc">تواصل فوري مع الحضور عبر الدردشة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h4 class="feature-title">إشعارات فورية</h4>
+                    <p class="feature-desc">تنبيهات عند استلام رسائل جديدة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-broadcast-tower"></i>
+                    </div>
+                    <h4 class="feature-title">رسائل جماعية</h4>
+                    <p class="feature-desc">إرسال إعلانات لجميع الحضور.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <h4 class="feature-title">صندوق الوارد</h4>
+                    <p class="feature-desc">إدارة جميع المحادثات من مكان واحد.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-paperclip"></i>
+                    </div>
+                    <h4 class="feature-title">المرفقات</h4>
+                    <p class="feature-desc">إرسال صور ومستندات.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h4 class="feature-title">سجل المحادثات</h4>
+                    <p class="feature-desc">حفظ جميع المحادثات للرجوع إليها.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-sitemap"></i> طريقة العمل</h3>
+            <div class="architecture" style="margin-top: 20px;">
+                <div class="arch-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box primary">
+                            <i class="fas fa-user"></i>
+                            الحاضر
+                        </div>
+                        <div class="arch-box" style="background: rgba(255,255,255,0.1);">
+                            <i class="fas fa-arrow-left"></i>
+                            يبدأ محادثة
+                        </div>
+                        <div class="arch-box success">
+                            <i class="fas fa-headset"></i>
+                            فريق الدعم
+                        </div>
+                    </div>
+                    <i class="fas fa-arrows-alt-v arch-arrow"></i>
+                    <div class="arch-layer">
+                        <div class="arch-box warning">
+                            <i class="fas fa-database"></i>
+                            حفظ المحادثة
+                        </div>
+                        <div class="arch-box info">
+                            <i class="fas fa-bell"></i>
+                            إشعار الطرفين
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Booths Section -->
+        <section id="booths" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #EC4899, #F472B6);">
+                    <i class="fas fa-store"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول الأجنحة والمعارض</h2>
+                    <p class="section-subtitle">إدارة أجنحة العارضين</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: #EC4899;">
+                        <i class="fas fa-plus-square"></i>
+                    </div>
+                    <h4 class="feature-title">إنشاء الأجنحة</h4>
+                    <p class="feature-desc">إضافة أجنحة مع تحديد الموقع والمساحة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h4 class="feature-title">ربط بالشركات</h4>
+                    <p class="feature-desc">تعيين شركة عارضة لكل جناح.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-map"></i>
+                    </div>
+                    <h4 class="feature-title">خريطة المعرض</h4>
+                    <p class="feature-desc">عرض توزيع الأجنحة على الخريطة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h4 class="feature-title">QR لكل جناح</h4>
+                    <p class="feature-desc">رمز QR للوصول لمعلومات الجناح.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h4 class="feature-title">إحصائيات الزيارات</h4>
+                    <p class="feature-desc">تتبع عدد زوار كل جناح.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h4 class="feature-title">ممثلي الجناح</h4>
+                    <p class="feature-desc">تعيين موظفين لكل جناح.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-th"></i> أنواع الأجنحة</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <div style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); padding: 20px; border-radius: 12px; text-align: center; border: 2px solid #3B82F6;">
+                    <i class="fas fa-expand-arrows-alt" style="font-size: 2rem; color: #3B82F6;"></i>
+                    <h4 style="margin-top: 10px; color: #1e40af;">جناح قياسي</h4>
+                    <p style="font-size: 0.85rem; color: #3b82f6;">3x3 متر</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 20px; border-radius: 12px; text-align: center; border: 2px solid #F59E0B;">
+                    <i class="fas fa-expand" style="font-size: 2rem; color: #F59E0B;"></i>
+                    <h4 style="margin-top: 10px; color: #92400e;">جناح متوسط</h4>
+                    <p style="font-size: 0.85rem; color: #b45309;">4x4 متر</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #fce7f3, #fbcfe8); padding: 20px; border-radius: 12px; text-align: center; border: 2px solid #EC4899;">
+                    <i class="fas fa-vector-square" style="font-size: 2rem; color: #EC4899;"></i>
+                    <h4 style="margin-top: 10px; color: #9d174d;">جناح كبير</h4>
+                    <p style="font-size: 0.85rem; color: #be185d;">6x6 متر</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #ede9fe, #ddd6fe); padding: 20px; border-radius: 12px; text-align: center; border: 2px solid #8B5CF6;">
+                    <i class="fas fa-chess-board" style="font-size: 2rem; color: #8B5CF6;"></i>
+                    <h4 style="margin-top: 10px; color: #5b21b6;">جناح مخصص</h4>
+                    <p style="font-size: 0.85rem; color: #7c3aed;">حسب الطلب</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="reports" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #EF4444, #F87171);">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">موديول التقارير والإحصائيات</h2>
+                    <p class="section-subtitle">تحليلات شاملة لأداء الفعالية</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--danger);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h4 class="feature-title">تقرير الحضور</h4>
+                    <p class="feature-desc">إجمالي المسجلين والحاضرين فعلياً.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--primary);">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h4 class="feature-title">تقرير المالية</h4>
+                    <p class="feature-desc">الإيرادات والمصروفات وصافي الربح.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--success);">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <h4 class="feature-title">تقرير الجلسات</h4>
+                    <p class="feature-desc">حضور كل جلسة وتقييمات المتحدثين.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--warning);">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <h4 class="feature-title">تقرير الشهادات</h4>
+                    <p class="feature-desc">عدد الشهادات الصادرة والمستلمة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--info);">
+                        <i class="fas fa-door-open"></i>
+                    </div>
+                    <h4 class="feature-title">تقرير البوابات</h4>
+                    <p class="feature-desc">حركة الدخول والخروج لكل بوابة.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: var(--secondary);">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h4 class="feature-title">تقرير الكوبونات</h4>
+                    <p class="feature-desc">استخدام كل كوبون وقيمة الخصومات.</p>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-file-export"></i> خيارات التصدير</h3>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: #f0fdf4; border-radius: 12px; border: 1px solid #22c55e;">
+                    <i class="fas fa-file-excel" style="font-size: 2rem; color: #22c55e;"></i>
+                    <div>
+                        <strong>Excel</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">تصدير كملف .xlsx</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: #fef2f2; border-radius: 12px; border: 1px solid #ef4444;">
+                    <i class="fas fa-file-pdf" style="font-size: 2rem; color: #ef4444;"></i>
+                    <div>
+                        <strong>PDF</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">تقرير منسق للطباعة</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: #f0f9ff; border-radius: 12px; border: 1px solid #3b82f6;">
+                    <i class="fas fa-file-csv" style="font-size: 2rem; color: #3b82f6;"></i>
+                    <div>
+                        <strong>CSV</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">بيانات خام</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: #fefce8; border-radius: 12px; border: 1px solid #eab308;">
+                    <i class="fas fa-print" style="font-size: 2rem; color: #eab308;"></i>
+                    <div>
+                        <strong>طباعة</strong>
+                        <p style="font-size: 0.85rem; color: var(--gray);">طباعة مباشرة</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-chart-pie"></i> أنواع الرسوم البيانية</h3>
+            <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-chart-line" style="font-size: 3rem; color: var(--primary);"></i>
+                    <h4 style="margin-top: 12px;">خط زمني</h4>
+                    <p style="font-size: 0.85rem; color: var(--gray);">تتبع التغيرات عبر الوقت</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-chart-bar" style="font-size: 3rem; color: var(--success);"></i>
+                    <h4 style="margin-top: 12px;">أعمدة</h4>
+                    <p style="font-size: 0.85rem; color: var(--gray);">مقارنة بين القيم</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-chart-pie" style="font-size: 3rem; color: var(--warning);"></i>
+                    <h4 style="margin-top: 12px;">دائري</h4>
+                    <p style="font-size: 0.85rem; color: var(--gray);">توزيع النسب</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-table" style="font-size: 3rem; color: var(--secondary);"></i>
+                    <h4 style="margin-top: 12px;">جداول</h4>
+                    <p style="font-size: 0.85rem; color: var(--gray);">بيانات تفصيلية</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Connections Section -->
+        <section id="connections" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #EC4899, #F472B6);">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">ترابط الموديولات</h2>
+                    <p class="section-subtitle">كيف تعمل الموديولات معاً</p>
+                </div>
+            </div>
+
+            <div class="modules-grid">
+                <!-- Events Hub -->
+                <div class="module-card">
+                    <div class="module-header" style="background: linear-gradient(135deg, #3B82F6, #60A5FA);">
+                        <h3><i class="fas fa-calendar-alt"></i> الفعالية (المركز)</h3>
+                        <p>كل شيء يدور حول الفعالية</p>
+                    </div>
+                    <div class="module-body">
+                        <ul class="module-features">
+                            <li><i class="fas fa-arrow-left"></i> <strong>الحضور:</strong> كل حاضر مرتبط بفعالية</li>
+                            <li><i class="fas fa-arrow-left"></i> <strong>التذاكر:</strong> أنواع التذاكر لكل فعالية</li>
+                            <li><i class="fas fa-arrow-left"></i> <strong>الجلسات:</strong> جلسات تابعة للفعالية</li>
+                            <li><i class="fas fa-arrow-left"></i> <strong>الشهادات:</strong> قوالب خاصة بالفعالية</li>
+                            <li><i class="fas fa-arrow-left"></i> <strong>الأماكن:</strong> مواقع وبوابات الفعالية</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Attendee Flow -->
+                <div class="module-card">
+                    <div class="module-header" style="background: linear-gradient(135deg, #10B981, #34D399);">
+                        <h3><i class="fas fa-user"></i> رحلة الحاضر</h3>
+                        <p>من التسجيل للشهادة</p>
+                    </div>
+                    <div class="module-body">
+                        <ul class="module-features">
+                            <li><i class="fas fa-check"></i> يسجل في الفعالية ويحصل على تذكرة</li>
+                            <li><i class="fas fa-check"></i> يمسح التذكرة عند الدخول (Check-in)</li>
+                            <li><i class="fas fa-check"></i> يحضر الجلسات ويُسجل حضوره</li>
+                            <li><i class="fas fa-check"></i> تُحسب ساعات CME تلقائياً</li>
+                            <li><i class="fas fa-check"></i> يحصل على شهادة الحضور</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Sessions & CME -->
+                <div class="module-card">
+                    <div class="module-header" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">
+                        <h3><i class="fas fa-award"></i> الجلسات و CME</h3>
+                        <p>احتساب تلقائي للساعات</p>
+                    </div>
+                    <div class="module-body">
+                        <ul class="module-features">
+                            <li><i class="fas fa-check"></i> كل جلسة لها ساعات CME محددة</li>
+                            <li><i class="fas fa-check"></i> يُحسب وقت الحضور الفعلي</li>
+                            <li><i class="fas fa-check"></i> الحد الأدنى للحصول على CME</li>
+                            <li><i class="fas fa-check"></i> تظهر الساعات في الشهادة</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Venues & Scanning -->
+                <div class="module-card">
+                    <div class="module-header" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">
+                        <h3><i class="fas fa-map-marker-alt"></i> الأماكن والمسح</h3>
+                        <p>تتبع حركة الحضور</p>
+                    </div>
+                    <div class="module-body">
+                        <ul class="module-features">
+                            <li><i class="fas fa-check"></i> <strong>المنطقة:</strong> الموقع الرئيسي</li>
+                            <li><i class="fas fa-check"></i> <strong>البوابات:</strong> نقاط الدخول والخروج</li>
+                            <li><i class="fas fa-check"></i> يُسجل من أي بوابة دخل</li>
+                            <li><i class="fas fa-check"></i> إحصائيات لكل بوابة</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Relationships -->
+            <h3 style="margin: 40px 0 20px;"><i class="fas fa-database"></i> العلاقات في قاعدة البيانات</h3>
+            <div class="architecture" style="margin-top: 20px;">
+                <div class="arch-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box primary">
+                            <i class="fas fa-calendar"></i>
+                            sc_events
+                        </div>
+                    </div>
+                    <i class="fas fa-arrows-alt-v arch-arrow"></i>
+                    <div class="arch-layer">
+                        <div class="arch-box success">
+                            <i class="fas fa-users"></i>
+                            sc_attendees
+                        </div>
+                        <div class="arch-box warning">
+                            <i class="fas fa-ticket-alt"></i>
+                            sc_tickets
+                        </div>
+                        <div class="arch-box secondary">
+                            <i class="fas fa-chalkboard"></i>
+                            sc_sessions
+                        </div>
+                        <div class="arch-box info">
+                            <i class="fas fa-map"></i>
+                            sc_venues
+                        </div>
+                    </div>
+                    <i class="fas fa-arrows-alt-v arch-arrow"></i>
+                    <div class="arch-layer">
+                        <div class="arch-box success">
+                            <i class="fas fa-user-check"></i>
+                            sc_session_attendance
+                        </div>
+                        <div class="arch-box warning">
+                            <i class="fas fa-certificate"></i>
+                            sc_certificates
+                        </div>
+                        <div class="arch-box info">
+                            <i class="fas fa-door-open"></i>
+                            sc_gates
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Section -->
+        <section class="section" style="background: linear-gradient(135deg, #1e293b, #334155); color: white;">
+            <div class="section-header" style="border-color: rgba(255,255,255,0.1);">
+                <div class="section-icon" style="background: rgba(255,255,255,0.2);">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div>
+                    <h2 class="section-title" style="color: white;">ملخص المميزات</h2>
+                    <p class="section-subtitle" style="color: rgba(255,255,255,0.7);">كل ما تحتاجه لإدارة فعالياتك</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <h4 class="feature-title" style="color: white;"><i class="fas fa-check-circle text-success"></i> نظام موديولات مرن</h4>
+                    <p class="feature-desc" style="color: rgba(255,255,255,0.7);">فعّل أو عطّل أي ميزة حسب احتياجك</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <h4 class="feature-title" style="color: white;"><i class="fas fa-check-circle text-success"></i> دعم كامل للعربية</h4>
+                    <p class="feature-desc" style="color: rgba(255,255,255,0.7);">واجهة ومحتوى ثنائي اللغة</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <h4 class="feature-title" style="color: white;"><i class="fas fa-check-circle text-success"></i> مسح QR متقدم</h4>
+                    <p class="feature-desc" style="color: rgba(255,255,255,0.7);">للفعالية والجلسات مع تتبع لحظي</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <h4 class="feature-title" style="color: white;"><i class="fas fa-check-circle text-success"></i> شهادات احترافية</h4>
+                    <p class="feature-desc" style="color: rgba(255,255,255,0.7);">مصمم مرئي مع تحقق إلكتروني</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <h4 class="feature-title" style="color: white;"><i class="fas fa-check-circle text-success"></i> إدارة الجلسات</h4>
+                    <p class="feature-desc" style="color: rgba(255,255,255,0.7);">مع احتساب CME تلقائي</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <h4 class="feature-title" style="color: white;"><i class="fas fa-check-circle text-success"></i> تقارير شاملة</h4>
+                    <p class="feature-desc" style="color: rgba(255,255,255,0.7);">إحصائيات وتصدير للبيانات</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p><i class="fas fa-code"></i> SC Events Management System</p>
+        <p style="margin-top: 8px; font-size: 0.9rem;">تم تطوير هذا النظام لإدارة الفعاليات والمؤتمرات باحترافية</p>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation
+        document.querySelectorAll('.nav-pill').forEach(pill => {
+            pill.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                // Update active state
+                document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Update active nav on scroll
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section[id]');
+            let current = '';
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 200;
+                if (window.scrollY >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.nav-pill').forEach(pill => {
+                pill.classList.remove('active');
+                if (pill.getAttribute('href') === '#' + current) {
+                    pill.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

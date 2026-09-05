@@ -1,0 +1,392 @@
+/**
+ * SC Events UX Enhancements Styles
+ *
+ * Styles for:
+ * - Loading states (spinners, skeletons, overlays)
+ * - Toast notifications
+ * - Form validation
+ * - Confirmation dialogs
+ *
+ * @package sc_events
+ * @since 2.3.0
+ */
+
+/* ========================================
+   CSS VARIABLES
+   ======================================== */
+
+:root {
+    --sc-primary: #667eea;
+    --sc-success: #28a745;
+    --sc-danger: #dc3545;
+    --sc-warning: #ffc107;
+    --sc-info: #17a2b8;
+    --sc-dark: #343a40;
+    --sc-light: #f8f9fa;
+    --sc-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    --sc-radius: 8px;
+    --sc-transition: 0.3s ease;
+}
+
+/* ========================================
+   LOADING SPINNER
+   ======================================== */
+
+.sc-loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.sc-is-loading {
+    min-height: 100px;
+}
+
+/* ========================================
+   LOADING OVERLAY
+   ======================================== */
+
+.sc-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: inherit;
+}
+
+.sc-loading-content {
+    text-align: center;
+    color: #fff;
+}
+
+.sc-loading-text {
+    margin-top: 15px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.sc-has-overlay {
+    position: relative;
+    overflow: hidden;
+}
+
+/* ========================================
+   SKELETON LOADERS
+   ======================================== */
+
+.sc-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: sc-skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes sc-skeleton-pulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Skeleton Card */
+.sc-skeleton-card {
+    padding: 15px;
+}
+
+.sc-skeleton-img {
+    height: 150px;
+    margin-bottom: 15px;
+    border-radius: var(--sc-radius);
+}
+
+.sc-skeleton-title {
+    height: 24px;
+    width: 70%;
+    margin-bottom: 10px;
+}
+
+.sc-skeleton-text {
+    height: 16px;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.sc-skeleton-text.short {
+    width: 50%;
+}
+
+/* Skeleton Table */
+.sc-skeleton-table {
+    padding: 10px;
+}
+
+.sc-skeleton-row {
+    height: 40px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+/* Skeleton List */
+.sc-skeleton-list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.sc-skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+[dir="rtl"] .sc-skeleton-avatar {
+    margin-right: 0;
+    margin-left: 15px;
+}
+
+.sc-skeleton-list-content {
+    flex: 1;
+}
+
+/* ========================================
+   BUTTON LOADING STATE
+   ======================================== */
+
+.sc-btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.sc-btn-loading .spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2px;
+}
+
+/* ========================================
+   TOAST NOTIFICATIONS
+   ======================================== */
+
+.sc-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+    width: 100%;
+}
+
+[dir="rtl"] .sc-toast-container {
+    right: auto;
+    left: 20px;
+}
+
+.sc-toast {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    background: var(--sc-dark);
+    color: #fff;
+    border-radius: var(--sc-radius);
+    box-shadow: var(--sc-shadow);
+    transform: translateX(120%);
+    transition: transform var(--sc-transition);
+}
+
+[dir="rtl"] .sc-toast {
+    transform: translateX(-120%);
+}
+
+.sc-toast-show {
+    transform: translateX(0);
+}
+
+.sc-toast-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+[dir="rtl"] .sc-toast-icon {
+    margin-right: 0;
+    margin-left: 12px;
+}
+
+.sc-toast-message {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.sc-toast-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    opacity: 0.7;
+    padding: 0 0 0 10px;
+    line-height: 1;
+}
+
+[dir="rtl"] .sc-toast-close {
+    padding: 0 10px 0 0;
+}
+
+.sc-toast-close:hover {
+    opacity: 1;
+}
+
+/* Toast Types */
+.sc-toast-success {
+    background: var(--sc-success);
+}
+
+.sc-toast-error {
+    background: var(--sc-danger);
+}
+
+.sc-toast-warning {
+    background: var(--sc-warning);
+    color: var(--sc-dark);
+}
+
+.sc-toast-warning .sc-toast-close {
+    color: var(--sc-dark);
+}
+
+.sc-toast-info {
+    background: var(--sc-info);
+}
+
+/* ========================================
+   FORM VALIDATION
+   ======================================== */
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: var(--sc-danger);
+    background-image: none;
+}
+
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus {
+    border-color: var(--sc-danger);
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 12px;
+    color: var(--sc-danger);
+}
+
+/* Shake animation for invalid fields */
+@keyframes sc-shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    animation: sc-shake 0.5s ease-in-out;
+}
+
+/* Required field indicator */
+.required,
+label .text-danger {
+    color: var(--sc-danger);
+}
+
+/* ========================================
+   CONFIRMATION MODAL
+   ======================================== */
+
+.sc-confirm-modal .modal-content {
+    border-radius: var(--sc-radius);
+    border: none;
+    box-shadow: var(--sc-shadow);
+}
+
+.sc-confirm-modal .modal-header {
+    border-bottom: 1px solid #eee;
+    padding: 15px 20px;
+}
+
+.sc-confirm-modal .modal-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.sc-confirm-modal .modal-body {
+    padding: 25px 20px;
+    font-size: 15px;
+}
+
+.sc-confirm-modal .modal-footer {
+    border-top: 1px solid #eee;
+    padding: 15px 20px;
+    gap: 10px;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 576px) {
+    .sc-toast-container {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+
+    .sc-toast {
+        transform: translateY(-120%);
+    }
+
+    [dir="rtl"] .sc-toast {
+        transform: translateY(-120%);
+    }
+
+    .sc-toast-show {
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   DARK MODE SUPPORT
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    .sc-skeleton {
+        background: linear-gradient(90deg, #2d2d2d 25%, #3d3d3d 50%, #2d2d2d 75%);
+    }
+
+    .sc-skeleton-list-item {
+        border-bottom-color: #3d3d3d;
+    }
+}
+
+/* Manual dark mode class */
+.dark-mode .sc-skeleton,
+[data-theme="dark"] .sc-skeleton {
+    background: linear-gradient(90deg, #2d2d2d 25%, #3d3d3d 50%, #2d2d2d 75%);
+}
+
+.dark-mode .sc-skeleton-list-item,
+[data-theme="dark"] .sc-skeleton-list-item {
+    border-bottom-color: #3d3d3d;
+}

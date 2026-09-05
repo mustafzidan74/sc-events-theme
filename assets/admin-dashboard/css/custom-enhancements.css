@@ -1,0 +1,654 @@
+/**
+ * Custom Dashboard Enhancements - Modern UI
+ * Iconic Template Custom Styles
+ *
+ * @package sc_events
+ * @version 2.0
+ */
+
+/* ==========================================================================
+   1. MODERN CARDS & SHADOWS
+   ========================================================================== */
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.card .header {
+    padding: 20px 25px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.card .header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+.card .body {
+    padding: 25px;
+}
+
+/* Glass Morphism Effect */
+.card.glass-effect {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* ==========================================================================
+   2. STATISTICS CARDS - MODERN DESIGN
+   ========================================================================== */
+
+.card.number-chart {
+    /* background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);
+    color: white; */
+    position: relative;
+    overflow: hidden;
+}
+
+.card.number-chart::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.card.number-chart .body {
+    position: relative;
+    z-index: 1;
+}
+
+.card.number-chart h4 {
+    font-size: 32px;
+    font-weight: 700;
+    /* color: white; */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card.number-chart .text-uppercase {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    opacity: 0.9;
+}
+
+.card.number-chart small {
+    opacity: 0.8;
+}
+
+/* Info Box 2 - Enhanced */
+.card.info-box-2 {
+    border-radius: 16px;
+    padding: 0;
+    position: relative;
+    overflow: visible;
+}
+
+.card.info-box-2 .icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease;
+}
+
+.card.info-box-2:hover .icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.card.info-box-2 .icon i {
+    font-size: 32px;
+    color: white;
+}
+
+.card.info-box-2 .content {
+    padding: 25px 25px 25px 110px;
+}
+
+.card.info-box-2 .text {
+    font-size: 13px;
+    color: #7f8c8d;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.card.info-box-2 .number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* Icon Backgrounds - Gradient Colors */
+.bg-blue {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);
+}
+
+.bg-green {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.bg-orange {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.bg-cyan {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.bg-purple {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+.bg-red {
+    background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+}
+
+/* ==========================================================================
+   3. BUTTONS - MODERN STYLE
+   ========================================================================== */
+
+.btn {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-color2) 0%, var(--primary-color) 100%);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+}
+
+.btn-default {
+    background: white;
+    color: #7f8c8d;
+    border: 1px solid #ecf0f1;
+}
+
+.btn-default:hover {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+/* Icon Buttons */
+.btn i {
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.btn.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+/* ==========================================================================
+   4. TABLES - MODERN DESIGN
+   ========================================================================== */
+
+.table-custom {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.table-custom thead th {
+    border: none;
+    background: #f8f9fa;
+    color: #7f8c8d;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 15px 20px;
+}
+
+.table-custom tbody tr {
+    background: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.table-custom tbody tr:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.table-custom tbody td {
+    border: none;
+    padding: 18px 20px;
+    vertical-align: middle;
+}
+
+.table-custom tbody td:first-child {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.table-custom tbody td:last-child {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* ==========================================================================
+   5. BADGES - MODERN STYLE
+   ========================================================================== */
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #ffd89b 0%, #f79d65 100%);
+    color: #fff;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+    color: white;
+}
+
+.badge-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.badge-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+/* ==========================================================================
+   6. AVATARS - MODERN DESIGN
+   ========================================================================== */
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
+}
+
+.avatar i {
+    font-size: 18px;
+    color: white;
+}
+
+.avatar-blue {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);
+}
+
+.avatar-green {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.avatar-orange {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.avatar-cyan {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+}
+
+.avatar-sm i {
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   7. ALERTS - MODERN STYLE
+   ========================================================================== */
+
+.alert {
+    border: none;
+    border-radius: 12px;
+    padding: 18px 22px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+    border-left-color: #4facfe;
+    color: #2980b9;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
+    border-left-color: #11998e;
+    color: #27ae60;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, rgba(255, 216, 155, 0.2) 0%, rgba(247, 157, 101, 0.2) 100%);
+    border-left-color: #f79d65;
+    color: #d68910;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, rgba(255, 8, 68, 0.1) 0%, rgba(255, 177, 153, 0.1) 100%);
+    border-left-color: #ff0844;
+    color: #c0392b;
+}
+
+.alert i {
+    margin-right: 8px;
+    font-size: 18px;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   8. BREADCRUMBS - MODERN STYLE
+   ========================================================================== */
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+.breadcrumb-item {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: '\f105';
+    font-family: 'FontAwesome';
+    color: #bdc3c7;
+    padding: 0 8px;
+}
+
+.breadcrumb-item a {
+    color: #7f8c8d;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--primary-color);
+}
+
+.breadcrumb-item.active {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   9. FORMS - MODERN STYLE
+   ========================================================================== */
+
+.form-control {
+    border: 2px solid #ecf0f1;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237f8c8d' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+/* ==========================================================================
+   10. NAVBAR & SIDEBAR ENHANCEMENTS
+   ========================================================================== */
+
+.navbar.navbar-fixed-top {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
+    background: white;
+}
+
+.sidebar {
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar .user-account {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);
+    border-radius: 0;
+    padding: 25px 20px;
+    color: white;
+}
+
+.sidebar .user-account .user-photo {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar .user-account span,
+.sidebar .user-account strong,
+.sidebar .user-account small,
+.sidebar .user-account h6 {
+    color: white;
+}
+
+.sidebar .user-account hr {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Navigation Menu */
+#main-menu li a {
+    border-radius: 8px;
+    margin: 4px 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+#main-menu li.active > a,
+#main-menu li a:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    color: var(--primary-color);
+    transform: translateX(5px);
+}
+
+/* ==========================================================================
+   11. ANIMATIONS & TRANSITIONS
+   ========================================================================== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.row > [class*="col-"] > .card:nth-child(1) { animation-delay: 0.1s; }
+.row > [class*="col-"] > .card:nth-child(2) { animation-delay: 0.2s; }
+.row > [class*="col-"] > .card:nth-child(3) { animation-delay: 0.3s; }
+.row > [class*="col-"] > .card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Hover Zoom Effect */
+.hover-zoom-effect {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-zoom-effect:hover {
+    transform: scale(1.02);
+}
+
+/* ==========================================================================
+   12. CHARTS - MODERN STYLE
+   ========================================================================== */
+
+.sparkline {
+    margin-top: -10px;
+}
+
+#attendance-chart,
+[id$="-chart"] {
+    padding: 10px;
+}
+
+/* C3 Chart Customizations */
+.c3-line {
+    stroke-width: 3px;
+}
+
+.c3-area {
+    fill-opacity: 0.2;
+}
+
+/* ==========================================================================
+   13. RESPONSIVE ADJUSTMENTS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .card.info-box-2 .content {
+        padding: 90px 20px 20px 20px;
+        text-align: center;
+    }
+
+    .card.info-box-2 .icon {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* ==========================================================================
+   14. UTILITIES
+   ========================================================================== */
+
+.text-gradient {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.shadow-sm { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important; }
+.shadow-md { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important; }
+.shadow-lg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important; }
+
+.rounded-lg { border-radius: 12px !important; }
+.rounded-xl { border-radius: 16px !important; }
+
+/* ==========================================================================
+   15. DARK MODE SUPPORT (Optional)
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme="dark"] .card {
+        background: #2c3e50;
+        color: #ecf0f1;
+    }
+
+    body[data-theme="dark"] .card .header {
+        background: #34495e;
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body[data-theme="dark"] .form-control {
+        background: #34495e;
+        border-color: #4a5f7f;
+        color: #ecf0f1;
+    }
+}

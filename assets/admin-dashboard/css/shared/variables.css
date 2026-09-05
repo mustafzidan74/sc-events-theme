@@ -1,0 +1,266 @@
+/**
+ * SC Events Dashboard - CSS Variables
+ * Shared design tokens for consistent styling
+ *
+ * @package sc_events
+ * @version 1.0.0
+ */
+
+:root {
+    /* ===========================================
+       Colors - Primary Palette
+       =========================================== */
+    --sc-primary: #3498db;
+    --sc-primary-dark: #2980b9;
+    --sc-primary-light: #5dade2;
+    --sc-primary-rgb: 52, 152, 219;
+
+    --sc-secondary: #6c757d;
+    --sc-secondary-dark: #5a6268;
+    --sc-secondary-light: #868e96;
+
+    --sc-success: #28a745;
+    --sc-success-dark: #218838;
+    --sc-success-light: #5cb85c;
+
+    --sc-danger: #dc3545;
+    --sc-danger-dark: #c82333;
+    --sc-danger-light: #e74c3c;
+
+    --sc-warning: #ffc107;
+    --sc-warning-dark: #e0a800;
+    --sc-warning-light: #ffcd39;
+
+    --sc-info: #17a2b8;
+    --sc-info-dark: #138496;
+    --sc-info-light: #3498db;
+
+    /* ===========================================
+       Colors - Neutral Palette
+       =========================================== */
+    --sc-white: #ffffff;
+    --sc-black: #000000;
+    --sc-gray-100: #f8f9fa;
+    --sc-gray-200: #e9ecef;
+    --sc-gray-300: #dee2e6;
+    --sc-gray-400: #ced4da;
+    --sc-gray-500: #adb5bd;
+    --sc-gray-600: #6c757d;
+    --sc-gray-700: #495057;
+    --sc-gray-800: #343a40;
+    --sc-gray-900: #212529;
+
+    /* ===========================================
+       Background Colors
+       =========================================== */
+    --sc-bg-primary: #ffffff;
+    --sc-bg-secondary: #f8f9fa;
+    --sc-bg-sidebar: #1e293b;
+    --sc-bg-sidebar-hover: #334155;
+    --sc-bg-card: #ffffff;
+    --sc-bg-input: #ffffff;
+    --sc-bg-table-header: #f8f9fa;
+    --sc-bg-table-row-hover: #f1f5f9;
+
+    /* ===========================================
+       Text Colors
+       =========================================== */
+    --sc-text-primary: #1e293b;
+    --sc-text-secondary: #64748b;
+    --sc-text-muted: #94a3b8;
+    --sc-text-light: #ffffff;
+    --sc-text-link: #3498db;
+    --sc-text-link-hover: #2980b9;
+
+    /* ===========================================
+       Border Colors
+       =========================================== */
+    --sc-border-color: #e2e8f0;
+    --sc-border-color-dark: #cbd5e1;
+    --sc-border-color-light: #f1f5f9;
+    --sc-border-focus: #3498db;
+
+    /* ===========================================
+       Shadow
+       =========================================== */
+    --sc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --sc-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --sc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --sc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --sc-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+    /* ===========================================
+       Typography
+       =========================================== */
+    --sc-font-family-en: 'Inter', 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --sc-font-family-ar: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+
+    --sc-font-size-xs: 0.75rem;     /* 12px */
+    --sc-font-size-sm: 0.875rem;    /* 14px */
+    --sc-font-size-base: 1rem;      /* 16px */
+    --sc-font-size-lg: 1.125rem;    /* 18px */
+    --sc-font-size-xl: 1.25rem;     /* 20px */
+    --sc-font-size-2xl: 1.5rem;     /* 24px */
+    --sc-font-size-3xl: 1.875rem;   /* 30px */
+    --sc-font-size-4xl: 2.25rem;    /* 36px */
+
+    --sc-font-weight-light: 300;
+    --sc-font-weight-normal: 400;
+    --sc-font-weight-medium: 500;
+    --sc-font-weight-semibold: 600;
+    --sc-font-weight-bold: 700;
+
+    --sc-line-height-tight: 1.25;
+    --sc-line-height-normal: 1.5;
+    --sc-line-height-relaxed: 1.75;
+
+    /* ===========================================
+       Spacing
+       =========================================== */
+    --sc-spacing-xs: 0.25rem;   /* 4px */
+    --sc-spacing-sm: 0.5rem;    /* 8px */
+    --sc-spacing-md: 1rem;      /* 16px */
+    --sc-spacing-lg: 1.5rem;    /* 24px */
+    --sc-spacing-xl: 2rem;      /* 32px */
+    --sc-spacing-2xl: 3rem;     /* 48px */
+
+    /* ===========================================
+       Layout
+       =========================================== */
+    --sc-sidebar-width: 250px;
+    --sc-sidebar-collapsed-width: 70px;
+    --sc-header-height: 60px;
+    --sc-footer-height: 50px;
+    --sc-content-max-width: 1400px;
+
+    /* ===========================================
+       Border Radius
+       =========================================== */
+    --sc-radius-sm: 0.25rem;    /* 4px */
+    --sc-radius-md: 0.375rem;   /* 6px */
+    --sc-radius-lg: 0.5rem;     /* 8px */
+    --sc-radius-xl: 0.75rem;    /* 12px */
+    --sc-radius-2xl: 1rem;      /* 16px */
+    --sc-radius-full: 9999px;
+
+    /* ===========================================
+       Transitions
+       =========================================== */
+    --sc-transition-fast: 150ms ease;
+    --sc-transition-normal: 250ms ease;
+    --sc-transition-slow: 350ms ease;
+
+    /* ===========================================
+       Z-Index Scale
+       =========================================== */
+    --sc-z-dropdown: 1000;
+    --sc-z-sticky: 1020;
+    --sc-z-fixed: 1030;
+    --sc-z-modal-backdrop: 1040;
+    --sc-z-modal: 1050;
+    --sc-z-popover: 1060;
+    --sc-z-tooltip: 1070;
+    --sc-z-toast: 1080;
+
+    /* ===========================================
+       Status Colors
+       =========================================== */
+    --sc-status-pending: #f59e0b;
+    --sc-status-pending-bg: rgba(245, 158, 11, 0.1);
+    --sc-status-confirmed: #10b981;
+    --sc-status-confirmed-bg: rgba(16, 185, 129, 0.1);
+    --sc-status-cancelled: #ef4444;
+    --sc-status-cancelled-bg: rgba(239, 68, 68, 0.1);
+    --sc-status-completed: #3b82f6;
+    --sc-status-completed-bg: rgba(59, 130, 246, 0.1);
+    --sc-status-active: #22c55e;
+    --sc-status-active-bg: rgba(34, 197, 94, 0.1);
+    --sc-status-inactive: #94a3b8;
+    --sc-status-inactive-bg: rgba(148, 163, 184, 0.1);
+}
+
+/* ===========================================
+   Dark Theme Override
+   =========================================== */
+[data-theme="dark"],
+.dark-mode {
+    /* Backgrounds */
+    --sc-bg-primary: #0f172a;
+    --sc-bg-secondary: #1e293b;
+    --sc-bg-sidebar: #0f172a;
+    --sc-bg-sidebar-hover: #1e293b;
+    --sc-bg-card: #1e293b;
+    --sc-bg-input: #0f172a;
+    --sc-bg-table-header: #1e293b;
+    --sc-bg-table-row-hover: #334155;
+
+    /* Text */
+    --sc-text-primary: #f1f5f9;
+    --sc-text-secondary: #94a3b8;
+    --sc-text-muted: #64748b;
+    --sc-text-light: #f1f5f9;
+    --sc-text-link: #60a5fa;
+    --sc-text-link-hover: #93c5fd;
+
+    /* Neutral Palette (inverted for dark) */
+    --sc-gray-100: #1e293b;
+    --sc-gray-200: #334155;
+    --sc-gray-300: #475569;
+    --sc-gray-400: #64748b;
+    --sc-gray-500: #94a3b8;
+    --sc-gray-600: #cbd5e1;
+    --sc-gray-700: #e2e8f0;
+    --sc-gray-800: #f1f5f9;
+    --sc-gray-900: #f8fafc;
+
+    /* Borders */
+    --sc-border-color: #334155;
+    --sc-border-color-dark: #475569;
+    --sc-border-color-light: #1e293b;
+    --sc-border-focus: #60a5fa;
+
+    /* Shadows (stronger for dark surfaces) */
+    --sc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --sc-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+    --sc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --sc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    --sc-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+
+    /* Status Colors (slightly more opaque on dark) */
+    --sc-status-pending-bg: rgba(245, 158, 11, 0.15);
+    --sc-status-confirmed-bg: rgba(16, 185, 129, 0.15);
+    --sc-status-cancelled-bg: rgba(239, 68, 68, 0.15);
+    --sc-status-completed-bg: rgba(59, 130, 246, 0.15);
+    --sc-status-active-bg: rgba(34, 197, 94, 0.15);
+    --sc-status-inactive-bg: rgba(148, 163, 184, 0.15);
+}
+
+/* ===========================================
+   RTL-specific Variables (Arabic)
+   =========================================== */
+[dir="rtl"],
+.rtl,
+body.lang-ar {
+    --sc-font-family: var(--sc-font-family-ar);
+    --sc-text-align: right;
+    --sc-direction: rtl;
+    --sc-margin-start: var(--sc-spacing-md);
+    --sc-margin-end: 0;
+    --sc-padding-start: var(--sc-spacing-md);
+    --sc-padding-end: 0;
+}
+
+/* ===========================================
+   LTR-specific Variables (English)
+   =========================================== */
+[dir="ltr"],
+.ltr,
+body.lang-en {
+    --sc-font-family: var(--sc-font-family-en);
+    --sc-text-align: left;
+    --sc-direction: ltr;
+    --sc-margin-start: 0;
+    --sc-margin-end: var(--sc-spacing-md);
+    --sc-padding-start: 0;
+    --sc-padding-end: var(--sc-spacing-md);
+}

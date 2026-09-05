@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة إدارة الفعاليات - المميزات الجديدة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --gray: #64748b;
+            --light: #f8fafc;
+            --white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            line-height: 1.8;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+            padding: 80px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Section */
+        .section {
+            padding: 60px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .section-title h2 {
+            font-size: 2.2rem;
+            color: var(--dark);
+            margin-bottom: 15px;
+        }
+
+        .section-title p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
+        /* Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 35px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+        }
+
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            color: var(--dark);
+        }
+
+        .feature-card > p {
+            color: var(--gray);
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 15px;
+        }
+
+        .priority-high {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .priority-medium {
+            background: #fffbeb;
+            color: #d97706;
+        }
+
+        .priority-done {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        /* Comparison Section */
+        .comparison-section {
+            background: var(--white);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+            padding: 20px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .comparison-table td {
+            padding: 18px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        .comparison-table .aspect {
+            font-weight: 600;
+            color: var(--primary);
+            width: 150px;
+        }
+
+        /* Status Cards */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .status-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .status-card h4 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-card ul {
+            list-style: none;
+        }
+
+        .status-card li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        .status-card li.done::before {
+            content: '✅';
+        }
+
+        .status-card li.pending::before {
+            content: '⏳';
+        }
+
+        .status-card li.missing::before {
+            content: '❌';
+        }
+
+        /* Why Section */
+        .why-section {
+            background: var(--light);
+        }
+
+        .why-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .why-card {
+            text-align: center;
+            padding: 30px 20px;
+            border-radius: 16px;
+            background: var(--white);
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+
+        .why-card:hover {
+            background: var(--primary);
+            color: var(--white);
+            transform: translateY(-5px);
+        }
+
+        .why-card:hover .why-icon {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .why-card:hover p {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .why-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 15px;
+            transition: all 0.3s ease;
+        }
+
+        .why-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .why-card p {
+            color: var(--gray);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        /* Summary Table */
+        .summary-section {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: var(--white);
+        }
+
+        .summary-section .section-title h2 {
+            color: var(--white);
+        }
+
+        .summary-section .section-title p {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .summary-table th {
+            background: var(--primary);
+            color: var(--white);
+            padding: 18px 20px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .summary-table td {
+            padding: 18px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            color: var(--dark);
+        }
+
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .summary-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-high {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .status-medium {
+            background: #fffbeb;
+            color: #d97706;
+        }
+
+        .status-done {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
+            border-right: 5px solid var(--primary);
+        }
+
+        .info-box h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .info-box p {
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+
+        /* Warning Box */
+        .warning-box {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
+            border-right: 5px solid var(--warning);
+        }
+
+        .warning-box h4 {
+            color: #b45309;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        /* Success Box */
+        .success-box {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
+            border-right: 5px solid var(--secondary);
+        }
+
+        .success-box h4 {
+            color: #15803d;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        /* Timeline */
+        .timeline-section {
+            background: var(--light);
+        }
+
+        .timeline {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            right: 50%;
+            transform: translateX(50%);
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .timeline-item {
+            display: flex;
+            justify-content: flex-end;
+            padding-left: 50%;
+            position: relative;
+            margin-bottom: 40px;
+        }
+
+        .timeline-item:nth-child(even) {
+            justify-content: flex-start;
+            padding-left: 0;
+            padding-right: 50%;
+        }
+
+        .timeline-content {
+            background: var(--white);
+            padding: 25px 30px;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            width: calc(100% - 40px);
+            position: relative;
+        }
+
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            right: calc(50% - 12px);
+            top: 30px;
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 50%;
+            border: 4px solid var(--white);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .timeline-item:nth-child(even)::after {
+            right: auto;
+            left: calc(50% - 12px);
+        }
+
+        .phase-number {
+            display: inline-block;
+            background: var(--primary);
+            color: var(--white);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .timeline-content h4 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--dark);
+        }
+
+        .timeline-content ul {
+            list-style: none;
+            color: var(--gray);
+        }
+
+        .timeline-content li {
+            padding: 5px 0;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            padding: 12px 25px;
+            border: none;
+            background: var(--white);
+            color: var(--gray);
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark);
+            color: var(--white);
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .footer p {
+            opacity: 0.7;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline::before {
+                right: 20px;
+            }
+
+            .timeline-item {
+                padding-left: 50px;
+                padding-right: 0;
+            }
+
+            .timeline-item:nth-child(even) {
+                padding-left: 50px;
+                padding-right: 0;
+            }
+
+            .timeline-item::after {
+                right: 8px;
+                left: auto;
+            }
+
+            .timeline-item:nth-child(even)::after {
+                right: 8px;
+                left: auto;
+            }
+
+            .timeline-content {
+                width: 100%;
+            }
+
+            .comparison-table {
+                font-size: 0.85rem;
+            }
+
+            .comparison-table td, .comparison-table th {
+                padding: 12px 10px;
+            }
+        }
+
+        /* Color variations for icons */
+        .icon-purple { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+        .icon-green { background: linear-gradient(135deg, #10b981, #059669); }
+        .icon-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .icon-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .icon-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .icon-pink { background: linear-gradient(135deg, #ec4899, #db2777); }
+        .icon-teal { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+        .icon-indigo { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+        .icon-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+        .icon-amber { background: linear-gradient(135deg, #f59e0b, #b45309); }
+
+        .feature-icon {
+            color: var(--white);
+        }
+
+        /* Scroll margin for anchor links */
+        [id] {
+            scroll-margin-top: 20px;
+        }
+
+        /* Navigation */
+        .nav {
+            background: var(--white);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--gray);
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .nav a:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-content">
+            <a href="#current">المميزات الحالية</a>
+            <a href="#comparison">مقارنة الأنظمة</a>
+            <a href="#new-features">المميزات الجديدة</a>
+            <a href="#booths">نظام البوثات</a>
+            <a href="#halls">نظام الصالات</a>
+            <a href="#scalability">قابلية التوسع</a>
+            <a href="#arabic">اللغة العربية</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <span class="badge">للسوق السعودي</span>
+            <h1>منصة إدارة الفعاليات المتكاملة</h1>
+            <p>نظام شامل لإدارة الفعاليات والمؤتمرات والمعارض</p>
+        </div>
+    </section>
+
+    <!-- Current Features Section -->
+    <section class="section" id="current">
+        <div class="container">
+            <div class="section-title">
+                <h2>المميزات الحالية في المنصة</h2>
+                <p>ما تم تنفيذه حتى الآن</p>
+            </div>
+
+            <div class="success-box">
+                <h4>✅ المميزات المكتملة</h4>
+                <div class="features-grid" style="margin-top: 20px;">
+                    <div>
+                        <strong>إدارة الفعاليات:</strong>
+                        <ul style="margin-top: 10px; margin-right: 20px;">
+                            <li>إنشاء وتعديل الفعاليات</li>
+                            <li>أنواع متعددة (مؤتمر، معرض، ورشة...)</li>
+                            <li>صفحات الفعاليات العامة</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>نظام التذاكر:</strong>
+                        <ul style="margin-top: 10px; margin-right: 20px;">
+                            <li>أنواع تذاكر متعددة</li>
+                            <li>تسعير مرن</li>
+                            <li>QR Code لكل تذكرة</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>نظام الحضور:</strong>
+                        <ul style="margin-top: 10px; margin-right: 20px;">
+                            <li>تسجيل الحضور</li>
+                            <li>مسح QR للدخول</li>
+                            <li>تقارير الحضور</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>المدفوعات والشهادات:</strong>
+                        <ul style="margin-top: 10px; margin-right: 20px;">
+                            <li>بوابة Paymob</li>
+                            <li>شهادات حضور تلقائية</li>
+                            <li>نظام الشات</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section class="section comparison-section" id="comparison">
+        <div class="container">
+            <div class="section-title">
+                <h2>الفرق بين الأنظمة الثلاثة</h2>
+                <p>توضيح الفرق بين الحضور الحالي وإدارة الأماكن وإدارة الحشود</p>
+            </div>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>الجانب</th>
+                        <th>🎫 الحضور الحالي</th>
+                        <th>📍 إدارة الأماكن والمناطق</th>
+                        <th>👥 إدارة الحشود</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="aspect">الوظيفة</td>
+                        <td>تسجيل من حضر الفعالية</td>
+                        <td>تعريف المكان ومناطقه وسعة كل منطقة</td>
+                        <td>مراقبة حركة الناس والتنبؤ بالازدحام</td>
+                    </tr>
+                    <tr>
+                        <td class="aspect">السؤال الذي يجيب عليه</td>
+                        <td><strong>"مين حضر؟"</strong><br>أحمد حضر ✅<br>محمد لم يحضر ❌</td>
+                        <td><strong>"فين وكام؟"</strong><br>منطقة VIP سعتها 200<br>المسرح سعته 1000</td>
+                        <td><strong>"كام دلوقتي وهيحصل إيه؟"</strong><br>VIP فيها 180 الآن<br>هتمتلئ خلال 10 دقائق</td>
+                    </tr>
+                    <tr>
+                        <td class="aspect">نوع البيانات</td>
+                        <td>ثابتة (Binary)<br>حضر / لم يحضر</td>
+                        <td>ثابتة (Configuration)<br>إعدادات المكان</td>
+                        <td>متغيرة (Real-time)<br>تتغير كل ثانية</td>
+                    </tr>
+                    <tr>
+                        <td class="aspect">وقت الاستخدام</td>
+                        <td>عند الدخول فقط</td>
+                        <td>قبل الفعالية (التخطيط)</td>
+                        <td>أثناء الفعالية (المراقبة)</td>
+                    </tr>
+                    <tr>
+                        <td class="aspect">مثال عملي</td>
+                        <td>"أحمد مسح التذكرة الساعة 9:00"</td>
+                        <td>"القاعة A سعتها 500 وفيها 3 بوابات"</td>
+                        <td>"القاعة A فيها 450 الآن (90%) - تحذير!"</td>
+                    </tr>
+                    <tr>
+                        <td class="aspect">الهدف</td>
+                        <td>التوثيق والإحصاء</td>
+                        <td>التخطيط والتنظيم</td>
+                        <td>السلامة والتحكم اللحظي</td>
+                    </tr>
+                    <tr>
+                        <td class="aspect">الحالة</td>
+                        <td><span class="status-badge status-done">✅ مكتمل</span></td>
+                        <td><span class="status-badge status-high">🆕 جديد</span></td>
+                        <td><span class="status-badge status-high">🆕 جديد</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="info-box">
+                <h4>💡 كيف تعمل معاً؟</h4>
+                <p><strong>1. قبل الفعالية:</strong> تستخدم "إدارة الأماكن" لتعريف المناطق والبوابات والسعات</p>
+                <p><strong>2. عند الدخول:</strong> يستخدم "نظام الحضور" لتسجيل دخول الشخص</p>
+                <p><strong>3. أثناء الفعالية:</strong> يستخدم "إدارة الحشود" لمراقبة الأعداد في كل منطقة</p>
+                <p><strong>النتيجة:</strong> تعرف مين حضر (الحضور) + فين هم الآن (الحشود) + هل المكان آمن (المناطق)</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Booth System Section -->
+    <section class="section" id="booths">
+        <div class="container">
+            <div class="section-title">
+                <h2>نظام البوثات والشركات</h2>
+                <p>إدارة المعارض والأجنحة للشركات</p>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-card">
+                    <h4>✅ ما تم تنفيذه</h4>
+                    <ul>
+                        <li class="done">نظام الشركات الأساسي</li>
+                        <li class="done">تسجيل بيانات الشركة</li>
+                        <li class="done">شراء تذاكر للموظفين</li>
+                        <li class="done">Dashboard للشركة</li>
+                        <li class="done">إدارة موظفي الشركة</li>
+                    </ul>
+                </div>
+
+                <div class="status-card">
+                    <h4>⏳ يحتاج تحسين</h4>
+                    <ul>
+                        <li class="pending">حجز البوث/المساحة</li>
+                        <li class="pending">خريطة المعرض التفاعلية</li>
+                        <li class="pending">أحجام البوثات (3x3, 6x6...)</li>
+                        <li class="pending">باقات العارضين</li>
+                        <li class="pending">إحصائيات الزوار للبوث</li>
+                    </ul>
+                </div>
+
+                <div class="status-card">
+                    <h4>❌ مطلوب للسوق السعودي</h4>
+                    <ul>
+                        <li class="missing">تكامل مع السجل التجاري</li>
+                        <li class="missing">فوترة ZATCA للشركات</li>
+                        <li class="missing">عقود إلكترونية</li>
+                        <li class="missing">دفع مقسّم (عربون + باقي)</li>
+                        <li class="missing">شهادات مشاركة للشركات</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>🎯 نظام البوثات المقترح</h4>
+                <p><strong>1. تعريف مخطط المعرض:</strong> رفع صورة Floor Plan وتحديد مواقع البوثات</p>
+                <p><strong>2. أنواع البوثات:</strong> Standard (3x3m) / Premium (6x6m) / Mega (9x9m) / Custom</p>
+                <p><strong>3. باقات العارضين:</strong> Basic (بوث فقط) / Pro (بوث + كهرباء + إنترنت) / VIP (كل شيء + إعلان)</p>
+                <p><strong>4. نظام الحجز:</strong> اختيار الموقع على الخريطة → الدفع → تأكيد الحجز</p>
+                <p><strong>5. إحصائيات:</strong> عدد زوار كل بوث + أوقات الذروة + تقارير للعارض</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Multi-Hall System Section -->
+    <section class="section why-section" id="halls">
+        <div class="container">
+            <div class="section-title">
+                <h2>نظام الصالات المتعددة</h2>
+                <p>للفعاليات التي تحتوي على عدة قاعات أو جلسات</p>
+            </div>
+
+            <div class="info-box">
+                <h4>🏛️ ما هو نظام الصالات المتعددة؟</h4>
+                <p>فعالية واحدة بها عدة قاعات، والحضور يحتاج يسجل حضوره في كل قاعة يدخلها.</p>
+                <p><strong>مثال:</strong> مؤتمر طبي فيه 5 قاعات، كل قاعة فيها محاضرات مختلفة، والحضور يختار القاعات التي يريد حضورها.</p>
+            </div>
+
+            <div class="features-grid" style="margin-top: 30px;">
+                <div class="feature-card">
+                    <div class="feature-icon icon-blue">🏛️</div>
+                    <h3>تعريف الصالات/الجلسات</h3>
+                    <ul class="feature-list">
+                        <li>إضافة عدة قاعات للفعالية</li>
+                        <li>تحديد سعة كل قاعة</li>
+                        <li>جدول زمني لكل قاعة</li>
+                        <li>المتحدثين في كل جلسة</li>
+                        <li>وصف المحتوى</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-green">📱</div>
+                    <h3>تسجيل الحضور المتعدد</h3>
+                    <ul class="feature-list">
+                        <li>مسح QR عند دخول كل قاعة</li>
+                        <li>تتبع حضور كل جلسة</li>
+                        <li>شهادة لكل قاعة حضرها</li>
+                        <li>شهادة شاملة للمؤتمر</li>
+                        <li>ساعات معتمدة (CME/CPD)</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-orange">📊</div>
+                    <h3>التقارير والإحصائيات</h3>
+                    <ul class="feature-list">
+                        <li>أكثر الجلسات حضوراً</li>
+                        <li>معدل الحضور لكل متحدث</li>
+                        <li>تحليل تنقل الحضور</li>
+                        <li>أوقات الذروة لكل قاعة</li>
+                        <li>تقرير شامل للمنظم</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠️ الحالة الحالية</h4>
+                <p>النظام الحالي يدعم تسجيل حضور واحد فقط للفعالية. نحتاج إضافة:</p>
+                <ul style="margin-top: 10px; margin-right: 20px;">
+                    <li>جدول Sessions مرتبط بالفعالية</li>
+                    <li>جدول Session Attendance للحضور المتعدد</li>
+                    <li>واجهة لإدارة الجلسات في Dashboard</li>
+                    <li>تعديل صفحة المسح لاختيار الجلسة</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Scalability Section -->
+    <section class="section" id="scalability">
+        <div class="container">
+            <div class="section-title">
+                <h2>قابلية التوسع والأداء</h2>
+                <p>هل السيستم يتحمل الأعداد الكبيرة؟</p>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-card">
+                    <h4>✅ ما تم تنفيذه للأداء</h4>
+                    <ul>
+                        <li class="done">Object Caching للبيانات المتكررة</li>
+                        <li class="done">Database Indexes للبحث السريع</li>
+                        <li class="done">Lazy Loading للصور</li>
+                        <li class="done">Rate Limiting لحماية السيرفر</li>
+                        <li class="done">Query Optimization</li>
+                    </ul>
+                </div>
+
+                <div class="status-card">
+                    <h4>📊 التقديرات الحالية</h4>
+                    <ul>
+                        <li class="done">1,000 حضور متزامن ✅</li>
+                        <li class="done">5,000 تذكرة في الفعالية ✅</li>
+                        <li class="pending">10,000 حضور متزامن ⚠️</li>
+                        <li class="pending">50,000 تذكرة في الفعالية ⚠️</li>
+                        <li class="missing">100,000+ (يحتاج بنية مختلفة)</li>
+                    </ul>
+                </div>
+
+                <div class="status-card">
+                    <h4>🚀 للفعاليات الكبيرة</h4>
+                    <ul>
+                        <li class="pending">Redis Caching</li>
+                        <li class="pending">Database Replication</li>
+                        <li class="pending">CDN للملفات الثابتة</li>
+                        <li class="pending">WebSocket للبيانات الحية</li>
+                        <li class="pending">Queue System للعمليات</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>💡 التوصيات حسب الحجم</h4>
+                <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
+                    <tr style="background: rgba(99, 102, 241, 0.1);">
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><strong>حجم الفعالية</strong></td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><strong>المتطلبات</strong></td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><strong>الحالة</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">صغيرة (حتى 500)</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">Shared Hosting عادي</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><span class="status-badge status-done">جاهز ✅</span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">متوسطة (500-5000)</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">VPS + Object Cache</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><span class="status-badge status-done">جاهز ✅</span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">كبيرة (5000-20000)</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">Dedicated + Redis + CDN</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><span class="status-badge status-medium">يحتاج تحسين ⚠️</span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">ضخمة (20000+)</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">Cloud + Load Balancer + Microservices</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;"><span class="status-badge status-high">يحتاج بنية جديدة ❌</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Arabic Language Section -->
+    <section class="section comparison-section" id="arabic">
+        <div class="container">
+            <div class="section-title">
+                <h2>دعم اللغة العربية و RTL</h2>
+                <p>التوطين الكامل للسوق السعودي</p>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-card">
+                    <h4>🔤 ملفات الترجمة</h4>
+                    <ul>
+                        <li class="pending">إنشاء ملف ar_SA.po</li>
+                        <li class="pending">ترجمة جميع النصوص</li>
+                        <li class="pending">ترجمة رسائل الخطأ</li>
+                        <li class="pending">ترجمة الإيميلات</li>
+                        <li class="pending">ترجمة الإشعارات</li>
+                    </ul>
+                </div>
+
+                <div class="status-card">
+                    <h4>🎨 تصميم RTL</h4>
+                    <ul>
+                        <li class="pending">CSS RTL للـ Dashboard</li>
+                        <li class="pending">CSS RTL للصفحات العامة</li>
+                        <li class="pending">عكس الأيقونات</li>
+                        <li class="pending">محاذاة الجداول</li>
+                        <li class="pending">اختبار جميع الصفحات</li>
+                    </ul>
+                </div>
+
+                <div class="status-card">
+                    <h4>📅 التنسيقات السعودية</h4>
+                    <ul>
+                        <li class="pending">التقويم الهجري</li>
+                        <li class="pending">تنسيق التاريخ (dd/mm/yyyy)</li>
+                        <li class="pending">تنسيق الوقت (12 ساعة)</li>
+                        <li class="pending">تنسيق الأرقام (٫ العشري)</li>
+                        <li class="pending">رموز العملة (ر.س)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>📝 خطة التنفيذ</h4>
+                <p><strong>1. الملفات:</strong> إنشاء ملفات الترجمة .po/.mo باستخدام __() و _e()</p>
+                <p><strong>2. CSS:</strong> إنشاء ملف dashboard-rtl.css مع [dir="rtl"] selectors</p>
+                <p><strong>3. JavaScript:</strong> تعديل الـ JS للتعامل مع RTL</p>
+                <p><strong>4. الاختبار:</strong> مراجعة كل صفحة بالعربية</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- New Features Section -->
+    <section class="section" id="new-features">
+        <div class="container">
+            <div class="section-title">
+                <h2>المميزات الجديدة المطلوبة</h2>
+                <p>10 مميزات متكاملة للسوق السعودي</p>
+            </div>
+
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-purple">📍</div>
+                    <h3>1. إدارة الأماكن والمناطق</h3>
+                    <p>تقسيم مكان الفعالية إلى مناطق مع تتبع السعة</p>
+                    <ul class="feature-list">
+                        <li>تعريف أماكن متعددة مع المخطط</li>
+                        <li>9 أنواع مناطق (VIP، عام، مصلى...)</li>
+                        <li>إدارة البوابات</li>
+                        <li>تحديد السعة لكل منطقة</li>
+                    </ul>
+                    <span class="priority-badge priority-high">أولوية عالية جداً</span>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-orange">👥</div>
+                    <h3>2. إدارة الحشود</h3>
+                    <p>مراقبة لحظية وتنبؤ بالازدحام</p>
+                    <ul class="feature-list">
+                        <li>عدادات لحظية للموجودين</li>
+                        <li>تنبيهات الازدحام التلقائية</li>
+                        <li>خريطة حرارية Heatmap</li>
+                        <li>توقع الازدحام</li>
+                    </ul>
+                    <span class="priority-badge priority-high">أولوية عالية</span>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-green">💳</div>
+                    <h3>3. التكامل السعودي</h3>
+                    <p>بوابات الدفع والفوترة</p>
+                    <ul class="feature-list">
+                        <li>Mada, STC Pay, Apple Pay</li>
+                        <li>الفوترة الإلكترونية ZATCA</li>
+                        <li>ضريبة القيمة المضافة 15%</li>
+                        <li>رسائل SMS</li>
+                    </ul>
+                    <span class="priority-badge priority-high">أولوية عالية جداً</span>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-red">🚨</div>
+                    <h3>4. نظام الطوارئ</h3>
+                    <p>إدارة حالات الطوارئ والإخلاء</p>
+                    <ul class="feature-list">
+                        <li>زر الطوارئ السريع</li>
+                        <li>إشعارات فورية</li>
+                        <li>فتح مخارج الطوارئ</li>
+                        <li>تتبع الإخلاء</li>
+                    </ul>
+                    <span class="priority-badge priority-medium">أولوية متوسطة-عالية</span>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-blue">🏛️</div>
+                    <h3>5. نظام الصالات المتعددة</h3>
+                    <p>فعاليات بعدة قاعات وجلسات</p>
+                    <ul class="feature-list">
+                        <li>تعريف صالات متعددة</li>
+                        <li>جدول زمني لكل صالة</li>
+                        <li>تسجيل حضور لكل جلسة</li>
+                        <li>شهادات متعددة</li>
+                    </ul>
+                    <span class="priority-badge priority-high">أولوية عالية</span>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-pink">🏪</div>
+                    <h3>6. نظام البوثات المتقدم</h3>
+                    <p>إدارة المعارض والأجنحة</p>
+                    <ul class="feature-list">
+                        <li>خريطة المعرض التفاعلية</li>
+                        <li>حجز المساحات</li>
+                        <li>باقات العارضين</li>
+                        <li>إحصائيات الزوار</li>
+                    </ul>
+                    <span class="priority-badge priority-medium">أولوية متوسطة</span>
+                </div>
+
+                <!-- Feature 7 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-cyan">🖥️</div>
+                    <h3>7. غرفة التحكم</h3>
+                    <p>لوحة مراقبة مركزية</p>
+                    <ul class="feature-list">
+                        <li>نظرة شاملة حية</li>
+                        <li>خريطة تفاعلية</li>
+                        <li>قائمة التنبيهات</li>
+                        <li>تحكم سريع</li>
+                    </ul>
+                    <span class="priority-badge priority-medium">أولوية متوسطة</span>
+                </div>
+
+                <!-- Feature 8 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-amber">👔</div>
+                    <h3>8. إدارة الموظفين</h3>
+                    <p>الفريق والورديات والمهام</p>
+                    <ul class="feature-list">
+                        <li>قاعدة بيانات الموظفين</li>
+                        <li>جدولة الورديات</li>
+                        <li>تسجيل الحضور</li>
+                        <li>تقارير الأداء</li>
+                    </ul>
+                    <span class="priority-badge priority-medium">أولوية متوسطة</span>
+                </div>
+
+                <!-- Feature 9 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-teal">🌐</div>
+                    <h3>9. اللغة العربية و RTL</h3>
+                    <p>التوطين الكامل</p>
+                    <ul class="feature-list">
+                        <li>ترجمة كاملة للعربية</li>
+                        <li>تصميم RTL</li>
+                        <li>التقويم الهجري</li>
+                        <li>التنسيقات السعودية</li>
+                    </ul>
+                    <span class="priority-badge priority-high">أولوية عالية</span>
+                </div>
+
+                <!-- Feature 10 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-indigo">📊</div>
+                    <h3>10. التقارير المتقدمة</h3>
+                    <p>تحليلات وإحصائيات شاملة</p>
+                    <ul class="feature-list">
+                        <li>تقارير الحضور والإيرادات</li>
+                        <li>تقارير الازدحام</li>
+                        <li>مقارنة الفعاليات</li>
+                        <li>تصدير PDF/Excel</li>
+                    </ul>
+                    <span class="priority-badge priority-medium">أولوية متوسطة</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Summary Section -->
+    <section class="section summary-section">
+        <div class="container">
+            <div class="section-title">
+                <h2>ملخص الأولويات</h2>
+                <p>ترتيب المميزات حسب الأهمية للسوق السعودي</p>
+            </div>
+
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الميزة</th>
+                        <th>الأولوية</th>
+                        <th>السبب</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><strong>إدارة الأماكن والمناطق</strong></td>
+                        <td><span class="status-badge status-high">عالية جداً</span></td>
+                        <td>أساس كل شيء + متطلبات الدفاع المدني</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><strong>التكامل السعودي (Mada + ZATCA)</strong></td>
+                        <td><span class="status-badge status-high">عالية جداً</span></td>
+                        <td>إلزامي قانونياً</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td><strong>اللغة العربية و RTL</strong></td>
+                        <td><span class="status-badge status-high">عالية</span></td>
+                        <td>السوق المستهدف عربي</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><strong>نظام الصالات المتعددة</strong></td>
+                        <td><span class="status-badge status-high">عالية</span></td>
+                        <td>المؤتمرات الكبيرة تحتاجه</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td><strong>إدارة الحشود</strong></td>
+                        <td><span class="status-badge status-high">عالية</span></td>
+                        <td>ميزة تنافسية للفعاليات الكبيرة</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td><strong>نظام الطوارئ</strong></td>
+                        <td><span class="status-badge status-medium">متوسطة-عالية</span></td>
+                        <td>متطلب قانوني + سلامة</td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td><strong>نظام البوثات المتقدم</strong></td>
+                        <td><span class="status-badge status-medium">متوسطة</span></td>
+                        <td>للمعارض فقط</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td><strong>غرفة التحكم</strong></td>
+                        <td><span class="status-badge status-medium">متوسطة</span></td>
+                        <td>عرض احترافي</td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td><strong>إدارة الموظفين</strong></td>
+                        <td><span class="status-badge status-medium">متوسطة</span></td>
+                        <td>فعاليات كبيرة</td>
+                    </tr>
+                    <tr>
+                        <td>10</td>
+                        <td><strong>التقارير المتقدمة</strong></td>
+                        <td><span class="status-badge status-medium">متوسطة</span></td>
+                        <td>تحسين مستمر</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Timeline Section -->
+    <section class="section timeline-section">
+        <div class="container">
+            <div class="section-title">
+                <h2>خطة التنفيذ المقترحة</h2>
+                <p>المراحل المقترحة للتنفيذ</p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <span class="phase-number">المرحلة 1</span>
+                        <h4>الأساسيات</h4>
+                        <ul>
+                            <li>• اللغة العربية و RTL</li>
+                            <li>• نظام إدارة الأماكن والمناطق</li>
+                            <li>• بوابات الدفع السعودية</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <span class="phase-number">المرحلة 2</span>
+                        <h4>المؤتمرات والامتثال</h4>
+                        <ul>
+                            <li>• نظام الصالات المتعددة</li>
+                            <li>• الفوترة الإلكترونية ZATCA</li>
+                            <li>• نظام إدارة الحشود</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <span class="phase-number">المرحلة 3</span>
+                        <h4>المعارض والسلامة</h4>
+                        <ul>
+                            <li>• نظام البوثات المتقدم</li>
+                            <li>• نظام الطوارئ</li>
+                            <li>• غرفة التحكم</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <span class="phase-number">المرحلة 4</span>
+                        <h4>التوسع والتحسين</h4>
+                        <ul>
+                            <li>• إدارة الموظفين</li>
+                            <li>• التقارير المتقدمة</li>
+                            <li>• تحسين الأداء للفعاليات الكبيرة</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <h3 style="margin-bottom: 10px;">SC Events Platform</h3>
+            <p>منصة إدارة الفعاليات المتكاملة للسوق السعودي</p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,19 @@
+/**
+ * SC Events - Frontend Main Stylesheet
+ *
+ * This file imports all frontend CSS modules
+ *
+ * @package sc_events
+ * @version 1.0.0
+ */
+
+/* CSS Variables */
+@import '../../assets/frontend/css/variables.css';
+
+/* Header Styles */
+@import '../../assets/frontend/css/header-styles.css';
+
+/* Single Event Page */
+@import '../../assets/frontend/css/single-event.css';
+
+/* Note: Additional CSS files can be imported here as needed */

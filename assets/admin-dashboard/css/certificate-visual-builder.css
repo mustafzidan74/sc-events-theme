@@ -1,0 +1,544 @@
+/**
+ * Visual Certificate Builder Styles
+ * Drag & Drop Certificate Designer
+ *
+ * @package sc_events
+ */
+
+/* ================================
+   Elements Palette (Left Panel)
+   ================================ */
+#elements-palette {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.widget-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    cursor: grab;
+    transition: all 0.2s ease;
+    font-size: 13px;
+}
+
+.widget-item:hover {
+    background: #e9ecef;
+    border-color: #007bff;
+    transform: translateX(3px);
+}
+
+.widget-item:active {
+    cursor: grabbing;
+}
+
+.widget-item i {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    color: #007bff;
+    font-size: 14px;
+}
+
+.widget-item span {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.widget-item.dragging {
+    opacity: 0.5;
+}
+
+/* ================================
+   Canvas Container
+   ================================ */
+#canvas-container {
+    background: linear-gradient(45deg, #e9ecef 25%, #f8f9fa 25%, #f8f9fa 50%, #e9ecef 50%, #e9ecef 75%, #f8f9fa 75%);
+    background-size: 20px 20px;
+    min-height: 650px;
+    padding: 20px;
+    overflow: auto;
+}
+
+#canvas-wrapper {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+/* Certificate Canvas */
+.certificate-canvas {
+    position: relative;
+    background: white;
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
+    border: 1px solid #dee2e6;
+}
+
+.certificate-canvas.drag-over {
+    box-shadow: 0 0 0 3px #007bff, 0 4px 25px rgba(0, 123, 255, 0.3);
+}
+
+/* Background Layer */
+#background-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow: hidden;
+}
+
+#background-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#background-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border: 3px dashed #dee2e6;
+}
+
+#background-placeholder i {
+    color: #adb5bd;
+}
+
+/* Elements Layer */
+#elements-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* ================================
+   Draggable Elements on Canvas
+   ================================ */
+.canvas-element {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    min-width: 50px;
+    min-height: 20px;
+    border: 2px solid transparent;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+}
+
+.canvas-element:hover {
+    border-color: rgba(0, 123, 255, 0.5);
+}
+
+.canvas-element.selected {
+    border-color: #007bff;
+    z-index: 100 !important;
+}
+
+.canvas-element.selected::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border: 1px dashed #007bff;
+    pointer-events: none;
+}
+
+/* Resize Handles */
+.canvas-element .resize-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #007bff;
+    border: 2px solid white;
+    border-radius: 2px;
+    z-index: 10;
+    display: none;
+}
+
+.canvas-element.selected .resize-handle {
+    display: block;
+}
+
+.resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+.resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+.resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+.resize-handle.n { top: -5px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.resize-handle.s { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.resize-handle.e { top: 50%; right: -5px; transform: translateY(-50%); cursor: e-resize; }
+.resize-handle.w { top: 50%; left: -5px; transform: translateY(-50%); cursor: w-resize; }
+
+/* Element Content */
+.canvas-element .element-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    overflow: hidden;
+}
+
+/* Text Elements */
+.canvas-element.text-element .element-content {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Image Elements */
+.canvas-element.image-element .element-content {
+    padding: 0;
+}
+
+.canvas-element.image-element .element-content img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* QR Code Placeholder */
+.canvas-element.qr-element .element-content {
+    background: #f8f9fa;
+    border: 1px dashed #adb5bd;
+}
+
+.canvas-element.qr-element .qr-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 10px;
+}
+
+.canvas-element.qr-element .qr-placeholder i {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+/* Shape Elements (Line) */
+.canvas-element.shape-element .element-content {
+    padding: 0;
+}
+
+.canvas-element.line-element .element-content {
+    background: currentColor;
+}
+
+/* Element Label */
+.canvas-element .element-label {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    background: #007bff;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    display: none;
+    z-index: 11;
+}
+
+.canvas-element.selected .element-label {
+    display: block;
+}
+
+/* Dragging state */
+.canvas-element.dragging {
+    opacity: 0.8;
+    z-index: 1000 !important;
+}
+
+/* ================================
+   Properties Panel
+   ================================ */
+#element-properties-panel .form-group {
+    margin-bottom: 12px;
+}
+
+#element-properties-panel label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 4px;
+}
+
+#element-properties-panel .form-control {
+    font-size: 13px;
+}
+
+#element-properties-panel .btn-group .btn {
+    padding: 6px 12px;
+}
+
+#element-properties-panel .btn-group .btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* Color input */
+input[type="color"].form-control {
+    padding: 4px;
+    cursor: pointer;
+}
+
+/* ================================
+   Text Alignment Buttons
+   ================================ */
+.text-align-btn {
+    flex: 1;
+}
+
+.text-align-btn.active {
+    background-color: #007bff !important;
+    color: white !important;
+    border-color: #007bff !important;
+}
+
+/* ================================
+   Preview Modal
+   ================================ */
+#previewModal .modal-body {
+    padding: 30px;
+    background: linear-gradient(45deg, #e9ecef 25%, #f8f9fa 25%, #f8f9fa 50%, #e9ecef 50%, #e9ecef 75%, #f8f9fa 75%);
+    background-size: 20px 20px;
+}
+
+#preview-content {
+    position: relative;
+    overflow: hidden;
+}
+
+/* ================================
+   Drag Ghost (when dragging from palette)
+   ================================ */
+.drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    border-radius: 6px;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    opacity: 0.9;
+}
+
+.drag-ghost i {
+    margin-right: 8px;
+}
+
+/* ================================
+   Empty State
+   ================================ */
+.empty-canvas-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #adb5bd;
+    pointer-events: none;
+}
+
+.empty-canvas-message i {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.empty-canvas-message p {
+    font-size: 14px;
+    margin: 0;
+}
+
+/* ================================
+   Loading State
+   ================================ */
+.canvas-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.canvas-loading i {
+    font-size: 32px;
+    color: #007bff;
+}
+
+/* ================================
+   Guides (for alignment)
+   ================================ */
+.alignment-guide {
+    position: absolute;
+    background: #ff4757;
+    z-index: 999;
+    pointer-events: none;
+}
+
+.alignment-guide.horizontal {
+    width: 100%;
+    height: 1px;
+}
+
+.alignment-guide.vertical {
+    width: 1px;
+    height: 100%;
+}
+
+/* ================================
+   Quick Help Panel
+   ================================ */
+.card .body ul li {
+    padding: 4px 0;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.card .body ul li:last-child {
+    border-bottom: none;
+}
+
+.card .body ul li i {
+    width: 20px;
+    margin-right: 6px;
+}
+
+/* ================================
+   Responsive Adjustments
+   ================================ */
+@media (max-width: 1200px) {
+    #canvas-container {
+        min-height: 500px;
+    }
+
+    .certificate-canvas {
+        transform: scale(0.6);
+        transform-origin: top left;
+    }
+}
+
+@media (max-width: 992px) {
+    #elements-palette {
+        max-height: 200px;
+    }
+
+    .widget-item {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .widget-item i {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* ================================
+   Animation
+   ================================ */
+@keyframes pulse-border {
+    0% { border-color: rgba(0, 123, 255, 0.5); }
+    50% { border-color: rgba(0, 123, 255, 1); }
+    100% { border-color: rgba(0, 123, 255, 0.5); }
+}
+
+.canvas-element.selected {
+    animation: pulse-border 1.5s infinite;
+}
+
+/* Drop zone indicator */
+.certificate-canvas.drop-ready {
+    background: rgba(0, 123, 255, 0.05);
+}
+
+/* ================================
+   Scrollbars (Webkit)
+   ================================ */
+#canvas-container::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+#canvas-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 5px;
+}
+
+#canvas-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 5px;
+}
+
+#canvas-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+#elements-palette::-webkit-scrollbar {
+    width: 6px;
+}
+
+#elements-palette::-webkit-scrollbar-track {
+    background: #f8f9fa;
+}
+
+#elements-palette::-webkit-scrollbar-thumb {
+    background: #dee2e6;
+    border-radius: 3px;
+}
+
+/* ================================
+   Tooltips
+   ================================ */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: #333;
+    color: white;
+    font-size: 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+}

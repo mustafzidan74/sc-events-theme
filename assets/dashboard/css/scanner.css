@@ -1,0 +1,205 @@
+/**
+ * Scanner Dashboard Styles
+ * Extracted from template-parts/dashboard/scanner.php inline styles
+ *
+ * @package sc_events
+ */
+
+/* ===== Scanner-Only Layout Overrides ===== */
+.scanner-only .navbar.navbar-fixed-top { display: none !important; }
+.scanner-only #left-sidebar { display: none !important; }
+.scanner-only #sc-admin-chat-widget { display: none !important; }
+.scanner-only #main-content { margin-left: 0 !important; margin-top: 0 !important; padding-top: 70px !important; }
+.scanner-only body { padding-top: 0 !important; }
+.scanner-only .container-fluid { padding: 10px 15px !important; }
+.scanner-only .block-header { display: none !important; }
+
+/* ===== Scanner Top Bar ===== */
+.scanner-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 0 20px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.scanner-topbar .scanner-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+}
+
+.scanner-topbar .scanner-brand .brand-icon {
+    width: 38px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.scanner-topbar .scanner-brand .brand-text {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.scanner-topbar .scanner-brand .brand-sub {
+    font-size: 11px;
+    opacity: 0.6;
+    font-weight: 400;
+}
+
+.scanner-topbar .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.scanner-topbar .topbar-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scanner-topbar .topbar-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    text-decoration: none;
+}
+
+.scanner-topbar .topbar-btn.btn-lang {
+    font-weight: 600;
+    min-width: 40px;
+    justify-content: center;
+}
+
+.scanner-topbar .topbar-btn.btn-logout {
+    background: rgba(220, 53, 69, 0.3);
+    border-color: rgba(220, 53, 69, 0.4);
+}
+
+.scanner-topbar .topbar-btn.btn-logout:hover {
+    background: rgba(220, 53, 69, 0.5);
+}
+
+.scanner-topbar .user-info {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+}
+
+/* ===== Scanner Cards ===== */
+#camera-container {
+    border-radius: 12px !important;
+}
+
+/* ===== QR Video Container ===== */
+#qr-video-container {
+    background: #1a1a2e;
+}
+
+#qr-video-container video {
+    width: 100% !important;
+    height: 450px !important;
+    object-fit: cover !important;
+}
+
+#qr-video-container #qr-shaded-region {
+    border-color: rgba(0, 255, 136, 0.6) !important;
+}
+
+/* Hide the library's default text */
+#qr-video-container > div:first-child > div:last-child {
+    display: none !important;
+}
+
+/* ===== Animations ===== */
+.blink {
+    animation: scannerBlink 1s infinite;
+}
+
+@keyframes scannerBlink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0.3; }
+}
+
+#result-mode .card {
+    animation: scannerSlideUp 0.4s ease;
+}
+
+@keyframes scannerSlideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Processing Overlay ===== */
+#processing-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 767px) {
+    .scanner-topbar {
+        padding: 0 10px;
+        height: 56px;
+    }
+
+    .scanner-topbar .brand-text {
+        font-size: 14px;
+    }
+
+    .scanner-topbar .brand-sub {
+        display: none;
+    }
+
+    .scanner-topbar .user-info {
+        display: none;
+    }
+
+    .scanner-topbar .topbar-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    #main-content {
+        padding-top: 62px !important;
+    }
+
+    #qr-video-container video {
+        height: 350px !important;
+    }
+
+    #camera-container {
+        min-height: 350px !important;
+    }
+
+    div#scanner-mode .input-group {
+        flex-direction: column;
+    }
+
+    div#scanner-mode .input-group input#manual-ticket-id {
+        width: 100%;
+        margin: 10px 0;
+    }
+}

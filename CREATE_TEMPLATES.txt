@@ -1,0 +1,7 @@
+Files to create/update:
+1. single.php - Done (needs updating)
+2. page.php - Done (needs updating)
+3. index.php - Done (needs updating)
+4. assets/css/single.css - NEW
+5. assets/css/page.css - NEW
+6. assets/css/index.css - NEW

@@ -1,0 +1,1088 @@
+/**
+ * SC Events - Light Theme (Premium Edition)
+ *
+ * Rich, premium light theme with depth, colored shadows,
+ * gradient accents, and visual texture.
+ *
+ * @package sc_events
+ * @version 2.0.0
+ */
+
+/* ===========================================
+   CSS VARIABLE OVERRIDES
+   =========================================== */
+body.sc-light-theme,
+html.sc-light-theme body {
+    /* Backgrounds - warm off-whites with subtle blue tint */
+    --sc-bg-base: #f0f4f8;
+    --sc-bg-elevated: #ffffff;
+    --sc-bg-surface: #e8edf3;
+    --sc-bg-card: rgba(255, 255, 255, 0.85);
+    --sc-bg-card-hover: rgba(255, 255, 255, 0.95);
+    --sc-bg-input: rgba(255, 255, 255, 0.9);
+    --sc-bg-overlay: rgba(15, 23, 42, 0.5);
+    --sc-bg-overlay-heavy: rgba(15, 23, 42, 0.7);
+
+    /* Text - rich dark tones */
+    --sc-text-primary: #0f172a;
+    --sc-text-secondary: #334155;
+    --sc-text-muted: #64748b;
+    --sc-text-disabled: #94a3b8;
+    --sc-text-hint: #cbd5e1;
+    --sc-text-on-dark: #0f172a;
+
+    /* Borders - slightly tinted */
+    --sc-border-subtle: rgba(15, 23, 42, 0.08);
+    --sc-border-light: rgba(15, 23, 42, 0.12);
+    --sc-border-medium: rgba(15, 23, 42, 0.18);
+    --sc-border-color: var(--sc-border-subtle);
+
+    /* Glass morphism → frosted white */
+    --sc-glass-bg: rgba(255, 255, 255, 0.7);
+    --sc-glass-bg-hover: rgba(255, 255, 255, 0.88);
+    --sc-glass-border: rgba(255, 255, 255, 0.5);
+
+    /* Shadows - colored & visible for depth */
+    --sc-shadow-xs: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
+    --sc-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+    --sc-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.05);
+    --sc-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.1), 0 4px 8px rgba(15, 23, 42, 0.06);
+    --sc-shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.06);
+    --sc-shadow-2xl: 0 32px 64px rgba(15, 23, 42, 0.14);
+    --sc-shadow-inner: inset 0 2px 6px rgba(15, 23, 42, 0.06);
+    --sc-glow-primary: 0 4px 20px var(--sc-primary-alpha-20), 0 0 40px var(--sc-primary-alpha-10);
+    --sc-glow-primary-strong: 0 8px 30px var(--sc-primary-alpha-30), 0 0 60px var(--sc-primary-alpha-10);
+
+    /* Gradients */
+    --sc-gradient-dark: linear-gradient(180deg, #f0f4f8 0%, #e2e8f0 100%);
+    --sc-gradient-hero: linear-gradient(135deg, #f0f4f8 0%, #dbe4f0 50%, #f0f4f8 100%);
+}
+
+/* ===========================================
+   BASE / BODY
+   =========================================== */
+body.sc-light-theme {
+    background: #f0f4f8;
+    background-image:
+        radial-gradient(circle at 20% 50%, var(--sc-primary-alpha-10, rgba(212,175,55,0.06)) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, var(--sc-secondary-alpha-10, rgba(124,58,237,0.04)) 0%, transparent 50%),
+        radial-gradient(circle at 50% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+}
+
+/* Scrollbar */
+body.sc-light-theme ::-webkit-scrollbar-track {
+    background: #e8edf3;
+}
+body.sc-light-theme ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #b0bec5 0%, #90a4ae 100%);
+    border-radius: 10px;
+}
+body.sc-light-theme ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #90a4ae 0%, #78909c 100%);
+}
+
+/* Selection */
+body.sc-light-theme ::selection {
+    background: var(--sc-primary-alpha-30);
+    color: #0f172a;
+}
+
+/* ===========================================
+   GRADIENT ORBS - Colorful & Visible
+   =========================================== */
+body.sc-light-theme .sc-orb {
+    opacity: 0.15;
+    filter: blur(80px);
+}
+body.sc-light-theme .sc-orb-1 {
+    background: var(--sc-primary, #D4AF37) !important;
+}
+body.sc-light-theme .sc-orb-2 {
+    background: var(--sc-secondary, #7c3aed) !important;
+}
+body.sc-light-theme .sc-orb-3 {
+    background: #3B82F6 !important;
+}
+
+/* ===========================================
+   GLASS CARDS - Elevated White with Depth
+   =========================================== */
+body.sc-light-theme .glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+body.sc-light-theme .glass-card:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: var(--sc-primary-alpha-30);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1), 0 4px 12px var(--sc-primary-alpha-10),
+                inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+body.sc-light-theme .glass-card-static {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+body.sc-light-theme .glass-card-subtle {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+/* ===========================================
+   BUTTONS - More Vivid
+   =========================================== */
+body.sc-light-theme .sc-btn-ghost {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(15, 23, 42, 0.2);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+body.sc-light-theme .sc-btn-outline {
+    box-shadow: 0 2px 8px var(--sc-primary-alpha-10);
+}
+body.sc-light-theme .sc-btn-outline:hover {
+    box-shadow: 0 4px 16px var(--sc-primary-alpha-20);
+}
+body.sc-light-theme .sc-btn-gold {
+    box-shadow: 0 4px 14px var(--sc-primary-alpha-30);
+}
+body.sc-light-theme .sc-btn-gold:hover {
+    box-shadow: 0 8px 24px var(--sc-primary-alpha-30), 0 0 40px var(--sc-primary-alpha-10);
+}
+
+/* ===========================================
+   FORMS & INPUTS - Elevated
+   =========================================== */
+body.sc-light-theme .sc-input,
+body.sc-light-theme .form-control,
+body.sc-light-theme .form-select,
+body.sc-light-theme select,
+body.sc-light-theme textarea {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), inset 0 1px 2px rgba(15, 23, 42, 0.03);
+    color: #0f172a;
+}
+body.sc-light-theme .sc-input:focus,
+body.sc-light-theme .form-control:focus,
+body.sc-light-theme .form-select:focus,
+body.sc-light-theme select:focus,
+body.sc-light-theme textarea:focus {
+    background: #ffffff;
+    border-color: var(--sc-primary);
+    box-shadow: 0 0 0 3px var(--sc-primary-alpha-20), 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-input::placeholder,
+body.sc-light-theme .form-control::placeholder {
+    color: #94a3b8;
+}
+body.sc-light-theme select option,
+body.sc-light-theme .form-select option {
+    background: #ffffff !important;
+    color: #1e293b !important;
+}
+body.sc-light-theme input[type="checkbox"],
+body.sc-light-theme input[type="radio"] {
+    border-color: rgba(15, 23, 42, 0.2);
+    background: #ffffff;
+}
+body.sc-light-theme input[type="checkbox"]:hover,
+body.sc-light-theme input[type="radio"]:hover {
+    border-color: var(--sc-primary-alpha-50, rgba(212,175,55,0.5));
+    box-shadow: 0 0 0 3px var(--sc-primary-alpha-10);
+}
+
+/* ===========================================
+   SOCIAL LINKS - Elevated
+   =========================================== */
+body.sc-light-theme .sc-social-link {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: #475569;
+}
+body.sc-light-theme .sc-social-link:hover {
+    background: var(--sc-primary-alpha-10);
+    border-color: var(--sc-primary-alpha-30);
+    box-shadow: 0 6px 20px var(--sc-primary-alpha-15, rgba(212,175,55,0.15));
+    color: var(--sc-primary);
+}
+
+/* Social links inside hero (dark bg) */
+body.sc-light-theme .sc-event-hero .sc-social-link {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+body.sc-light-theme .sc-event-hero .sc-social-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* ===========================================
+   PILLS & TABS
+   =========================================== */
+body.sc-light-theme .sc-pill {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-pill:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(15, 23, 42, 0.12);
+}
+
+/* ===========================================
+   GRID BACKGROUND
+   =========================================== */
+body.sc-light-theme .sc-grid-bg::before {
+    background-image:
+        linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+}
+
+/* ===========================================
+   PROGRESS INDICATOR
+   =========================================== */
+body.sc-light-theme .progress-wrap {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+/* ===========================================
+   SECTION ALTERNATING BACKGROUNDS
+   =========================================== */
+body.sc-light-theme .sc-section-alt {
+    background: linear-gradient(180deg, #e8edf3 0%, #f0f4f8 100%);
+}
+body.sc-light-theme .sc-section-surface {
+    background: linear-gradient(180deg, #ffffff 0%, #f0f4f8 100%);
+}
+
+/* Section header decorative accent */
+body.sc-light-theme .sc-section-header h2 {
+    color: #0f172a;
+}
+
+/* ===========================================
+   SWEETALERT2
+   =========================================== */
+body.sc-light-theme .swal2-popup {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(255,255,255,0.5) inset !important;
+}
+body.sc-light-theme .swal2-title {
+    color: #0f172a !important;
+}
+body.sc-light-theme .swal2-html-container {
+    color: #475569 !important;
+}
+body.sc-light-theme .swal2-cancel {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+}
+body.sc-light-theme .swal2-cancel:hover {
+    background: #cbd5e1 !important;
+}
+body.sc-light-theme .swal2-icon {
+    border-color: rgba(15, 23, 42, 0.1) !important;
+}
+body.sc-light-theme .swal2-backdrop-show {
+    background: rgba(15, 23, 42, 0.4) !important;
+}
+
+/* Bootstrap modal */
+body.sc-light-theme .btn-close {
+    filter: none;
+}
+body.sc-light-theme ~ .modal-backdrop.show,
+.sc-light-theme .modal-backdrop.show {
+    opacity: 0.4;
+    background: #0f172a;
+}
+
+/* ===========================================
+   LOGO SWITCHING (Dark ↔ Light)
+   =========================================== */
+/* Light logo hidden by default (dark theme shows dark logo) */
+.sc-logo-light {
+    display: none !important;
+}
+/* In light theme: hide dark logo, show light logo */
+body.sc-light-theme .sc-logo-dark {
+    display: none !important;
+}
+body.sc-light-theme .sc-logo-light {
+    display: inline-block !important;
+}
+/* Footer is always dark - keep dark logo */
+body.sc-light-theme .sc-footer .sc-logo-dark {
+    display: inline-block !important;
+}
+body.sc-light-theme .sc-footer .sc-logo-light {
+    display: none !important;
+}
+
+/* ===========================================
+   HEADER - Frosted Glass Premium
+   =========================================== */
+body.sc-light-theme .sc-header-inner {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+body.sc-light-theme .sc-header.scrolled .sc-header-inner {
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06), 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Nav link text */
+body.sc-light-theme .sc-nav-link {
+    color: #475569;
+}
+body.sc-light-theme .sc-nav-link:hover,
+body.sc-light-theme .sc-nav-link.active {
+    color: var(--sc-primary);
+}
+
+/* Nav dropdown */
+body.sc-light-theme .sc-nav-dropdown {
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 12px 48px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+body.sc-light-theme .sc-nav-dropdown li a {
+    color: #475569;
+}
+body.sc-light-theme .sc-nav-dropdown li a:hover {
+    background: var(--sc-primary-alpha-10);
+    color: var(--sc-primary);
+}
+
+/* Header button */
+body.sc-light-theme .sc-header-btn {
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-header-btn:hover {
+    background: var(--sc-primary-alpha-10);
+    box-shadow: 0 4px 16px var(--sc-primary-alpha-20);
+}
+
+/* ===========================================
+   MOBILE SIDEBAR
+   =========================================== */
+body.sc-light-theme .sc-mobile-overlay {
+    background: rgba(15, 23, 42, 0.3);
+}
+body.sc-light-theme .sc-mobile-sidebar {
+    background: #ffffff;
+    box-shadow: -8px 0 40px rgba(15, 23, 42, 0.12);
+}
+body.sc-light-theme .sc-mobile-close {
+    background: #f1f5f9;
+}
+body.sc-light-theme .sc-mobile-close:hover {
+    background: #e2e8f0;
+}
+body.sc-light-theme .sc-mobile-nav-list li a {
+    color: #475569;
+}
+body.sc-light-theme .sc-mobile-nav-list li a:hover,
+body.sc-light-theme .sc-mobile-nav-list li a.active {
+    background: var(--sc-primary-alpha-10);
+    color: var(--sc-primary);
+}
+body.sc-light-theme .sc-mobile-nav-list .sub-menu {
+    background: #f8fafc;
+}
+body.sc-light-theme .sc-mobile-social a {
+    background: #f1f5f9;
+    border-color: rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-mobile-social a:hover {
+    background: var(--sc-primary-alpha-10);
+    border-color: var(--sc-primary-alpha-30);
+}
+
+/* ===========================================
+   PAGE HEADER - Premium with Depth
+   =========================================== */
+body.sc-light-theme .sc-page-header {
+    background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 50%, #e8edf3 100%);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+
+/* ===========================================
+   EVENT CARDS - White Elevated Cards
+   =========================================== */
+body.sc-light-theme .sc-event-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(8px);
+}
+body.sc-light-theme .sc-event-card:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--sc-primary-alpha-30);
+    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.1), 0 4px 12px var(--sc-primary-alpha-10);
+}
+body.sc-light-theme .sc-event-card .card-image::after {
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.7) 0%, transparent 55%);
+}
+body.sc-light-theme .sc-event-card .card-title {
+    color: #0f172a;
+}
+body.sc-light-theme .sc-event-card:hover .card-title {
+    color: var(--sc-primary);
+}
+body.sc-light-theme .sc-event-card .card-footer {
+    border-top-color: rgba(15, 23, 42, 0.06);
+}
+
+/* ===========================================
+   EVENT HERO - Quick Info Card (Premium)
+   =========================================== */
+body.sc-light-theme .sc-event-hero .sc-event-quick-info.glass-card-static {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* ===========================================
+   COUNTDOWN - Premium Glass
+   =========================================== */
+body.sc-light-theme .sc-countdown-item {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06),
+                0 1px 3px rgba(15, 23, 42, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+body.sc-light-theme .sc-countdown-value {
+    color: var(--sc-primary);
+    text-shadow: 0 1px 2px var(--sc-primary-alpha-10);
+}
+body.sc-light-theme .sc-countdown-label {
+    color: #475569;
+}
+
+/* Countdown inside hero (dark bg) */
+body.sc-light-theme .sc-event-hero .sc-countdown-item {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+body.sc-light-theme .sc-event-hero .sc-countdown-value {
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+body.sc-light-theme .sc-event-hero .sc-countdown-label {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+/* Mini countdown on event cards */
+body.sc-light-theme .event-countdown-mini .countdown-item {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+/* ===========================================
+   FILTER BAR (Archive)
+   =========================================== */
+body.sc-light-theme .sc-filter-pills {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+body.sc-light-theme .sc-filter-pill {
+    color: #64748b;
+}
+body.sc-light-theme .sc-filter-pill:hover {
+    background: rgba(15, 23, 42, 0.04);
+    color: #0f172a;
+}
+body.sc-light-theme .sc-filter-pill.active {
+    color: #fff !important;
+}
+
+/* ===========================================
+   PAGINATION
+   =========================================== */
+body.sc-light-theme .sc-pagination a,
+body.sc-light-theme .sc-pagination span {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+body.sc-light-theme .sc-pagination a:hover {
+    background: var(--sc-primary-alpha-10);
+    border-color: var(--sc-primary-alpha-30);
+    box-shadow: 0 4px 12px var(--sc-primary-alpha-10);
+}
+
+/* ===========================================
+   FOOTER - Dark Footer for Contrast
+   =========================================== */
+body.sc-light-theme .sc-footer {
+    background: #1e293b;
+    color: #94a3b8;
+}
+body.sc-light-theme .sc-footer-title,
+body.sc-light-theme .sc-footer-heading {
+    color: #f1f5f9;
+}
+body.sc-light-theme .sc-footer-desc {
+    color: #94a3b8;
+}
+body.sc-light-theme .sc-footer-links a {
+    color: #94a3b8;
+}
+body.sc-light-theme .sc-footer-links a:hover {
+    color: var(--sc-primary);
+}
+body.sc-light-theme .sc-footer-contact li {
+    color: #94a3b8;
+}
+body.sc-light-theme .sc-footer-contact li a {
+    color: #94a3b8;
+}
+body.sc-light-theme .sc-footer-contact li a:hover {
+    color: var(--sc-primary);
+}
+body.sc-light-theme .sc-footer-bottom {
+    border-top-color: rgba(255, 255, 255, 0.08);
+    background: #172032;
+}
+body.sc-light-theme .sc-footer-bottom p {
+    color: #64748b;
+}
+body.sc-light-theme .sc-footer .sc-social-link {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    box-shadow: none;
+}
+body.sc-light-theme .sc-footer .sc-social-link:hover {
+    background: var(--sc-primary-alpha-20);
+    border-color: var(--sc-primary-alpha-30);
+    color: var(--sc-primary);
+}
+body.sc-light-theme .sc-footer .sc-social-links a {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+}
+body.sc-light-theme .sc-footer .sc-social-links a:hover {
+    background: var(--sc-primary-alpha-20);
+    border-color: var(--sc-primary-alpha-30);
+    color: var(--sc-primary);
+}
+
+/* ===========================================
+   SINGLE EVENT - HERO
+   =========================================== */
+/* Hero overlay stays dark for text readability */
+body.sc-light-theme .sc-event-hero-overlay {
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.8) 0%, rgba(15, 23, 42, 0.5) 40%, rgba(15, 23, 42, 0.25) 100%);
+}
+/* Hero text must stay light */
+body.sc-light-theme .sc-event-hero-title,
+body.sc-light-theme .sc-event-hero .sc-event-pill,
+body.sc-light-theme .sc-event-hero .sc-quick-value,
+body.sc-light-theme .sc-event-hero .sc-quick-label,
+body.sc-light-theme .sc-event-hero .sc-quick-tickets-header,
+body.sc-light-theme .sc-event-hero .sc-quick-ticket-info strong,
+body.sc-light-theme .sc-event-hero .sc-quick-ticket-info small,
+body.sc-light-theme .sc-event-hero .sc-scroll-indicator {
+    color: #f8fafc;
+}
+body.sc-light-theme .sc-event-hero .sc-event-pill {
+    color: rgba(248, 250, 252, 0.85);
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ===========================================
+   SINGLE EVENT - SECTIONS
+   =========================================== */
+/* Status alerts */
+body.sc-light-theme .sc-alert-ended {
+    background: rgba(100, 116, 139, 0.08);
+    border: 1px solid rgba(100, 116, 139, 0.15);
+}
+body.sc-light-theme .sc-alert-registered {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+/* Tickets box */
+body.sc-light-theme .sc-tickets-box .glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+/* Ticket card */
+body.sc-light-theme .sc-ticket-card {
+    border-color: rgba(15, 23, 42, 0.08);
+}
+body.sc-light-theme .sc-ticket-bar {
+    background: #e2e8f0;
+}
+
+/* ===========================================
+   SPEAKER CARDS - Elevated White
+   =========================================== */
+body.sc-light-theme .sc-speaker-card-full {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+}
+body.sc-light-theme .sc-speaker-card-full:hover {
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+}
+body.sc-light-theme .sc-speaker-card-full .sc-speaker-placeholder {
+    background: #e2e8f0;
+}
+body.sc-light-theme .sc-speaker-bio {
+    border-top-color: rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-speaker-footer {
+    border-top-color: rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-speaker-contact-link {
+    background: #f1f5f9;
+}
+body.sc-light-theme .sc-speaker-contact-link:hover {
+    background: var(--sc-primary-alpha-20);
+}
+
+/* ===========================================
+   SPONSOR CARDS - Clean with Depth
+   =========================================== */
+body.sc-light-theme .sc-sponsor-card {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+body.sc-light-theme .sc-sponsor-card:hover {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 1) 100%);
+    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.1), 0 0 20px var(--tier-glow, rgba(0,0,0,0));
+}
+body.sc-light-theme .sc-sponsor-card-img img {
+    filter: none;
+}
+body.sc-light-theme .sc-sponsor-card:hover .sc-sponsor-card-img img {
+    filter: none;
+}
+
+/* ===========================================
+   FAQ / ACCORDION
+   =========================================== */
+body.sc-light-theme .sc-accordion-item .glass-card,
+body.sc-light-theme .sc-accordion-item .glass-card-subtle {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+/* ===========================================
+   TIMELINE / SCHEDULE
+   =========================================== */
+body.sc-light-theme .sc-timeline::before {
+    background: linear-gradient(to bottom, var(--sc-primary), var(--sc-primary-alpha-20), #e2e8f0);
+}
+body.sc-light-theme .sc-timeline-dot {
+    border-color: #f0f4f8;
+    box-shadow: 0 0 12px var(--sc-primary-alpha-30);
+}
+body.sc-light-theme .sc-timeline-item .glass-card {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+/* Session type badges - light theme (slightly bolder colors) */
+body.sc-light-theme .sc-session-type-lecture { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+body.sc-light-theme .sc-session-type-workshop { background: rgba(16, 185, 129, 0.1); color: #059669; }
+body.sc-light-theme .sc-session-type-panel { background: rgba(139, 92, 246, 0.1); color: #7c3aed; }
+body.sc-light-theme .sc-session-type-keynote { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+body.sc-light-theme .sc-session-type-break { background: rgba(107, 114, 128, 0.08); color: #6b7280; }
+body.sc-light-theme .sc-session-type-networking { background: rgba(236, 72, 153, 0.1); color: #db2777; }
+body.sc-light-theme .sc-session-type-other { background: rgba(0, 0, 0, 0.05); color: #64748b; }
+
+body.sc-light-theme .sc-session-indicators {
+    border-top-color: #e2e8f0;
+}
+
+body.sc-light-theme .sc-session-indicator {
+    color: #64748b;
+}
+
+body.sc-light-theme .sc-indicator-cme { color: var(--sc-primary); }
+body.sc-light-theme .sc-indicator-cert { color: #d97706; }
+body.sc-light-theme .sc-indicator-full { color: #dc2626; }
+
+body.sc-light-theme .sc-timeline-dot-break {
+    background: #cbd5e1 !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* --- Ticket View: Session Items --- */
+body.sc-light-theme .sc-sess-item {
+    background: rgba(15, 23, 42, 0.03);
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+body.sc-light-theme .sc-sess-item:hover {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+body.sc-light-theme .sc-sess-date-header {
+    border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+/* ===========================================
+   HALLS & GALLERY
+   =========================================== */
+body.sc-light-theme .sc-hall-overlay {
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.55) 0%, transparent 50%);
+}
+body.sc-light-theme .sc-gallery-overlay {
+    background: rgba(15, 23, 42, 0.35);
+}
+
+/* ===========================================
+   ABOUT SECTION & FEATURE CARDS
+   =========================================== */
+body.sc-light-theme .sc-about-thumb {
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+body.sc-light-theme .sc-feature-card {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+body.sc-light-theme .sc-feature-card:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+    border-color: var(--sc-primary-alpha-20);
+}
+
+/* ===========================================
+   FLOATING CTA
+   =========================================== */
+body.sc-light-theme .sc-floating-cta {
+    background: rgba(255, 255, 255, 0.95);
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(16px);
+}
+
+/* ===========================================
+   AUTH PAGES - Elevated Card
+   =========================================== */
+body.sc-light-theme .sc-auth-card {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(15, 23, 42, 0.06);
+    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+body.sc-light-theme .sc-auth-logo {
+    filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.12));
+}
+
+/* ===========================================
+   ACCOUNT PAGE
+   =========================================== */
+body.sc-light-theme .sc-account-sidebar {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(15, 23, 42, 0.06);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-user-info {
+    border-bottom-color: rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-user-stats {
+    border-bottom-color: rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-stat-item {
+    border-right-color: rgba(15, 23, 42, 0.06);
+}
+
+/* ===========================================
+   CHECKOUT MODAL - Frosted Premium
+   =========================================== */
+body.sc-light-theme .sc-checkout-modal .modal-content {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.99) 100%);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 32px 80px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(255,255,255,0.5) inset;
+}
+body.sc-light-theme .sc-checkout-modal .modal-header {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.04) 100%);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+body.sc-light-theme .sc-modal-close {
+    border-color: rgba(15, 23, 42, 0.1);
+    background: rgba(15, 23, 42, 0.03);
+}
+body.sc-light-theme .sc-modal-close:hover {
+    background: rgba(15, 23, 42, 0.08);
+}
+body.sc-light-theme .sc-checkout-modal .modal-footer {
+    background: rgba(15, 23, 42, 0.02);
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+/* Checkout inputs */
+body.sc-light-theme .sc-checkout-extra-fields .sc-input,
+body.sc-light-theme .sc-checkout-extra-fields select,
+body.sc-light-theme .sc-checkout-extra-fields textarea {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(15, 23, 42, 0.12);
+}
+body.sc-light-theme .sc-checkout-extra-fields select option {
+    background: #ffffff;
+    color: #1e293b;
+}
+body.sc-light-theme .sc-checkout-extra-fields .form-check-input {
+    background-color: #ffffff;
+    border-color: rgba(15, 23, 42, 0.18);
+}
+
+/* Checkout summary */
+body.sc-light-theme .sc-checkout-summary {
+    background: rgba(15, 23, 42, 0.02);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+body.sc-light-theme .sc-checkout-summary-row + .sc-checkout-summary-row {
+    border-top-color: rgba(15, 23, 42, 0.05);
+}
+
+/* Quantity selector */
+body.sc-light-theme .sc-checkout-qty {
+    border-color: rgba(15, 23, 42, 0.12);
+    background: #ffffff;
+}
+body.sc-light-theme .sc-qty-input {
+    border-left-color: rgba(15, 23, 42, 0.08);
+    border-right-color: rgba(15, 23, 42, 0.08);
+}
+
+/* Coupon */
+body.sc-light-theme .sc-checkout-coupon-input .sc-input {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(15, 23, 42, 0.12);
+}
+
+/* Total */
+body.sc-light-theme .sc-checkout-total {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.04) 100%);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+body.sc-light-theme .sc-checkout-total-final {
+    border-top-color: rgba(15, 23, 42, 0.08);
+}
+
+/* ===========================================
+   CONTACT SECTION
+   =========================================== */
+body.sc-light-theme .sc-contact-section {
+    background: linear-gradient(180deg, #ffffff 0%, #f0f4f8 100%);
+}
+
+/* ===========================================
+   WHATSAPP FLOAT BUTTON
+   =========================================== */
+body.sc-light-theme .whatsapp-float a {
+    box-shadow: 0 4px 16px rgba(37, 211, 102, 0.3), 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+/* ===========================================
+   RESPONSIVE ADJUSTMENTS
+   =========================================== */
+@media (max-width: 767.98px) {
+    body.sc-light-theme .sc-event-card {
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+    }
+    body.sc-light-theme .glass-card {
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+}
+
+/* ===========================================
+   PRELOADER
+   =========================================== */
+body.sc-light-theme .preloader,
+html.sc-light-theme .preloader {
+    background: #f0f4f8;
+}
+
+/* ===========================================
+   FAVORITES
+   =========================================== */
+body.sc-light-theme .sc-favorite-btn {
+    background: rgba(255, 255, 255, 0.75);
+    color: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+body.sc-light-theme .sc-favorite-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
+    color: #ef4444;
+}
+
+body.sc-light-theme .sc-favorite-btn.favorited {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Hero favorite button — pill on dark hero bg */
+body.sc-light-theme .sc-event-hero .sc-favorite-btn-hero {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+body.sc-light-theme .sc-event-hero .sc-favorite-btn-hero:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+body.sc-light-theme .sc-event-hero .sc-favorite-btn-hero.favorited {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+body.sc-light-theme .sc-header-favorites {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.sc-light-theme .sc-header-favorites:hover {
+    background: rgba(239, 68, 68, 0.06);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+body.sc-light-theme .sc-favorites-badge {
+    border-color: var(--sc-bg-base);
+}
+
+body.sc-light-theme .sc-favorite-placeholder {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+body.sc-light-theme .sc-nav-badge {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* ===========================================
+   ATTENDANCE INFO
+   =========================================== */
+body.sc-light-theme .sc-ticket-badge.attended {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+body.sc-light-theme .sc-ticket-badge.missed {
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748b;
+}
+
+body.sc-light-theme .sc-ticket-badge.checked-in {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+body.sc-light-theme .sc-attendance-row {
+    color: #475569;
+}
+
+body.sc-light-theme .sc-attendance-row i {
+    color: #94a3b8;
+}
+
+body.sc-light-theme .sc-session-stat {
+    background: var(--sc-primary-alpha-10);
+}
+
+body.sc-light-theme .sc-session-detail-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+body.sc-light-theme .sc-sd-hall {
+    background: rgba(245, 158, 11, 0.08);
+}
+
+/* Certificates Section */
+body.sc-light-theme .sc-certificates-section {
+    background: rgba(0, 0, 0, 0.015);
+}
+
+body.sc-light-theme .sc-certs-header:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+body.sc-light-theme .sc-cert-item:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+body.sc-light-theme .sc-cert-pending {
+    background: rgba(100, 116, 139, 0.08);
+}
+
+body.sc-light-theme .sc-cert-progress {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+/* Event Status Tags */
+body.sc-light-theme .sc-event-status-tag.ended {
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748b;
+}
+
+body.sc-light-theme .sc-event-status-tag.live {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+body.sc-light-theme .sc-event-status-tag.upcoming {
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+}
+
+/* Certificate Button */
+body.sc-light-theme .sc-btn-certificate {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #fff !important;
+}
+
+/* ===========================================
+   PRINT - No changes needed
+   =========================================== */

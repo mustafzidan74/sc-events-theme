@@ -1,0 +1,153 @@
+<?php
+/**
+ * Debug Users Page
+ * Access: http://localhost/events/wp-content/themes/sc_events/debug-users.php
+ */
+
+// Load WordPress
+require_once($_SERVER['DOCUMENT_ROOT'] . '/events/wp-load.php');
+
+// Check if admin
+if (!current_user_can('manage_options')) {
+    die('Access denied. Please login as admin.');
+}
+
+global $wpdb;
+
+echo '<html><head><title>Debug Users</title>';
+echo '<style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #4CAF50; color: white; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    h2 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+    .meta { font-size: 11px; color: #666; max-width: 300px; word-wrap: break-word; }
+</style></head><body>';
+
+// 1. All WordPress Users
+echo '<h2>1. All WordPress Users</h2>';
+$all_users = get_users(array('number' => 100));
+echo '<p>Total users: <strong>' . count($all_users) . '</strong></p>';
+
+echo '<table>';
+echo '<tr><th>ID</th><th>Login</th><th>Email</th><th>Display Name</th><th>Roles</th><th>Registered</th></tr>';
+foreach ($all_users as $user) {
+    echo '<tr>';
+    echo '<td>' . $user->ID . '</td>';
+    echo '<td>' . esc_html($user->user_login) . '</td>';
+    echo '<td>' . esc_html($user->user_email) . '</td>';
+    echo '<td>' . esc_html($user->display_name) . '</td>';
+    echo '<td>' . implode(', ', $user->roles) . '</td>';
+    echo '<td>' . $user->user_registered . '</td>';
+    echo '</tr>';
+}
+echo '</table>';
+
+// 2. Subscribers Only
+echo '<h2>2. Subscribers Only</h2>';
+$subscribers = get_users(array('role' => 'subscriber', 'number' => 100));
+echo '<p>Total subscribers: <strong>' . count($subscribers) . '</strong></p>';
+
+if (count($subscribers) > 0) {
+    echo '<table>';
+    echo '<tr><th>ID</th><th>Login</th><th>Email</th><th>Display Name</th><th>Phone</th></tr>';
+    foreach ($subscribers as $user) {
+        $phone = get_user_meta($user->ID, 'phone', true) ?: get_user_meta($user->ID, 'billing_phone', true);
+        echo '<tr>';
+        echo '<td>' . $user->ID . '</td>';
+        echo '<td>' . esc_html($user->user_login) . '</td>';
+        echo '<td>' . esc_html($user->user_email) . '</td>';
+        echo '<td>' . esc_html($user->display_name) . '</td>';
+        echo '<td>' . esc_html($phone) . '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+} else {
+    echo '<p style="color: red;"><strong>No subscribers found!</strong></p>';
+}
+
+// 3. SC Attendees Table
+echo '<h2>3. SC Attendees Table (sc_attendees)</h2>';
+$attendees_table = $wpdb->prefix . 'sc_attendees';
+$table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$attendees_table}'");
+
+if ($table_exists) {
+    $attendees = $wpdb->get_results("SELECT DISTINCT id, name, email, phone, user_id FROM {$attendees_table} LIMIT 50");
+    echo '<p>Sample attendees: <strong>' . count($attendees) . '</strong></p>';
+
+    echo '<table>';
+    echo '<tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>User ID</th></tr>';
+    foreach ($attendees as $att) {
+        echo '<tr>';
+        echo '<td>' . $att->id . '</td>';
+        echo '<td>' . esc_html($att->name) . '</td>';
+        echo '<td>' . esc_html($att->email) . '</td>';
+        echo '<td>' . esc_html($att->phone) . '</td>';
+        echo '<td>' . ($att->user_id ?: '-') . '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+} else {
+    echo '<p style="color: red;">Table ' . $attendees_table . ' does not exist!</p>';
+}
+
+// 4. Available Roles
+echo '<h2>4. Available User Roles</h2>';
+global $wp_roles;
+echo '<ul>';
+foreach ($wp_roles->roles as $role_key => $role) {
+    $count = count(get_users(array('role' => $role_key)));
+    echo '<li><strong>' . $role_key . '</strong>: ' . $role['name'] . ' (' . $count . ' users)</li>';
+}
+echo '</ul>';
+
+// 5. Database Info
+echo '<h2>5. Database Info</h2>';
+echo '<p>Database Name: <strong>' . DB_NAME . '</strong></p>';
+echo '<p>Table Prefix: <strong>' . $wpdb->prefix . '</strong></p>';
+
+// 6. Test Search Query
+echo '<h2>6. Test Search Query (searching for "mah")</h2>';
+$search_args = array(
+    'role' => 'subscriber',
+    'search' => '*mah*',
+    'search_columns' => array('user_login', 'user_email', 'user_nicename', 'display_name'),
+    'number' => 15
+);
+$search_query = new WP_User_Query($search_args);
+$search_results = $search_query->get_results();
+
+echo '<p>Search results: <strong>' . count($search_results) . '</strong></p>';
+echo '<p>SQL Query:</p>';
+echo '<pre style="background: #f5f5f5; padding: 10px; overflow: auto;">' . esc_html($search_query->request) . '</pre>';
+
+if (count($search_results) > 0) {
+    echo '<table>';
+    echo '<tr><th>ID</th><th>Login</th><th>Email</th><th>Display Name</th></tr>';
+    foreach ($search_results as $user) {
+        echo '<tr>';
+        echo '<td>' . $user->ID . '</td>';
+        echo '<td>' . esc_html($user->user_login) . '</td>';
+        echo '<td>' . esc_html($user->user_email) . '</td>';
+        echo '<td>' . esc_html($user->display_name) . '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+} else {
+    echo '<p style="color: red;"><strong>No results found!</strong></p>';
+
+    // Test without role filter
+    echo '<h3>Testing WITHOUT role filter:</h3>';
+    $no_role_args = array(
+        'search' => '*mah*',
+        'search_columns' => array('user_login', 'user_email', 'user_nicename', 'display_name'),
+        'number' => 15
+    );
+    $no_role_query = new WP_User_Query($no_role_args);
+    $no_role_results = $no_role_query->get_results();
+    echo '<p>Results without role filter: <strong>' . count($no_role_results) . '</strong></p>';
+    echo '<pre style="background: #f5f5f5; padding: 10px; overflow: auto;">' . esc_html($no_role_query->request) . '</pre>';
+}
+
+echo '</body></html>';

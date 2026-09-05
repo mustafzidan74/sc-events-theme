@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="bootstrap.php"
+    colors="true"
+    verbose="true"
+    stopOnFailure="false"
+    stopOnError="false"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+    beStrictAboutOutputDuringTests="true">
+
+    <testsuites>
+        <testsuite name="SC Events Unit Tests">
+            <directory suffix="Test.php">./unit</directory>
+        </testsuite>
+        <testsuite name="SC Events Integration Tests">
+            <directory suffix="Test.php">./integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">../inc</directory>
+        </include>
+        <exclude>
+            <directory>../inc/tgm</directory>
+            <directory>../vendor</directory>
+        </exclude>
+        <report>
+            <html outputDirectory="./coverage-report"/>
+            <text outputFile="php://stdout"/>
+        </report>
+    </coverage>
+
+    <php>
+        <const name="WP_TESTS_DOMAIN" value="localhost"/>
+        <const name="WP_TESTS_EMAIL" value="admin@localhost"/>
+        <const name="WP_TESTS_TITLE" value="SC Events Tests"/>
+        <const name="WP_PHP_BINARY" value="php"/>
+        <const name="ABSPATH" value="c:/xampp/htdocs/events/"/>
+    </php>
+
+</phpunit>

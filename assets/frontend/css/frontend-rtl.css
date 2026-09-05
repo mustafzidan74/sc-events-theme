@@ -1,0 +1,499 @@
+/**
+ * Frontend RTL (Right-to-Left) Stylesheet
+ * Applied when site language is set to Arabic
+ */
+
+/* ========================================
+   1. BASE / GLOBAL
+   ======================================== */
+
+[dir="rtl"] body,
+body.rtl {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+}
+
+[dir="rtl"] * {
+    letter-spacing: 0 !important;
+}
+
+/* ========================================
+   2. HEADER / NAVBAR
+   ======================================== */
+
+[dir="rtl"] .sc-header .container {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-header-logo {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-nav-list {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-nav-dropdown {
+    left: auto;
+    right: 0;
+    text-align: right;
+}
+
+[dir="rtl"] .sc-nav-dropdown li a {
+    padding-left: 1rem;
+    padding-right: 1.5rem;
+}
+
+[dir="rtl"] .sc-nav-dropdown li a:hover {
+    padding-left: 1rem;
+    padding-right: 1.5rem;
+}
+
+[dir="rtl"] .sc-header-actions {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-mobile-toggle {
+    order: -1;
+}
+
+/* Mobile menu */
+[dir="rtl"] .sc-mobile-menu {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-mobile-menu .sc-nav-link {
+    text-align: right;
+}
+
+/* ========================================
+   3. HERO / BANNER SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-hero-content {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-hero-content .sc-hero-title,
+[dir="rtl"] .sc-hero-content .sc-hero-subtitle {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-hero-actions {
+    justify-content: flex-start;
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-hero-stats {
+    flex-direction: row-reverse;
+}
+
+/* ========================================
+   4. EVENT CARDS
+   ======================================== */
+
+[dir="rtl"] .sc-event-card .sc-event-meta {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-event-card .sc-event-meta span i {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+[dir="rtl"] .sc-event-card .sc-event-footer {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-event-card .sc-event-price {
+    text-align: left;
+}
+
+[dir="rtl"] .sc-event-card .sc-event-categories {
+    text-align: right;
+}
+
+/* ========================================
+   5. COUNTDOWN TIMER
+   ======================================== */
+
+[dir="rtl"] .sc-countdown {
+    direction: ltr;
+}
+
+[dir="rtl"] .sc-countdown-item {
+    direction: rtl;
+}
+
+/* ========================================
+   6. EVENT DETAIL PAGE
+   ======================================== */
+
+/* Event info sidebar */
+[dir="rtl"] .sc-event-sidebar .sc-info-item {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] .sc-event-sidebar .sc-info-item i {
+    margin-right: 0;
+    margin-left: 12px;
+}
+
+/* Tabs */
+[dir="rtl"] .sc-event-tabs .nav-tabs {
+    flex-direction: row-reverse;
+}
+
+/* Ticket cards */
+[dir="rtl"] .sc-ticket-card {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-ticket-card .sc-ticket-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-ticket-card .sc-ticket-price {
+    text-align: left;
+}
+
+[dir="rtl"] .sc-ticket-features li {
+    padding-left: 0;
+    padding-right: 1.5rem;
+    text-align: right;
+}
+
+[dir="rtl"] .sc-ticket-features li::before {
+    left: auto;
+    right: 0;
+}
+
+/* ========================================
+   7. SCHEDULE SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-timeline {
+    padding-left: 0;
+    padding-right: 30px;
+    border-left: none;
+    border-right: 2px solid var(--sc-border, rgba(255,255,255,0.1));
+}
+
+[dir="rtl"] .sc-timeline-item::before {
+    left: auto;
+    right: -36px;
+}
+
+[dir="rtl"] .sc-timeline-meta {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-timeline-meta i {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+[dir="rtl"] .sc-schedule-badge {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+/* ========================================
+   8. SPEAKERS SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-speaker-card {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-speaker-social {
+    direction: ltr;
+}
+
+/* ========================================
+   9. SPONSORS SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-sponsor-card {
+    text-align: right;
+}
+
+/* ========================================
+   10. HALLS SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-hall-card .sc-hall-info {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-hall-meta {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-hall-meta i {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+/* ========================================
+   11. FAQ SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-faq-item .sc-faq-question {
+    text-align: right;
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-faq-item .sc-faq-answer {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-faq-toggle {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* ========================================
+   12. GALLERY SECTION
+   ======================================== */
+
+[dir="rtl"] .sc-gallery-caption {
+    text-align: right;
+}
+
+/* ========================================
+   13. ARCHIVE / LISTING PAGE
+   ======================================== */
+
+[dir="rtl"] .sc-archive-filters {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-archive-filters .sc-search-input {
+    text-align: right;
+    padding-left: 1rem;
+    padding-right: 2.5rem;
+}
+
+[dir="rtl"] .sc-archive-filters .sc-search-icon {
+    left: auto;
+    right: 12px;
+}
+
+[dir="rtl"] .sc-archive-header {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-pagination {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-pagination .prev i,
+[dir="rtl"] .sc-pagination .next i {
+    transform: rotate(180deg);
+}
+
+/* ========================================
+   14. AUTH PAGES (Login/Register)
+   ======================================== */
+
+[dir="rtl"] .sc-auth-form {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-auth-form .form-group label {
+    text-align: right;
+    display: block;
+}
+
+[dir="rtl"] .sc-auth-form input,
+[dir="rtl"] .sc-auth-form select {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-auth-form .input-group {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-auth-form .input-group-text {
+    border-radius: 0 8px 8px 0;
+}
+
+[dir="rtl"] .sc-auth-form .input-group input {
+    border-radius: 8px 0 0 8px;
+}
+
+/* ========================================
+   15. CHECKOUT PAGE
+   ======================================== */
+
+[dir="rtl"] .sc-checkout-summary {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-checkout-summary .sc-summary-row {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-checkout-form {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-checkout-form label {
+    text-align: right;
+}
+
+/* ========================================
+   16. ACCOUNT PAGE
+   ======================================== */
+
+[dir="rtl"] .sc-account-sidebar {
+    border-right: none;
+    border-left: 1px solid var(--sc-border, rgba(255,255,255,0.1));
+}
+
+[dir="rtl"] .sc-account-sidebar .nav-link {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-account-sidebar .nav-link i {
+    margin-right: 0;
+    margin-left: 10px;
+}
+
+/* ========================================
+   17. FOOTER
+   ======================================== */
+
+[dir="rtl"] .sc-footer {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-footer-links {
+    text-align: right;
+}
+
+[dir="rtl"] .sc-footer-social {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sc-footer-bottom {
+    flex-direction: row-reverse;
+}
+
+/* ========================================
+   18. GENERAL UTILITIES
+   ======================================== */
+
+/* Flip Font Awesome arrows */
+[dir="rtl"] .fa-chevron-right::before {
+    content: "\f053";
+}
+
+[dir="rtl"] .fa-chevron-left::before {
+    content: "\f054";
+}
+
+[dir="rtl"] .fa-arrow-right::before {
+    content: "\f060";
+}
+
+[dir="rtl"] .fa-arrow-left::before {
+    content: "\f061";
+}
+
+/* Flip margins on icons inside text */
+[dir="rtl"] .fa + span,
+[dir="rtl"] .fas + span,
+[dir="rtl"] .far + span,
+[dir="rtl"] i.fa + span {
+    margin-left: 0;
+    margin-right: 6px;
+}
+
+/* Text alignment overrides */
+[dir="rtl"] .text-left {
+    text-align: right !important;
+}
+
+[dir="rtl"] .text-right {
+    text-align: left !important;
+}
+
+/* Margin/Padding flips for Bootstrap */
+[dir="rtl"] .ms-1, [dir="rtl"] .ms-2, [dir="rtl"] .ms-3, [dir="rtl"] .ms-4, [dir="rtl"] .ms-5,
+[dir="rtl"] .ms-auto {
+    margin-left: 0 !important;
+}
+
+[dir="rtl"] .me-1, [dir="rtl"] .me-2, [dir="rtl"] .me-3, [dir="rtl"] .me-4, [dir="rtl"] .me-5,
+[dir="rtl"] .me-auto {
+    margin-right: 0 !important;
+}
+
+[dir="rtl"] .ps-1, [dir="rtl"] .ps-2, [dir="rtl"] .ps-3, [dir="rtl"] .ps-4, [dir="rtl"] .ps-5 {
+    padding-left: 0 !important;
+}
+
+[dir="rtl"] .pe-1, [dir="rtl"] .pe-2, [dir="rtl"] .pe-3, [dir="rtl"] .pe-4, [dir="rtl"] .pe-5 {
+    padding-right: 0 !important;
+}
+
+/* Float flips */
+[dir="rtl"] .float-start {
+    float: right !important;
+}
+
+[dir="rtl"] .float-end {
+    float: left !important;
+}
+
+/* List styles */
+[dir="rtl"] ul, [dir="rtl"] ol {
+    padding-left: 0;
+    padding-right: 2rem;
+}
+
+/* Breadcrumb */
+[dir="rtl"] .breadcrumb {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
+    content: "/";
+    float: right;
+    padding-left: 0.5rem;
+    padding-right: 0;
+}
+
+/* ========================================
+   19. RESPONSIVE
+   ======================================== */
+
+@media (max-width: 991px) {
+    [dir="rtl"] .sc-header .container {
+        flex-direction: row-reverse;
+    }
+
+    [dir="rtl"] .sc-mobile-nav {
+        text-align: right;
+    }
+}
+
+@media (max-width: 767px) {
+    [dir="rtl"] .sc-event-card .sc-event-footer {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    [dir="rtl"] .sc-archive-filters {
+        flex-direction: column;
+    }
+
+    [dir="rtl"] .sc-footer-bottom {
+        flex-direction: column;
+        align-items: center;
+    }
+}

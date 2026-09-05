@@ -1,0 +1,539 @@
+/**
+ * Dashboard UI Improvements - Enhanced Design
+ * Additional styling for better visual appeal
+ *
+ * @package sc_events
+ * @version 2.1
+ */
+.sidebar {
+    top: 0 !important;
+}
+
+.navbar-fixed-top {
+    left: 260px !important;
+    width: calc(100% - 260px) !important;
+}
+
+.block-header h2 {
+font-size: 30px !important;
+    font-weight: 900 !important;
+    margin-top: 20px !important;
+}
+.layout-fullwidth #wrapper .navbar-fixed-top {
+    width: 100% !important;
+    left: 0 !important;
+
+}
+
+.sidebar .user-account {
+    border-radius: 10px;
+}
+.sidebar .user-account .user-photo {
+    background: #fff;
+}
+#main-menu li a {
+    margin: 0;
+    padding: 10px 10px;
+    transform: unset !important;
+}
+
+.sidebar .user-account h6 {
+    display: inline-block;
+    margin: 0;
+    margin-right: 5px;
+}
+.sidebar .user-account span {
+    display: inline-block;
+    font-size: 12px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 25px;
+}
+.switch input {
+  display:none;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0;
+  right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 25px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 19px; width: 19px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #4CAF50;
+}
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.badge.badge-success {
+    border-color: var(--primary-color) !important;
+    color: #fff !important;
+}
+
+.card.info-box-2 .icon {
+  overflow: hidden;
+}
+
+.card.info-box-2 .icon i {
+  width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* DataTables Pagination Styling */
+.dataTables_wrapper {
+    padding: 20px 0;
+}
+
+.dataTables_wrapper .row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.dataTables_wrapper .row:last-child {
+    margin-top: 15px;
+    margin-bottom: 0;
+}
+
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 0;
+    text-align: right;
+    float: none !important;
+    display: inline-block;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    display: inline-block;
+    padding: 8px 16px;
+    margin: 0 2px;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: #f5f5f5;
+    border-color: #999;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--primary-color, #17a2b8);
+    color: #fff;
+    border-color: var(--primary-color, #17a2b8);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dataTables_wrapper .dataTables_info {
+    margin-top: 0;
+    color: #666;
+    float: none !important;
+    display: inline-block;
+}
+
+.dataTables_wrapper .dataTables_length {
+    margin-bottom: 20px;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 0 5px;
+}
+
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 20px;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-left: 10px;
+    width: 250px;
+}
+
+/* Ensure pagination is visible */
+.dataTables_wrapper .col-sm-6 {
+    width: 50%;
+}
+
+.dataTables_wrapper .col-sm-6:first-child {
+    text-align: left;
+}
+
+.dataTables_wrapper .col-sm-6:last-child {
+    text-align: right;
+}
+
+/* Make sure table wrapper doesn't hide pagination */
+.card .body {
+    overflow: visible !important;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    overflow-y: visible !important;
+}
+
+.card .header .header-dropdown li .dropdown-menu li a {
+    color: #fff !important;
+}
+
+.user-account .dropdown .dropdown-menu a {
+  color: #fff !important;
+}
+
+ul.list-unstyled .avatar {
+    width: 8%;
+}
+
+ul.list-unstyled .d-flex > .flex {
+    width: 82%;
+}
+
+ul.list-unstyled .d-flex > a {
+    width: 8%;
+    display: flex;
+    justify-content: center;
+}
+
+.list-group .d-flex > .avatar {
+    width: 8%;
+    height: 50px;
+}
+
+.list-group .d-flex > .flex {
+    width: 90%;
+}
+
+table#events-table button.btn i,
+table#attendees-table button.btn i,
+table#categories-table button.btn i,
+table#speakers-table button.btn i,
+#schedules-container button.btn i,
+table#organizers-table  button.btn i {
+    margin: 0;
+}
+
+table#events-table .d-flex > .avatar {
+    width: 50px;
+}
+
+div#attendeesModal .card .body {
+    color: #fff;
+}
+
+#branding-info input[type="color"] {
+    height: 50px;
+}
+
+.select2-drop {
+    z-index: 10000;
+}
+
+div:where(.swal2-container) {
+    z-index: 106000 !important;
+}
+
+div#icon-selector-popup {
+    z-index: 100000 !important;
+}
+
+#icon-selector-popup [data-icon]:before,
+#icon-selector-popup div#icon-grid::before {
+    display: none !important;
+}
+#events-table span.badge.badge-primary {
+    color: #fff !important;
+}
+
+/* Fix custom-file input styling */
+.custom-file {
+    position: relative !important;
+}
+
+/* Fix tab-content scroll issue */
+.tab-content {
+    overflow: visible !important;
+}
+
+.tab-content > .active {
+    overflow: visible !important;
+}
+
+.tab-content > .tab-pane {
+    overflow: visible !important;
+}
+
+/* Fix main content area scroll */
+#main-content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+.main-content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Ensure body wrapper allows scroll */
+#wrapper {
+    overflow: visible !important;
+}
+
+.body-content {
+    overflow-y: auto !important;
+}
+
+/* Card body should allow content overflow for scroll */
+.card .body {
+    overflow: visible !important;
+}
+
+/* Events page specific fixes */
+#event-tabs-content {
+    overflow: visible !important;
+}
+
+#event-tabs-content > .active {
+    overflow: visible !important;
+}
+
+/* Modal specific - keep scroll for modals */
+.modal-body {
+    overflow-y: auto !important;
+    max-height: calc(100vh - 200px) !important;
+}
+
+/* Ensure page content scrolls properly */
+.page-content {
+    min-height: calc(100vh - 60px);
+    overflow-y: auto !important;
+}
+
+/* Global scroll fix for dashboard */
+html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+body {
+    position: relative !important;
+}
+
+/* Main wrapper should not block scroll */
+#wrapper {
+    min-height: 100vh !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Section container should allow scroll */
+.section-body {
+    overflow: visible !important;
+}
+
+/* Content container */
+.container-fluid {
+    overflow: visible !important;
+}
+
+/* Block and row containers */
+.block-content,
+.row {
+    overflow: visible !important;
+}
+
+/* Tab specific scroll fixes */
+.nav-tabs-new + .tab-content {
+    overflow: visible !important;
+}
+
+/* Fix for Bootstrap tab-content */
+.tab-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+.tab-pane {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+.tab-pane.active {
+    overflow: visible !important;
+}
+
+/* Fix for card containers inside tabs */
+.tab-pane .card {
+    overflow: visible !important;
+}
+
+.tab-pane .card .body {
+    overflow: visible !important;
+}
+
+/* ===========================================
+   FULLSCREEN MODALS - All modals 100% width/height
+   Only applies to Bootstrap modals (elements with .modal class)
+   =========================================== */
+.modal.fade .modal-dialog,
+.modal.show .modal-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+}
+
+.modal.fade .modal-content,
+.modal.show .modal-content {
+    width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border: none !important;
+    border-radius: 0 !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.modal .modal-header {
+    border-radius: 0 !important;
+    padding: 15px 25px !important;
+    background: #f8f9fa !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    flex-shrink: 0 !important;
+}
+
+.modal .modal-body {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 25px !important;
+    min-height: 0 !important;
+}
+
+/* Sticky tabs in event modal */
+ul#event-tabs {
+    position: sticky;
+    background: #fff;
+    top: -25px;
+    z-index: 1000;
+}
+
+.modal .modal-footer {
+    border-radius: 0 !important;
+    padding: 15px 25px !important;
+    background: #f8f9fa !important;
+    border-top: 1px solid #dee2e6 !important;
+    flex-shrink: 0 !important;
+}
+
+/* Fix modal backdrop */
+.modal-backdrop,
+.modal-backdrop.show {
+    background-color: rgba(0, 0, 0, 0.6) !important;
+    opacity: 1 !important;
+}
+
+/* Ensure modal opens without animation glitches */
+.modal.fade .modal-dialog {
+    transform: none !important;
+    transition: opacity 0.15s linear !important;
+}
+
+.modal.show .modal-dialog {
+    transform: none !important;
+}
+
+/* Modal open body fix */
+body.modal-open {
+    overflow: hidden !important;
+    padding-right: 0 !important;
+}
+
+/* WordPress Editor in fullscreen modal */
+.modal .modal-body .wp-editor-wrap {
+    height: calc(100% - 50px) !important;
+}
+
+.modal .modal-body .wp-editor-container {
+    height: calc(100% - 35px) !important;
+}
+
+.modal .modal-body .wp-editor-area {
+    height: calc(100% - 10px) !important;
+    min-height: 400px !important;
+}
+
+.modal .modal-body iframe#edit_page_content_editor_ifr {
+    height: calc(100% - 35px) !important;
+    min-height: 400px !important;
+}
+
+/* Fix for TinyMCE iframe in fullscreen */
+.modal .modal-body .mce-tinymce {
+    height: calc(100% - 35px) !important;
+}
+
+.modal .modal-body .mce-container-body {
+    height: 100% !important;
+}
+
+.modal .modal-body .mce-edit-area {
+    height: calc(100% - 70px) !important;
+}
+
+.modal .modal-body .mce-edit-area iframe {
+    height: 100% !important;
+}
+
+/* Table button group styling */
+table .btn-group {
+    gap: 10px;
+}
+
+table .btn-group button {
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

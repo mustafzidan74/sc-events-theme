@@ -1,0 +1,40 @@
+/* Color Skins for Dashboard */
+/* This file contains theme color variations */
+
+.theme-cyan {
+    --primary-color: #00bcd4;
+    --secondary-color: #0097a7;
+}
+
+.theme-green {
+    --primary-color: #4caf50;
+    --secondary-color: #388e3c;
+}
+
+.theme-orange {
+    --primary-color: #ff9800;
+    --secondary-color: #f57c00;
+}
+
+.theme-blush {
+    --primary-color: #e91e63;
+    --secondary-color: #c2185b;
+}
+
+.theme-indigo {
+    --primary-color: #3f51b5;
+    --secondary-color: #303f9f;
+}
+
+.theme-darkgreen {
+    --primary-color: #689f38;
+    --secondary-color: #558b2f;
+}
+
+.theme-dark {
+    --primary-color: #424242;
+    --secondary-color: #212121;
+    background-color: #2f2f2f;
+    color: #fff;
+}
+

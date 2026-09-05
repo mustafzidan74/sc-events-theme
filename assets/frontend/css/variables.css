@@ -1,0 +1,274 @@
+/**
+ * SC Events - CSS Variables (Dark & Premium Theme)
+ *
+ * Centralized design tokens. Colors use --sc-primary / --sc-secondary
+ * which are overridden at runtime by frontend-dynamic-colors.php
+ * based on dashboard settings.
+ *
+ * @package sc_events
+ * @version 3.0.0
+ */
+
+:root {
+    /* ===========================================
+       PRIMARY ACCENT COLOR (Default - overridden by PHP)
+       =========================================== */
+    --sc-primary: #D4AF37;
+    --sc-primary-light: #F59E0B;
+    --sc-primary-dark: #B8960C;
+    --sc-primary-alpha-10: rgba(212, 175, 55, 0.1);
+    --sc-primary-alpha-20: rgba(212, 175, 55, 0.2);
+    --sc-primary-alpha-30: rgba(212, 175, 55, 0.3);
+    --sc-primary-alpha-50: rgba(212, 175, 55, 0.5);
+
+    /* ===========================================
+       SECONDARY / CTA COLOR (Default - overridden by PHP)
+       =========================================== */
+    --sc-secondary: #7c3aed;
+    --sc-secondary-light: #8b5cf6;
+    --sc-secondary-dark: #6d28d9;
+    --sc-secondary-alpha-10: rgba(124, 58, 237, 0.1);
+    --sc-secondary-alpha-20: rgba(124, 58, 237, 0.2);
+    --sc-secondary-alpha-30: rgba(124, 58, 237, 0.3);
+
+    /* ===========================================
+       GRADIENTS
+       =========================================== */
+    --sc-gradient-primary: linear-gradient(135deg, var(--sc-primary) 0%, var(--sc-primary-light) 100%);
+    --sc-gradient-primary-text: linear-gradient(135deg, var(--sc-primary) 0%, var(--sc-primary-light) 50%, var(--sc-primary) 100%);
+    --sc-gradient-secondary: linear-gradient(135deg, var(--sc-secondary) 0%, var(--sc-secondary-light) 100%);
+    --sc-gradient-dark: linear-gradient(180deg, #0a0a0f 0%, #0d1117 100%);
+    --sc-gradient-hero: linear-gradient(135deg, #0a0a0f 0%, #111827 50%, #0a0a0f 100%);
+
+    /* ===========================================
+       DARK BACKGROUNDS
+       =========================================== */
+    --sc-bg-base: #0a0a0f;
+    --sc-bg-elevated: #0d1117;
+    --sc-bg-surface: #111827;
+    --sc-bg-card: rgba(255, 255, 255, 0.03);
+    --sc-bg-card-hover: rgba(255, 255, 255, 0.06);
+    --sc-bg-input: rgba(255, 255, 255, 0.05);
+    --sc-bg-overlay: rgba(0, 0, 0, 0.7);
+    --sc-bg-overlay-heavy: rgba(0, 0, 0, 0.85);
+
+    /* ===========================================
+       NEUTRAL COLORS
+       =========================================== */
+    --sc-white: #FFFFFF;
+    --sc-black: #000000;
+
+    /* Dark Gray Scale */
+    --sc-gray-50: #f8fafc;
+    --sc-gray-100: #f1f5f9;
+    --sc-gray-200: #e2e8f0;
+    --sc-gray-300: #cbd5e1;
+    --sc-gray-400: #94a3b8;
+    --sc-gray-500: #64748b;
+    --sc-gray-600: #475569;
+    --sc-gray-700: #334155;
+    --sc-gray-800: #1e293b;
+    --sc-gray-900: #0f172a;
+
+    /* ===========================================
+       SEMANTIC COLORS
+       =========================================== */
+    --sc-success: #10B981;
+    --sc-success-light: #34D399;
+    --sc-success-dark: #059669;
+
+    --sc-warning: #F59E0B;
+    --sc-warning-light: #FBBF24;
+    --sc-warning-dark: #D97706;
+
+    --sc-error: #EF4444;
+    --sc-error-light: #F87171;
+    --sc-error-dark: #DC2626;
+
+    --sc-info: #3B82F6;
+    --sc-info-light: #60A5FA;
+    --sc-info-dark: #2563EB;
+
+    /* ===========================================
+       TEXT COLORS
+       =========================================== */
+    --sc-text-primary: #f8fafc;
+    --sc-text-secondary: #94a3b8;
+    --sc-text-muted: #64748b;
+    --sc-text-disabled: #475569;
+    --sc-text-hint: #334155;
+    --sc-text-on-primary: #0a0a0f;
+    --sc-text-on-dark: #f8fafc;
+    --sc-text-accent: var(--sc-primary);
+
+    /* ===========================================
+       BORDER COLORS
+       =========================================== */
+    --sc-border-subtle: rgba(255, 255, 255, 0.06);
+    --sc-border-light: rgba(255, 255, 255, 0.1);
+    --sc-border-medium: rgba(255, 255, 255, 0.15);
+    --sc-border-primary: var(--sc-primary-alpha-30);
+    --sc-border-primary-strong: var(--sc-primary-alpha-50);
+    --sc-border-color: var(--sc-border-subtle);
+
+    /* ===========================================
+       GLASS MORPHISM
+       =========================================== */
+    --sc-glass-bg: rgba(255, 255, 255, 0.03);
+    --sc-glass-bg-hover: rgba(255, 255, 255, 0.06);
+    --sc-glass-border: rgba(255, 255, 255, 0.08);
+    --sc-glass-blur: blur(12px);
+    --sc-glass-blur-heavy: blur(20px);
+
+    /* ===========================================
+       SHADOWS & GLOWS
+       =========================================== */
+    --sc-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --sc-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --sc-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+    --sc-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4), 0 4px 6px rgba(0, 0, 0, 0.3);
+    --sc-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.5), 0 10px 10px rgba(0, 0, 0, 0.3);
+    --sc-shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.6);
+    --sc-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    --sc-glow-primary: 0 0 30px var(--sc-primary-alpha-20);
+    --sc-glow-primary-strong: 0 0 40px var(--sc-primary-alpha-30);
+    --sc-glow-secondary: 0 0 30px var(--sc-secondary-alpha-20);
+    --sc-shadow-primary: 0 4px 14px var(--sc-primary-alpha-30);
+
+    /* ===========================================
+       TYPOGRAPHY
+       =========================================== */
+    --sc-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --sc-font-family-heading: 'Poppins', var(--sc-font-family-base);
+    --sc-font-family-mono: 'Fira Code', 'Consolas', 'Monaco', monospace;
+
+    /* Font Sizes */
+    --sc-text-xs: 0.75rem;      /* 12px */
+    --sc-text-sm: 0.875rem;     /* 14px */
+    --sc-text-base: 1rem;       /* 16px */
+    --sc-text-lg: 1.125rem;     /* 18px */
+    --sc-text-xl: 1.25rem;      /* 20px */
+    --sc-text-2xl: 1.5rem;      /* 24px */
+    --sc-text-3xl: 1.875rem;    /* 30px */
+    --sc-text-4xl: 2.25rem;     /* 36px */
+    --sc-text-5xl: 3rem;        /* 48px */
+    --sc-text-6xl: 3.75rem;     /* 60px */
+
+    /* Font Weights */
+    --sc-font-light: 300;
+    --sc-font-normal: 400;
+    --sc-font-medium: 500;
+    --sc-font-semibold: 600;
+    --sc-font-bold: 700;
+    --sc-font-extrabold: 800;
+
+    /* Line Heights */
+    --sc-leading-none: 1;
+    --sc-leading-tight: 1.2;
+    --sc-leading-snug: 1.375;
+    --sc-leading-normal: 1.5;
+    --sc-leading-relaxed: 1.625;
+    --sc-leading-loose: 2;
+
+    /* Letter Spacing */
+    --sc-tracking-tight: -0.025em;
+    --sc-tracking-normal: 0;
+    --sc-tracking-wide: 0.025em;
+    --sc-tracking-wider: 0.05em;
+    --sc-tracking-widest: 0.1em;
+
+    /* ===========================================
+       SPACING
+       =========================================== */
+    --sc-space-0: 0;
+    --sc-space-1: 0.25rem;      /* 4px */
+    --sc-space-2: 0.5rem;       /* 8px */
+    --sc-space-3: 0.75rem;      /* 12px */
+    --sc-space-4: 1rem;         /* 16px */
+    --sc-space-5: 1.25rem;      /* 20px */
+    --sc-space-6: 1.5rem;       /* 24px */
+    --sc-space-7: 1.75rem;      /* 28px */
+    --sc-space-8: 2rem;         /* 32px */
+    --sc-space-10: 2.5rem;      /* 40px */
+    --sc-space-12: 3rem;        /* 48px */
+    --sc-space-16: 4rem;        /* 64px */
+    --sc-space-20: 5rem;        /* 80px */
+    --sc-space-24: 6rem;        /* 96px */
+
+    /* ===========================================
+       BORDER RADIUS
+       =========================================== */
+    --sc-radius-none: 0;
+    --sc-radius-sm: 0.25rem;    /* 4px */
+    --sc-radius-md: 0.5rem;     /* 8px */
+    --sc-radius-lg: 0.75rem;    /* 12px */
+    --sc-radius-xl: 1rem;       /* 16px */
+    --sc-radius-2xl: 1.5rem;    /* 24px */
+    --sc-radius-3xl: 2rem;      /* 32px */
+    --sc-radius-full: 9999px;
+
+    /* ===========================================
+       TRANSITIONS
+       =========================================== */
+    --sc-transition-fast: 150ms ease;
+    --sc-transition-normal: 250ms ease;
+    --sc-transition-slow: 350ms ease;
+    --sc-transition-bounce: 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --sc-transition-smooth: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ===========================================
+       Z-INDEX SCALE
+       =========================================== */
+    --sc-z-base: 1;
+    --sc-z-dropdown: 1000;
+    --sc-z-sticky: 1020;
+    --sc-z-fixed: 1030;
+    --sc-z-modal-backdrop: 1040;
+    --sc-z-modal: 1050;
+    --sc-z-popover: 1060;
+    --sc-z-tooltip: 1070;
+    --sc-z-toast: 1080;
+    --sc-z-floating-cta: 1090;
+
+    /* ===========================================
+       CONTAINER WIDTHS
+       =========================================== */
+    --sc-container-sm: 640px;
+    --sc-container-md: 768px;
+    --sc-container-lg: 1024px;
+    --sc-container-xl: 1280px;
+    --sc-container-2xl: 1440px;
+
+    /* ===========================================
+       COMPONENT-SPECIFIC
+       =========================================== */
+    /* Buttons */
+    --sc-btn-padding-x: 1.75rem;
+    --sc-btn-padding-y: 0.875rem;
+    --sc-btn-font-size: var(--sc-text-base);
+    --sc-btn-radius: var(--sc-radius-lg);
+
+    /* Cards */
+    --sc-card-padding: var(--sc-space-6);
+    --sc-card-radius: var(--sc-radius-xl);
+    --sc-card-shadow: var(--sc-shadow-md);
+
+    /* Inputs */
+    --sc-input-padding-x: var(--sc-space-4);
+    --sc-input-padding-y: var(--sc-space-3);
+    --sc-input-radius: var(--sc-radius-lg);
+    --sc-input-border: 1px solid var(--sc-border-light);
+    --sc-input-focus-ring: 0 0 0 3px var(--sc-primary-alpha-20);
+
+    /* Header */
+    --sc-header-height: 80px;
+    --sc-header-height-mobile: 64px;
+}
+
+/* ===========================================
+   RTL SUPPORT
+   =========================================== */
+[dir="rtl"] {
+    --sc-font-family-base: 'Cairo', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --sc-font-family-heading: 'Cairo', var(--sc-font-family-base);
+}

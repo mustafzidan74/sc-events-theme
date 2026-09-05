@@ -1,0 +1,282 @@
+/**
+ * Payment Result Pages Styles
+ * Extracted from page-payment-success.php and page-payment-failed.php
+ *
+ * @package sc_events
+ */
+
+/* ===== Shared: Result Container ===== */
+.success-container,
+.failed-container {
+    max-width: 600px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.failed-container {
+    max-width: 550px;
+}
+
+/* ===== Shared: Button Group ===== */
+.btn-group-custom {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-custom {
+    padding: 14px 30px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+}
+
+.btn-primary-custom {
+    background: var(--sc-gradient-primary);
+    color: var(--sc-text-on-primary, #0a0a0f);
+    border: none;
+}
+
+.btn-primary-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    color: var(--sc-text-on-primary, #0a0a0f);
+}
+
+.btn-secondary-custom {
+    background: transparent;
+    color: var(--sc-primary);
+    border: 2px solid var(--sc-primary);
+}
+
+.btn-secondary-custom:hover {
+    background: var(--sc-primary-alpha-10);
+    color: var(--sc-primary-light);
+}
+
+/* ===== Success Page ===== */
+.success-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 50px 30px;
+}
+
+.success-icon {
+    width: 100px;
+    height: 100px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.success-icon i {
+    font-size: 50px;
+    color: #10b981;
+}
+
+.success-header h1 {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: white;
+}
+
+.success-header p {
+    opacity: 0.9;
+    margin: 0;
+    color: white;
+}
+
+.success-body {
+    padding: 40px 30px;
+}
+
+/* ===== Order Details ===== */
+.order-details {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    text-align: left;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    color: var(--sc-text-muted, #64748b);
+    font-size: 14px;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: var(--sc-text-primary, #f1f5f9);
+}
+
+.text-muted {
+    color: var(--sc-text-muted, #64748b) !important;
+}
+
+/* ===== Processing Message ===== */
+.processing-message {
+    padding: 20px;
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.processing-message i {
+    color: #f59e0b;
+}
+
+/* ===== Confetti ===== */
+.confetti {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+/* ===== Failed Page ===== */
+.failed-header {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 50px 30px;
+}
+
+.failed-header.cancelled {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.failed-icon {
+    width: 100px;
+    height: 100px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.failed-icon i {
+    font-size: 50px;
+    color: #ef4444;
+}
+
+.failed-header.cancelled .failed-icon i {
+    color: #f59e0b;
+}
+
+.failed-header h1 {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: white;
+}
+
+.failed-header p {
+    opacity: 0.9;
+    margin: 0;
+    color: white;
+}
+
+.failed-body {
+    padding: 40px 30px;
+}
+
+/* ===== Error Message ===== */
+.error-message {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.error-message i {
+    margin-right: 8px;
+}
+
+/* ===== Help Section ===== */
+.help-text {
+    color: var(--sc-text-muted, #64748b);
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.help-list {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 20px 25px;
+    margin-bottom: 30px;
+}
+
+.help-list h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: var(--sc-text-primary, #f1f5f9);
+}
+
+.help-list ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.help-list li {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--sc-text-muted, #64748b);
+}
+
+/* ===== Support Link ===== */
+.support-link {
+    margin-top: 25px;
+    font-size: 14px;
+    color: var(--sc-text-muted, #64748b);
+}
+
+.support-link a {
+    color: var(--sc-primary);
+    text-decoration: none;
+}
+
+.support-link a:hover {
+    text-decoration: underline;
+}

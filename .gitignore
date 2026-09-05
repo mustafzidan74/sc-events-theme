@@ -1,0 +1,30 @@
+# Attendee data — never commit. These files hold names, emails and phone
+# numbers of real people.
+*.csv
+
+# Dependencies (restore with composer install / npm install)
+vendor/
+node_modules/
+
+# Archives and backups
+*.zip
+*.tar.gz
+*.bak
+*.bak-*
+*.sql.gz
+
+# Local configuration and secrets
+.env
+.env.*
+wp-config.php
+.claude/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Junk file created by a stray "> nul" redirect; also a reserved name on Windows
+nul

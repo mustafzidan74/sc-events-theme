@@ -1,0 +1,1615 @@
+/**
+ * SC Events Dashboard - Premium Design Upgrade
+ * Enhances both light and dark themes with glass morphism,
+ * colored shadows, refined micro-interactions, and polished components.
+ *
+ * Loaded AFTER dashboard-dark-theme.css for clean cascade.
+ *
+ * @package sc_events
+ * @version 1.0.0
+ */
+
+/* ============================================
+   1. CSS VARIABLES - PREMIUM TOKENS
+   ============================================ */
+:root {
+    /* Colored shadows (use primary color RGB from dynamic-colors.php) */
+    --shadow-primary-sm: 0 2px 8px rgba(var(--primary-color-rgb), 0.06);
+    --shadow-primary-md: 0 4px 16px rgba(var(--primary-color-rgb), 0.1);
+    --shadow-primary-lg: 0 8px 30px rgba(var(--primary-color-rgb), 0.14);
+    --glow-primary: 0 0 25px rgba(var(--primary-color-rgb), 0.12);
+    --glow-primary-strong: 0 0 40px rgba(var(--primary-color-rgb), 0.2);
+
+    /* Glass morphism */
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-bg-hover: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-blur: blur(12px);
+
+    /* Premium radius */
+    --premium-radius: 16px;
+    --premium-radius-sm: 10px;
+    --premium-radius-xs: 8px;
+}
+
+[data-theme="dark"] {
+    --shadow-primary-sm: 0 2px 8px rgba(var(--primary-color-rgb), 0.1);
+    --shadow-primary-md: 0 4px 16px rgba(var(--primary-color-rgb), 0.15);
+    --shadow-primary-lg: 0 8px 30px rgba(var(--primary-color-rgb), 0.2);
+    --glow-primary: 0 0 25px rgba(var(--primary-color-rgb), 0.18);
+    --glow-primary-strong: 0 0 40px rgba(var(--primary-color-rgb), 0.3);
+
+    --glass-bg: rgba(30, 41, 59, 0.65);
+    --glass-bg-hover: rgba(30, 41, 59, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: blur(16px);
+}
+
+/* ============================================
+   2. PREMIUM ANIMATIONS
+   ============================================ */
+@keyframes premiumFadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes subtleFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(var(--primary-color-rgb), 0.1); }
+    50% { box-shadow: 0 0 25px rgba(var(--primary-color-rgb), 0.2); }
+}
+
+/* ============================================
+   3. GLOBAL BACKGROUND - SUBTLE DEPTH
+   ============================================ */
+#main-content {
+    position: relative;
+    background: #f8fafc !important;
+}
+
+#main-content::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(var(--primary-color-rgb), 0.04) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+#main-content::after {
+    content: '';
+    position: fixed;
+    bottom: -15%;
+    left: -5%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(var(--primary-color-rgb), 0.03) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+#main-content > .container-fluid {
+    position: relative;
+    z-index: 1;
+}
+
+[data-theme="dark"] #main-content {
+    background: #0f172a !important;
+}
+
+[data-theme="dark"] #main-content::before {
+    background: radial-gradient(circle, rgba(var(--primary-color-rgb), 0.06) 0%, transparent 70%);
+}
+
+[data-theme="dark"] #main-content::after {
+    background: radial-gradient(circle, rgba(var(--primary-color-rgb), 0.04) 0%, transparent 70%);
+}
+
+/* ============================================
+   4. PREMIUM CARDS
+   ============================================ */
+.card {
+    border-radius: var(--premium-radius) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04),
+                0 4px 12px rgba(0, 0, 0, 0.06),
+                var(--shadow-primary-sm) !important;
+    position: relative;
+    animation: premiumFadeUp 0.4s ease-out both;
+}
+
+/* Gradient accent bar on top */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    border-radius: var(--premium-radius) var(--premium-radius) 0 0;
+    z-index: 2;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+.card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06),
+                0 8px 24px rgba(0, 0, 0, 0.08),
+                var(--shadow-primary-md) !important;
+}
+
+/* Fix for cards that already use ::before (stat summary) */
+.card.bg-light::before {
+    height: 3px;
+}
+
+.card .header {
+    border-radius: var(--premium-radius) var(--premium-radius) 0 0 !important;
+    padding: 18px 24px !important;
+}
+
+.card .header h2 {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em;
+}
+
+.card .body {
+    padding: 24px !important;
+}
+
+.card .card-footer,
+.card > a.card-footer {
+    border-radius: 0 0 var(--premium-radius) var(--premium-radius) !important;
+    font-weight: 500 !important;
+}
+
+/* Dark mode cards */
+[data-theme="dark"] .card {
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2),
+                0 4px 12px rgba(0, 0, 0, 0.25),
+                var(--shadow-primary-sm) !important;
+}
+
+[data-theme="dark"] .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+                0 8px 24px rgba(0, 0, 0, 0.35),
+                var(--shadow-primary-md),
+                0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Staggered card entrance */
+.row.clearfix > [class*="col-"]:nth-child(1) .card { animation-delay: 0.05s; }
+.row.clearfix > [class*="col-"]:nth-child(2) .card { animation-delay: 0.1s; }
+.row.clearfix > [class*="col-"]:nth-child(3) .card { animation-delay: 0.15s; }
+.row.clearfix > [class*="col-"]:nth-child(4) .card { animation-delay: 0.2s; }
+.row.clearfix > [class*="col-"]:nth-child(5) .card { animation-delay: 0.25s; }
+.row.clearfix > [class*="col-"]:nth-child(6) .card { animation-delay: 0.3s; }
+
+/* ============================================
+   5. PREMIUM STAT CARDS
+   ============================================ */
+.card.number-chart {
+    overflow: hidden !important;
+    border: 1px solid rgba(var(--primary-color-rgb), 0.08) !important;
+}
+
+.card.number-chart::before {
+    height: 3px;
+    opacity: 1;
+}
+
+.card.number-chart .body {
+    padding: 24px !important;
+}
+
+.card.number-chart .body h3 {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+/* Icon box enhancement */
+.icon-in-bg {
+    width: 64px !important;
+    height: 64px !important;
+    border-radius: var(--premium-radius) !important;
+    position: relative;
+}
+
+.icon-in-bg::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 20px;
+    background: inherit;
+    opacity: 0.3;
+    filter: blur(8px);
+    z-index: -1;
+    transition: opacity 0.3s ease;
+}
+
+.card.number-chart:hover .icon-in-bg::after {
+    opacity: 0.5;
+}
+
+.card.number-chart:hover .icon-in-bg {
+    transform: scale(1.08) rotate(3deg) !important;
+}
+
+/* Dark stat cards */
+[data-theme="dark"] .card.number-chart {
+    border: 1px solid rgba(var(--primary-color-rgb), 0.12) !important;
+    background: linear-gradient(135deg, #1e293b 0%, rgba(30, 41, 59, 0.95) 100%) !important;
+}
+
+/* ============================================
+   6. TODAY'S SUMMARY BAR
+   ============================================ */
+.card.bg-light {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border) !important;
+}
+
+.card.bg-light .body .row > div h5 {
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .card.bg-light {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border) !important;
+}
+
+/* ============================================
+   7. FORM CONTROLS - PREMIUM
+   ============================================ */
+.form-control {
+    height: 44px !important;
+    border-radius: var(--premium-radius-sm) !important;
+    border: 1.5px solid var(--gray-200) !important;
+    font-size: 0.9rem !important;
+    padding: 10px 16px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+textarea.form-control {
+    height: auto !important;
+    min-height: 100px;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.12),
+                0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    background: rgba(var(--primary-color-rgb), 0.02) !important;
+}
+
+.form-control::placeholder {
+    color: var(--gray-400) !important;
+    font-weight: 400;
+}
+
+/* Labels */
+.form-group label,
+label:not(.btn):not(.custom-control-label) {
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.01em;
+    margin-bottom: 6px !important;
+}
+
+/* Select2 premium */
+.select2-container--default .select2-selection--single {
+    height: 44px !important;
+    border-radius: var(--premium-radius-sm) !important;
+    border: 1.5px solid var(--gray-200) !important;
+    padding: 8px 16px !important;
+    transition: all 0.25s ease !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 26px !important;
+    padding: 0 !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 42px !important;
+    right: 8px !important;
+}
+
+.select2-container--default .select2-selection--multiple {
+    min-height: 44px !important;
+    border-radius: var(--premium-radius-sm) !important;
+    border: 1.5px solid var(--gray-200) !important;
+    padding: 4px 8px !important;
+}
+
+.select2-dropdown {
+    border-radius: var(--premium-radius-sm) !important;
+    border: 1.5px solid var(--gray-200) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+    margin-top: 4px !important;
+    overflow: hidden;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    border-radius: 6px !important;
+    margin: 2px 4px !important;
+}
+
+/* Dark form controls */
+[data-theme="dark"] .form-control {
+    border: 1.5px solid #334155 !important;
+}
+
+[data-theme="dark"] .form-control:focus {
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.2),
+                0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    background: rgba(var(--primary-color-rgb), 0.05) !important;
+}
+
+[data-theme="dark"] .select2-container--default .select2-selection--single,
+[data-theme="dark"] .select2-container--default .select2-selection--multiple {
+    border: 1.5px solid #334155 !important;
+}
+
+[data-theme="dark"] .select2-dropdown {
+    border: 1.5px solid #334155 !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ============================================
+   8. PREMIUM BUTTONS
+   ============================================ */
+.btn {
+    border-radius: var(--premium-radius-sm) !important;
+    font-weight: 600 !important;
+    font-size: 0.875rem !important;
+    padding: 10px 20px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-sm {
+    padding: 6px 14px !important;
+    font-size: 0.8rem !important;
+    border-radius: var(--premium-radius-xs) !important;
+}
+
+.btn-lg {
+    padding: 14px 28px !important;
+    font-size: 1rem !important;
+}
+
+/* Primary button glow */
+.btn-primary:hover,
+.btn.btn-primary:hover {
+    box-shadow: var(--glow-primary-strong),
+                0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+.btn-primary:active,
+.btn.btn-primary:active {
+    transform: translateY(0) scale(0.98) !important;
+    box-shadow: var(--shadow-primary-sm) !important;
+}
+
+/* Success button */
+.btn-success:hover {
+    box-shadow: var(--glow-primary),
+                0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    transform: translateY(-2px);
+}
+
+/* Outline buttons */
+.btn-outline-primary {
+    border: 1.5px solid var(--primary-color) !important;
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-rgba-10) !important;
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1) !important;
+}
+
+.btn-outline-secondary:hover {
+    transform: translateY(-1px);
+}
+
+/* Icon-only buttons */
+.btn i:only-child {
+    margin: 0;
+}
+
+/* ============================================
+   9. PREMIUM TABLES
+   ============================================ */
+.table {
+    border-radius: var(--premium-radius) !important;
+    overflow: hidden;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.table thead th {
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 14px 16px !important;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--primary-rgba-20) !important;
+}
+
+.table tbody td {
+    padding: 14px 16px !important;
+    font-size: 0.875rem !important;
+    vertical-align: middle !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease !important;
+}
+
+.table tbody tr:hover {
+    background: rgba(var(--primary-color-rgb), 0.04) !important;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* Dark table */
+[data-theme="dark"] .table tbody td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+    background: rgba(var(--primary-color-rgb), 0.08) !important;
+}
+
+/* ============================================
+   10. PREMIUM SIDEBAR
+   ============================================ */
+/* Light mode sidebar */
+#left-sidebar {
+    border-radius: 0 var(--premium-radius) var(--premium-radius) 0;
+    border-right: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Dark mode frosted glass sidebar */
+[data-theme="dark"] #left-sidebar {
+    background: rgba(15, 23, 42, 0.92) !important;
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Sidebar user account - glass effect */
+#left-sidebar .user-account {
+    border-radius: var(--premium-radius) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Menu items - smoother transitions */
+.sidebar-nav .metismenu > li {
+    margin: 2px 12px !important;
+}
+
+.sidebar-nav .metismenu > li > a {
+    border-radius: var(--premium-radius-sm) !important;
+    font-size: 0.9rem !important;
+}
+
+/* Submenu refinement */
+.sidebar-nav .metismenu ul {
+    border-radius: var(--premium-radius-sm) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-nav .metismenu ul li a {
+    border-radius: var(--premium-radius-xs) !important;
+    font-size: 0.85rem !important;
+}
+
+[data-theme="dark"] .sidebar-nav .metismenu ul {
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ============================================
+   11. PREMIUM NAVBAR
+   ============================================ */
+nav.navbar {
+    backdrop-filter: blur(10px) saturate(1.3);
+    -webkit-backdrop-filter: blur(10px) saturate(1.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Navbar dropdown premium */
+nav.navbar .dropdown-menu {
+    border-radius: var(--premium-radius) !important;
+    padding: 8px !important;
+    margin-top: 8px !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+nav.navbar .dropdown-menu li a,
+nav.navbar .dropdown-menu .dropdown-item {
+    border-radius: var(--premium-radius-xs) !important;
+    padding: 10px 14px !important;
+    font-size: 0.875rem !important;
+    margin: 2px 0;
+}
+
+/* Theme toggle button enhancement */
+.btn-theme-toggle:hover {
+    animation: glowPulse 2s ease-in-out infinite;
+}
+
+[data-theme="dark"] nav.navbar .dropdown-menu {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ============================================
+   12. PREMIUM BADGES
+   ============================================ */
+.badge {
+    border-radius: 20px !important;
+    padding: 5px 12px !important;
+    font-weight: 600 !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+}
+
+.badge-primary,
+.badge.bg-primary {
+    border-color: rgba(var(--primary-color-rgb), 0.3) !important;
+}
+
+.badge-success,
+.badge.bg-success {
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #059669 !important;
+    border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+.badge-warning,
+.badge.bg-warning {
+    background: rgba(245, 158, 11, 0.12) !important;
+    color: #d97706 !important;
+    border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+.badge-danger,
+.badge.bg-danger {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #dc2626 !important;
+    border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+.badge-info,
+.badge.bg-info {
+    background: rgba(59, 130, 246, 0.12) !important;
+    color: #2563eb !important;
+    border-color: rgba(59, 130, 246, 0.25) !important;
+}
+
+.badge-secondary,
+.badge.bg-secondary {
+    background: rgba(107, 114, 128, 0.12) !important;
+    color: #4b5563 !important;
+    border-color: rgba(107, 114, 128, 0.25) !important;
+}
+
+/* Dark mode badges */
+[data-theme="dark"] .badge-success,
+[data-theme="dark"] .badge.bg-success {
+    background: rgba(16, 185, 129, 0.18) !important;
+    color: #34d399 !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-warning,
+[data-theme="dark"] .badge.bg-warning {
+    background: rgba(245, 158, 11, 0.18) !important;
+    color: #fbbf24 !important;
+    border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-danger,
+[data-theme="dark"] .badge.bg-danger {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-info,
+[data-theme="dark"] .badge.bg-info {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #60a5fa !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-secondary,
+[data-theme="dark"] .badge.bg-secondary {
+    background: rgba(148, 163, 184, 0.18) !important;
+    color: #94a3b8 !important;
+    border-color: rgba(148, 163, 184, 0.3) !important;
+}
+
+/* ============================================
+   13. PREMIUM MODALS
+   ============================================ */
+.modal-content {
+    border-radius: var(--premium-radius) !important;
+    border: none !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+    overflow: hidden;
+}
+
+/* Modal accent bar */
+.modal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    z-index: 10;
+}
+
+.modal-header {
+    border-radius: var(--premium-radius) var(--premium-radius) 0 0 !important;
+    padding: 20px 24px !important;
+}
+
+.modal-title {
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+}
+
+.modal-body {
+    padding: 24px !important;
+}
+
+.modal-footer {
+    padding: 16px 24px !important;
+    border-radius: 0 0 var(--premium-radius) var(--premium-radius) !important;
+}
+
+/* Dark modal */
+[data-theme="dark"] .modal-content {
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+/* SweetAlert premium */
+div:where(.swal2-popup) {
+    border-radius: var(--premium-radius) !important;
+}
+
+div:where(.swal2-popup)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    z-index: 10;
+}
+
+.swal2-title {
+    font-weight: 700 !important;
+    font-size: 1.25rem !important;
+}
+
+/* ============================================
+   14. QUICK ACTION CARDS
+   ============================================ */
+.card.text-center {
+    border: 1.5px solid rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.card.text-center:hover {
+    border-color: rgba(var(--primary-color-rgb), 0.3) !important;
+    box-shadow: var(--glow-primary),
+                0 8px 24px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-3px) !important;
+}
+
+.card.text-center .icon,
+.card.text-center i.fa {
+    border-radius: var(--premium-radius) !important;
+}
+
+.card.text-center:hover .icon,
+.card.text-center:hover i.fa {
+    box-shadow: var(--glow-primary);
+}
+
+.card.text-center h4,
+.card.text-center h3 {
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+/* Dark quick actions */
+[data-theme="dark"] .card.text-center {
+    border: 1.5px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .card.text-center:hover {
+    border-color: rgba(var(--primary-color-rgb), 0.4) !important;
+    box-shadow: var(--glow-primary),
+                0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dashed border cards */
+.card.text-center[style*="border: 2px dashed"],
+.card.text-center.border-dashed {
+    border-radius: var(--premium-radius) !important;
+}
+
+/* ============================================
+   15. INFO BOX CARDS
+   ============================================ */
+.card.info-box-2 {
+    overflow: hidden !important;
+}
+
+.card.info-box-2 .icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--premium-radius) !important;
+    position: relative;
+}
+
+.card.info-box-2 .icon::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 19px;
+    background: inherit;
+    opacity: 0.25;
+    filter: blur(6px);
+    z-index: -1;
+}
+
+.card.info-box-2 .content .number {
+    font-size: 1.75rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+.card.info-box-2 .content .text {
+    font-size: 0.8rem !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ============================================
+   16. BLOCK HEADER
+   ============================================ */
+.block-header h2 {
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+.block-header .breadcrumb-item {
+    font-size: 0.85rem !important;
+}
+
+.block-header .page_action .btn {
+    border-radius: var(--premium-radius-sm) !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   17. TABS & NAV
+   ============================================ */
+.nav-tabs {
+    border-bottom: 2px solid var(--gray-100) !important;
+}
+
+.nav-tabs .nav-link {
+    border-radius: var(--premium-radius-sm) var(--premium-radius-sm) 0 0 !important;
+    font-weight: 600 !important;
+    font-size: 0.875rem !important;
+    padding: 10px 20px !important;
+    transition: all 0.25s ease !important;
+}
+
+[data-theme="dark"] .nav-tabs {
+    border-bottom: 2px solid #334155 !important;
+}
+
+/* ============================================
+   18. DATATABLES PREMIUM
+   ============================================ */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: var(--premium-radius-xs) !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    margin: 0 2px !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    box-shadow: var(--shadow-primary-sm) !important;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: var(--premium-radius-sm) !important;
+    height: 38px !important;
+    padding: 6px 14px !important;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    border-radius: var(--premium-radius-xs) !important;
+    height: 38px !important;
+    padding: 6px 12px !important;
+}
+
+/* ============================================
+   19. PROGRESS BARS
+   ============================================ */
+.progress {
+    border-radius: var(--premium-radius-sm) !important;
+    height: 8px !important;
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: var(--premium-radius-sm) !important;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* ============================================
+   20. LIST GROUPS
+   ============================================ */
+.list-group {
+    border-radius: var(--premium-radius) !important;
+    overflow: hidden;
+}
+
+.list-group-item {
+    border-color: rgba(0, 0, 0, 0.04) !important;
+    padding: 14px 20px !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.list-group-item:first-child {
+    border-radius: var(--premium-radius) var(--premium-radius) 0 0 !important;
+}
+
+.list-group-item:last-child {
+    border-radius: 0 0 var(--premium-radius) var(--premium-radius) !important;
+}
+
+.list-group-item:hover {
+    background: rgba(var(--primary-color-rgb), 0.04) !important;
+}
+
+[data-theme="dark"] .list-group-item {
+    border-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .list-group-item:hover {
+    background: rgba(var(--primary-color-rgb), 0.08) !important;
+}
+
+/* ============================================
+   21. ALERTS PREMIUM
+   ============================================ */
+.alert {
+    border-radius: var(--premium-radius-sm) !important;
+    border: none !important;
+    border-left: 4px solid !important;
+    font-size: 0.9rem !important;
+    padding: 16px 20px !important;
+}
+
+.alert-success {
+    border-left-color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.08) !important;
+    color: #065f46 !important;
+}
+
+.alert-warning {
+    border-left-color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+    color: #92400e !important;
+}
+
+.alert-danger {
+    border-left-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+    color: #991b1b !important;
+}
+
+.alert-info {
+    border-left-color: #3b82f6 !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+    color: #1e40af !important;
+}
+
+[data-theme="dark"] .alert-success {
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #6ee7b7 !important;
+}
+
+[data-theme="dark"] .alert-warning {
+    background: rgba(245, 158, 11, 0.12) !important;
+    color: #fcd34d !important;
+}
+
+[data-theme="dark"] .alert-danger {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .alert-info {
+    background: rgba(59, 130, 246, 0.12) !important;
+    color: #93c5fd !important;
+}
+
+/* ============================================
+   22. TOOLTIP & POPOVER
+   ============================================ */
+.tooltip-inner {
+    border-radius: var(--premium-radius-xs) !important;
+    padding: 8px 14px !important;
+    font-size: 0.8rem !important;
+    font-weight: 500;
+}
+
+.popover {
+    border-radius: var(--premium-radius) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+}
+
+.popover-header {
+    border-radius: var(--premium-radius) var(--premium-radius) 0 0 !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   23. EMPTY STATES
+   ============================================ */
+.empty-state,
+.no-data,
+.dataTables_empty {
+    text-align: center;
+    padding: 40px 20px !important;
+}
+
+.empty-state i,
+.no-data i {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: 16px;
+    display: block;
+}
+
+[data-theme="dark"] .empty-state i,
+[data-theme="dark"] .no-data i {
+    color: var(--gray-600);
+}
+
+/* ============================================
+   24. GRADIENT DIVIDERS
+   ============================================ */
+.divider-gradient,
+hr.gradient {
+    border: none !important;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--primary-color-rgb), 0.2), transparent);
+    margin: 24px 0;
+}
+
+[data-theme="dark"] .divider-gradient,
+[data-theme="dark"] hr.gradient {
+    background: linear-gradient(90deg, transparent, rgba(var(--primary-color-rgb), 0.3), transparent);
+}
+
+/* ============================================
+   25. SKELETON LOADING
+   ============================================ */
+.skeleton {
+    background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--premium-radius-xs);
+    min-height: 20px;
+}
+
+.skeleton-circle {
+    border-radius: 50%;
+}
+
+.skeleton-text {
+    height: 14px;
+    margin-bottom: 8px;
+}
+
+.skeleton-heading {
+    height: 24px;
+    width: 60%;
+    margin-bottom: 12px;
+}
+
+[data-theme="dark"] .skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+}
+
+/* ============================================
+   26. TOASTR PREMIUM
+   ============================================ */
+#toast-container > div {
+    border-radius: var(--premium-radius-sm) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+    padding: 16px 20px 16px 50px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500;
+}
+
+[data-theme="dark"] #toast-container > div {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ============================================
+   27. DROPDOWN PREMIUM
+   ============================================ */
+.dropdown-menu {
+    border-radius: var(--premium-radius) !important;
+    padding: 8px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+.dropdown-item,
+.dropdown-menu li a {
+    border-radius: var(--premium-radius-xs) !important;
+    padding: 10px 14px !important;
+    font-size: 0.875rem !important;
+    transition: all 0.15s ease !important;
+    margin: 1px 0;
+}
+
+.dropdown-divider {
+    margin: 6px 0 !important;
+}
+
+[data-theme="dark"] .dropdown-menu {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ============================================
+   28. USER ACCOUNT SECTION PREMIUM
+   ============================================ */
+#left-sidebar .user-account {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border-radius: var(--premium-radius) !important;
+}
+
+#left-sidebar .user-account .list-unstyled h6 {
+    font-weight: 800 !important;
+    letter-spacing: -0.01em;
+}
+
+/* ============================================
+   29. DATEPICKER PREMIUM
+   ============================================ */
+.datepicker {
+    border-radius: var(--premium-radius) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+    padding: 8px !important;
+}
+
+.datepicker table tr td,
+.datepicker table tr th {
+    border-radius: var(--premium-radius-xs) !important;
+}
+
+/* ============================================
+   30. MISC REFINEMENTS
+   ============================================ */
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Better focus visible */
+*:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Consistent border radius for images */
+img.rounded,
+.rounded {
+    border-radius: var(--premium-radius-sm) !important;
+}
+
+.rounded-circle {
+    border-radius: 50% !important;
+}
+
+/* Better text selection */
+::selection {
+    background: rgba(var(--primary-color-rgb), 0.2);
+    color: inherit;
+}
+
+/* Pagination premium */
+.page-item .page-link {
+    border-radius: var(--premium-radius-xs) !important;
+    margin: 0 2px !important;
+    font-weight: 500 !important;
+}
+
+.page-item.active .page-link {
+    box-shadow: var(--shadow-primary-sm) !important;
+}
+
+/* Card header actions dropdown */
+.card .header .header-dropdown .dropdown-toggle i {
+    font-size: 1.1rem;
+    color: var(--gray-400);
+    transition: color 0.2s ease;
+}
+
+.card .header .header-dropdown .dropdown-toggle:hover i {
+    color: var(--primary-color);
+}
+
+/* Hover zoom for cards that need it */
+.hover-zoom-effect {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hover-zoom-effect:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: var(--glow-primary),
+                0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="dark"] .hover-zoom-effect:hover {
+    box-shadow: var(--glow-primary),
+                0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Breadcrumb separator style */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: '/' !important;
+    color: var(--gray-400) !important;
+    font-weight: 300;
+}
+
+/* ============================================
+   31. SELECT DROPDOWN FIX
+   (Fix duplicate arrows: native + custom SVG)
+   ============================================ */
+select.form-control,
+select.custom-select,
+select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 12px !important;
+    padding-right: 36px !important;
+}
+
+[data-theme="dark"] select.form-control,
+[data-theme="dark"] select.custom-select,
+[data-theme="dark"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") !important;
+}
+
+select.form-control::-ms-expand,
+select.custom-select::-ms-expand,
+select::-ms-expand {
+    display: none !important;
+}
+
+/* ============================================
+   32. DARK MODE - TABLE-CUSTOM FIX
+   (Fix white rows in dark mode)
+   ============================================ */
+[data-theme="dark"] .table-custom thead th {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: #94a3b8 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .table-custom tbody tr {
+    background: #1e293b !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme="dark"] .table-custom tbody tr:hover {
+    background: rgba(var(--primary-color-rgb), 0.08) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .table-custom tbody td {
+    color: #cbd5e1 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ============================================
+   33. DARK MODE - FLOOR PLAN & INLINE BG FIX
+   ============================================ */
+[data-theme="dark"] #floor-plan-container {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] #floor-plan-grid {
+    background: #1e293b !important;
+}
+
+[data-theme="dark"] #floor-plan-empty {
+    color: #94a3b8 !important;
+}
+
+/* ============================================
+   34. DARK MODE - WP EDITOR / TINYMCE FIX
+   ============================================ */
+[data-theme="dark"] .wp-editor-wrap {
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .wp-editor-container {
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .wp-switch-editor {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .wp-switch-editor.switch-tmce:focus,
+[data-theme="dark"] .wp-switch-editor.switch-html:focus {
+    box-shadow: none !important;
+}
+
+[data-theme="dark"] .mce-tinymce {
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mce-toolbar,
+[data-theme="dark"] .mce-menubar,
+[data-theme="dark"] .mce-toolbar-grp {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mce-btn button,
+[data-theme="dark"] .mce-toolbar .mce-btn-group .mce-btn {
+    color: #cbd5e1 !important;
+    background: transparent !important;
+}
+
+[data-theme="dark"] .mce-btn:hover button,
+[data-theme="dark"] .mce-toolbar .mce-btn-group .mce-btn:hover {
+    background: #334155 !important;
+}
+
+[data-theme="dark"] .mce-edit-area,
+[data-theme="dark"] .mce-edit-area iframe {
+    background: #0f172a !important;
+}
+
+[data-theme="dark"] .mce-statusbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .wp-editor-area {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+/* TinyMCE 5/6 (tox) */
+[data-theme="dark"] .tox .tox-editor-header,
+[data-theme="dark"] .tox .tox-toolbar,
+[data-theme="dark"] .tox .tox-toolbar__primary,
+[data-theme="dark"] .tox .tox-toolbar__overflow {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .tox .tox-tbtn {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .tox .tox-tbtn:hover {
+    background: #334155 !important;
+}
+
+[data-theme="dark"] .tox .tox-edit-area__iframe {
+    background: #0f172a !important;
+}
+
+[data-theme="dark"] .tox .tox-statusbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+/* ============================================
+   35. DARK MODE - GENERIC BG OVERRIDES
+   (Catch remaining white backgrounds)
+   ============================================ */
+[data-theme="dark"] .bg-light {
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] [style*="background: #f8f9fa"],
+[data-theme="dark"] [style*="background:#f8f9fa"],
+[data-theme="dark"] [style*="background-color: #f8f9fa"],
+[data-theme="dark"] [style*="background: rgb(248, 249, 250)"] {
+    background: #1e293b !important;
+}
+
+[data-theme="dark"] [style*="background: white"],
+[data-theme="dark"] [style*="background: #fff"],
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background-color: white"],
+[data-theme="dark"] [style*="background-color: #ffffff"],
+[data-theme="dark"] [style*="background-color:#ffffff"] {
+    background: #1e293b !important;
+}
+
+/* ============================================
+   36. STICKY ACTION BAR FOR CREATE/EDIT FORMS
+   ============================================ */
+.block-header .d-flex.flex-row-reverse {
+    position: sticky;
+    top: 70px;
+    z-index: 100;
+    background: var(--body-bg, #f5f7fb);
+    padding: 10px 0;
+    border-radius: 0 0 12px 12px;
+}
+
+[data-theme="dark"] .block-header .d-flex.flex-row-reverse {
+    background: var(--body-bg, #0f172a);
+}
+
+/* Bottom sticky bar for long forms (event-create / event-edit) */
+.form-sticky-bottom-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    background: var(--body-bg, #f5f7fb);
+    padding: 15px 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    margin: 0 -15px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .form-sticky-bottom-bar {
+    background: rgba(15, 23, 42, 0.95);
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================
+   37. SIDEBAR ACTIVE STATE ENHANCEMENT
+   ============================================ */
+#left-sidebar .metismenu > li.active > a {
+    background: rgba(var(--primary-color-rgb), 0.1) !important;
+    color: var(--primary-color) !important;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+#left-sidebar .metismenu > li.active > a::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: var(--primary-color);
+    border-radius: 0 3px 3px 0;
+}
+
+#left-sidebar .metismenu > li.active > a {
+    position: relative;
+}
+
+#left-sidebar .metismenu li ul li.active > a {
+    color: var(--primary-color) !important;
+    font-weight: 600;
+    background: rgba(var(--primary-color-rgb), 0.06) !important;
+    border-radius: 6px;
+}
+
+[data-theme="dark"] #left-sidebar .metismenu > li.active > a {
+    background: rgba(var(--primary-color-rgb), 0.15) !important;
+}
+
+[data-theme="dark"] #left-sidebar .metismenu li ul li.active > a {
+    background: rgba(var(--primary-color-rgb), 0.1) !important;
+}
+
+/* ============================================
+   38. EVENTS TABLE ACTIONS DROPDOWN
+   ============================================ */
+.table .btn-group .dropdown-menu {
+    min-width: 200px;
+    padding: 8px 0;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+}
+
+.table .btn-group .dropdown-item {
+    padding: 8px 16px;
+    font-size: 13px;
+    transition: background 0.15s ease;
+}
+
+.table .btn-group .dropdown-item:hover {
+    background: rgba(var(--primary-color-rgb), 0.06);
+}
+
+.table .btn-group .dropdown-item i {
+    width: 18px;
+    text-align: center;
+}
+
+.table .btn-group .dropdown-divider {
+    margin: 4px 0;
+}
+
+[data-theme="dark"] .table .btn-group .dropdown-menu {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .table .btn-group .dropdown-item {
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] .table .btn-group .dropdown-item:hover {
+    background: rgba(var(--primary-color-rgb), 0.12);
+    color: #fff;
+}
+
+[data-theme="dark"] .table .btn-group .dropdown-item.text-danger {
+    color: #f87171 !important;
+}
+
+/* ============================================
+   39. STATUS BADGES ENHANCED
+   ============================================ */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+}
+
+.badge-success {
+    background: rgba(34, 197, 94, 0.12) !important;
+    color: #16a34a !important;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.badge-warning {
+    background: rgba(245, 158, 11, 0.12) !important;
+    color: #d97706 !important;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-danger {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #dc2626 !important;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.12) !important;
+    color: #2563eb !important;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.badge-secondary {
+    background: rgba(100, 116, 139, 0.12) !important;
+    color: #64748b !important;
+    border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+[data-theme="dark"] .badge-success {
+    background: rgba(34, 197, 94, 0.18) !important;
+    color: #4ade80 !important;
+    border-color: rgba(34, 197, 94, 0.25);
+}
+
+[data-theme="dark"] .badge-warning {
+    background: rgba(245, 158, 11, 0.18) !important;
+    color: #fbbf24 !important;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+[data-theme="dark"] .badge-danger {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+[data-theme="dark"] .badge-info {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #60a5fa !important;
+    border-color: rgba(59, 130, 246, 0.25);
+}
+
+[data-theme="dark"] .badge-secondary {
+    background: rgba(148, 163, 184, 0.15) !important;
+    color: #94a3b8 !important;
+    border-color: rgba(148, 163, 184, 0.2);
+}

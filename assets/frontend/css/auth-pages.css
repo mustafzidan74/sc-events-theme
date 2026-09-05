@@ -1,0 +1,521 @@
+/**
+ * Auth Pages - Dark & Premium
+ * Login, Register, Forgot Password
+ * SC Events Theme
+ *
+ * @package sc_events
+ * @version 5.0.0
+ */
+
+/* ========================================
+   Auth Container
+   ======================================== */
+.sc-auth-section {
+    padding: var(--sc-space-10) 0;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+/* ========================================
+   Auth Card (Glass Morphism)
+   ======================================== */
+.sc-auth-card {
+    background: var(--sc-glass-bg);
+    backdrop-filter: var(--sc-glass-blur);
+    -webkit-backdrop-filter: var(--sc-glass-blur);
+    border: 1px solid var(--sc-glass-border);
+    border-radius: var(--sc-radius-2xl);
+    padding: var(--sc-space-10) var(--sc-space-8);
+    position: relative;
+    overflow: hidden;
+}
+
+.sc-auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--sc-gradient-primary);
+    border-radius: var(--sc-radius-2xl) var(--sc-radius-2xl) 0 0;
+}
+
+/* Auth Header */
+.sc-auth-header {
+    text-align: center;
+    margin-bottom: var(--sc-space-8);
+}
+
+.sc-auth-logo {
+    max-height: 50px;
+    margin-bottom: var(--sc-space-5);
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+.sc-auth-title {
+    font-size: var(--sc-text-2xl);
+    font-weight: 700;
+    color: var(--sc-text-primary);
+    margin-bottom: var(--sc-space-2);
+}
+
+.sc-auth-subtitle {
+    font-size: var(--sc-text-sm);
+    color: var(--sc-text-muted);
+    line-height: var(--sc-leading-relaxed);
+}
+
+/* Auth Icon */
+.sc-auth-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--sc-space-5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--sc-primary-alpha-10);
+    border: 1px solid var(--sc-primary-alpha-30);
+}
+
+.sc-auth-icon i {
+    font-size: 24px;
+    color: var(--sc-primary);
+}
+
+/* ========================================
+   Form Groups
+   ======================================== */
+.sc-form-group {
+    margin-bottom: var(--sc-space-5);
+}
+
+.sc-form-label {
+    display: flex;
+    align-items: center;
+    gap: var(--sc-space-2);
+    font-size: var(--sc-text-sm);
+    font-weight: 500;
+    color: var(--sc-text-secondary);
+    margin-bottom: var(--sc-space-2);
+}
+
+.sc-form-label i {
+    color: var(--sc-primary);
+    font-size: 12px;
+    width: 14px;
+    text-align: center;
+}
+
+.sc-form-label .required {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+/* Auth Inputs */
+.sc-auth-input {
+    width: 100%;
+    height: 50px;
+    padding: 0 var(--sc-space-4);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--sc-border-color);
+    border-radius: var(--sc-radius-lg);
+    color: var(--sc-text-primary);
+    font-family: inherit;
+    font-size: var(--sc-text-base);
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.sc-auth-input::placeholder {
+    color: var(--sc-text-muted);
+}
+
+.sc-auth-input:focus {
+    border-color: var(--sc-primary);
+    box-shadow: var(--sc-input-focus-ring);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Password Field */
+.sc-password-field {
+    position: relative;
+}
+
+.sc-password-field .sc-auth-input {
+    padding-right: 48px;
+}
+
+.sc-toggle-password {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--sc-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sc-toggle-password:hover {
+    color: var(--sc-primary);
+}
+
+/* Input Hint */
+.sc-input-hint {
+    display: block;
+    font-size: 12px;
+    color: var(--sc-text-muted);
+    margin-top: var(--sc-space-1);
+}
+
+/* Phone Input Group */
+.sc-phone-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.sc-phone-code {
+    width: 90px;
+    height: 50px;
+    padding: 0 var(--sc-space-2);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--sc-border-color);
+    border-right: none;
+    border-radius: var(--sc-radius-lg) 0 0 var(--sc-radius-lg);
+    color: var(--sc-text-primary);
+    font-family: inherit;
+    font-size: var(--sc-text-sm);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    text-align: center;
+}
+
+.sc-phone-code option {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+.sc-phone-group .sc-auth-input {
+    flex: 1;
+    border-radius: 0 var(--sc-radius-lg) var(--sc-radius-lg) 0;
+}
+
+/* Phone Last 4 */
+.sc-phone-last4 {
+    letter-spacing: 8px;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ========================================
+   Auth Buttons
+   ======================================== */
+.sc-auth-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sc-space-2);
+    width: 100%;
+    height: 50px;
+    background: var(--sc-gradient-primary);
+    color: var(--sc-text-on-primary);
+    border: none;
+    border-radius: var(--sc-radius-lg);
+    font-family: inherit;
+    font-size: var(--sc-text-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.3px;
+}
+
+.sc-auth-btn:hover {
+    box-shadow: var(--sc-glow-primary-strong);
+    transform: translateY(-2px);
+}
+
+.sc-auth-btn:active {
+    transform: translateY(0);
+}
+
+.sc-auth-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ========================================
+   Remember & Forgot Row
+   ======================================== */
+.sc-remember-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: var(--sc-space-5) 0;
+}
+
+.sc-remember-check {
+    display: flex;
+    align-items: center;
+    gap: var(--sc-space-2);
+}
+
+.sc-remember-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--sc-primary);
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.sc-remember-check label {
+    font-size: var(--sc-text-sm);
+    color: var(--sc-text-muted);
+    cursor: pointer;
+}
+
+.sc-forgot-link {
+    font-size: var(--sc-text-sm);
+    color: var(--sc-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.sc-forgot-link:hover {
+    color: var(--sc-primary-light);
+    text-decoration: underline;
+}
+
+/* ========================================
+   Divider
+   ======================================== */
+.sc-auth-divider {
+    position: relative;
+    text-align: center;
+    margin: var(--sc-space-6) 0;
+}
+
+.sc-auth-divider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 1px;
+    background: var(--sc-border-color);
+}
+
+.sc-auth-divider span {
+    background: var(--sc-bg-card);
+    padding: 0 var(--sc-space-4);
+    color: var(--sc-text-muted);
+    font-size: var(--sc-text-sm);
+    position: relative;
+    z-index: 1;
+}
+
+/* ========================================
+   Auth Footer Links
+   ======================================== */
+.sc-auth-footer {
+    text-align: center;
+    font-size: var(--sc-text-sm);
+    color: var(--sc-text-muted);
+}
+
+.sc-auth-footer a {
+    color: var(--sc-primary);
+    font-weight: 600;
+    text-decoration: none;
+    margin-left: 4px;
+    transition: color 0.2s ease;
+}
+
+.sc-auth-footer a:hover {
+    color: var(--sc-primary-light);
+    text-decoration: underline;
+}
+
+/* ========================================
+   Terms Checkbox
+   ======================================== */
+.sc-terms-check {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sc-space-2);
+    margin: var(--sc-space-5) 0;
+}
+
+.sc-terms-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--sc-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sc-terms-check label {
+    font-size: var(--sc-text-sm);
+    color: var(--sc-text-muted);
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.sc-terms-link {
+    color: var(--sc-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.sc-terms-link:hover {
+    text-decoration: underline;
+}
+
+/* ========================================
+   Verification Success
+   ======================================== */
+.sc-verify-success {
+    text-align: center;
+    margin-bottom: var(--sc-space-6);
+}
+
+.sc-verify-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto var(--sc-space-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    animation: sc-scale-in 0.5s ease-out;
+}
+
+.sc-verify-icon i {
+    font-size: 32px;
+    color: #10b981;
+}
+
+.sc-verify-success .sc-success-text {
+    color: #10b981;
+    font-weight: 600;
+    font-size: var(--sc-text-base);
+    margin-bottom: var(--sc-space-1);
+}
+
+.sc-verify-success .sc-help-text {
+    color: var(--sc-text-muted);
+    font-size: var(--sc-text-sm);
+}
+
+@keyframes sc-scale-in {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ========================================
+   Loading Spinner
+   ======================================== */
+.sc-auth-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-top-color: var(--sc-text-on-primary);
+    border-radius: 50%;
+    animation: sc-spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes sc-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+@media (max-width: 767px) {
+    .sc-auth-card {
+        padding: var(--sc-space-7) var(--sc-space-5);
+        border-radius: var(--sc-radius-xl);
+    }
+
+    .sc-auth-title {
+        font-size: var(--sc-text-xl);
+    }
+
+    .sc-auth-input,
+    .sc-auth-btn,
+    .sc-phone-code {
+        height: 46px;
+    }
+
+    .sc-remember-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--sc-space-3);
+    }
+}
+
+@media (max-width: 575px) {
+    .sc-auth-section {
+        padding: var(--sc-space-7) 0;
+    }
+
+    .sc-auth-card {
+        padding: var(--sc-space-6) var(--sc-space-4);
+    }
+}
+
+/* ========================================
+   RTL Support
+   ======================================== */
+[dir="rtl"] .sc-form-label i {
+    margin-right: 0;
+    margin-left: var(--sc-space-2);
+}
+
+[dir="rtl"] .sc-toggle-password {
+    right: auto;
+    left: 14px;
+}
+
+[dir="rtl"] .sc-password-field .sc-auth-input {
+    padding-right: var(--sc-space-4);
+    padding-left: 48px;
+}
+
+[dir="rtl"] .sc-phone-code {
+    border-right: 1px solid var(--sc-border-color);
+    border-left: none;
+    border-radius: 0 var(--sc-radius-lg) var(--sc-radius-lg) 0;
+}
+
+[dir="rtl"] .sc-phone-group .sc-auth-input {
+    border-radius: var(--sc-radius-lg) 0 0 var(--sc-radius-lg);
+}
+
+[dir="rtl"] .sc-auth-footer a {
+    margin-left: 0;
+    margin-right: 4px;
+}
