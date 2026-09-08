@@ -280,3 +280,78 @@
   .w-header__cta,
   .w-header__submenu { transition: none; }
 }
+
+/* ==========================================================================
+   Footer
+
+   The design collapses the footer to a single row: brand on one side, links on
+   the other. Contact details and social accounts that the platform actually
+   has configured ride in that same row rather than being dropped.
+   ========================================================================== */
+
+.w-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--w-space-4);
+  padding: var(--w-space-8) clamp(20px, 3vw, 40px);
+  border-top: 1px solid var(--w-border);
+  background: var(--w-bg);
+  color: var(--w-text-2);
+  font-family: var(--w-font);
+  font-size: 0.9375rem;
+}
+
+.w-footer__brand { display: inline-flex; align-items: center; gap: var(--w-space-3); }
+.w-footer__brand img { height: 20px; width: auto; display: block; }
+
+.w-footer__brand .w-logo-light { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .w-footer__brand .w-logo-dark { display: none; }
+  :root:not([data-theme="light"]) .w-footer__brand .w-logo-light { display: block; }
+}
+:root[data-theme="dark"] .w-footer__brand .w-logo-dark { display: none; }
+:root[data-theme="dark"] .w-footer__brand .w-logo-light { display: block; }
+
+.w-footer__wordmark { font-weight: 600; color: var(--w-text); }
+
+.w-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--w-space-5);
+}
+
+.w-footer__links a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--w-duration) var(--w-ease);
+}
+
+.w-footer__links a:hover { color: var(--w-text); }
+
+.w-footer__social { display: inline-flex; align-items: center; gap: var(--w-space-3); }
+
+.w-footer__social a {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-pill);
+  color: var(--w-text-2);
+}
+
+.w-footer__social a:hover { color: var(--w-primary); border-color: var(--w-primary); }
+
+.w-footer__copy { color: var(--w-text-3); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .w-footer { flex-direction: column; align-items: flex-start; gap: var(--w-space-5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-footer__links a { transition: none; }
+}

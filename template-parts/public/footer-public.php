@@ -31,108 +31,58 @@ $assets_url = get_template_directory_uri() . '/assets/frontend/';
 ?>
 
 <!--===== FOOTER =======-->
-<footer class="sc-footer">
-    <!-- Gold top border -->
-    <div class="sc-footer-border"></div>
+<?php
+/*
+ * Redesign footer.
+ *
+ * The design collapses the footer to a single row — brand on one side, links on
+ * the other. Contact details and social accounts stay in that row when the
+ * platform has them configured, rather than being dropped with the old
+ * four-column layout.
+ */
+$w_social = array_filter([
+    'facebook-f'  => $platform_facebook,
+    'twitter'     => $platform_twitter,
+    'instagram'   => $platform_instagram,
+    'linkedin-in' => $platform_linkedin,
+]);
+?>
+<footer class="w-footer">
+    <a class="w-footer__brand" href="<?php echo esc_url(home_url('/')); ?>">
+        <?php if ($platform_logo_url): ?>
+            <img class="w-logo-dark" src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>">
+            <?php if ($platform_logo_light_url): ?>
+                <img class="w-logo-light" src="<?php echo esc_url($platform_logo_light_url); ?>" alt="<?php echo esc_attr($platform_name); ?>">
+            <?php endif; ?>
+        <?php else: ?>
+            <span class="w-footer__wordmark"><?php echo esc_html($platform_name); ?></span>
+        <?php endif; ?>
+    </a>
 
-    <div class="sc-footer-main">
-        <div class="container">
-            <div class="row">
-                <!-- Column 1: Logo & About -->
-                <div class="col-lg-4 col-md-6 mb-4 mb-lg-0">
-                    <div class="sc-footer-brand">
-                        <?php if ($platform_logo_url): ?>
-                            <img src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>" class="sc-footer-logo sc-logo-dark">
-                            <?php if ($platform_logo_light_url): ?>
-                                <img src="<?php echo esc_url($platform_logo_light_url); ?>" alt="<?php echo esc_attr($platform_name); ?>" class="sc-footer-logo sc-logo-light">
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <h3 class="sc-footer-title"><?php echo esc_html($platform_name); ?></h3>
-                        <?php endif; ?>
-                        <p class="sc-footer-desc sc-footer-desc-lg"><?php echo esc_html($platform_description); ?></p>
-                    </div>
-                </div>
+    <div class="w-footer__links">
+        <?php if ($platform_email): ?>
+            <a href="mailto:<?php echo esc_attr($platform_email); ?>"><?php echo esc_html($platform_email); ?></a>
+        <?php endif; ?>
 
-                <!-- Column 2: Quick Links -->
-                <div class="col-lg-2 col-md-6 mb-4 mb-lg-0">
-                    <div class="sc-footer-widget">
-                        <h5 class="sc-footer-heading"><?php echo esc_html(sc_t('frontend.quick_links', 'Quick Links')); ?></h5>
-                        <ul class="sc-footer-links">
-                            <li><a href="<?php echo esc_url(home_url('/')); ?>"><?php echo esc_html(sc_t('frontend.home', 'Home')); ?></a></li>
-                            <li><a href="<?php echo esc_url(home_url('/events/')); ?>"><?php echo esc_html(sc_t('frontend.events', 'Events')); ?></a></li>
-                            <li><a href="<?php echo esc_url(home_url('/contact/')); ?>"><?php echo esc_html(sc_t('frontend.contact', 'Contact')); ?></a></li>
-                            <?php if (is_user_logged_in()): ?>
-                            <li><a href="<?php echo esc_url(home_url('/my-account/')); ?>"><?php echo esc_html(sc_t('frontend.my_account', 'My Account')); ?></a></li>
-                            <?php else: ?>
-                            <li><a href="<?php echo esc_url(home_url('/login/')); ?>"><?php echo esc_html(sc_t('frontend.login', 'Login')); ?></a></li>
-                            <li><a href="<?php echo esc_url(home_url('/register/')); ?>"><?php echo esc_html(sc_t('frontend.register', 'Register')); ?></a></li>
-                            <?php endif; ?>
-                        </ul>
-                    </div>
-                </div>
+        <?php if ($platform_phone): ?>
+            <a href="tel:<?php echo esc_attr(preg_replace('/\s+/', '', $platform_phone)); ?>" dir="ltr"><?php echo esc_html($platform_phone); ?></a>
+        <?php endif; ?>
 
-                <!-- Column 3: Contact -->
-                <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
-                    <div class="sc-footer-widget">
-                        <h5 class="sc-footer-heading"><?php echo esc_html(sc_t('frontend.contact_us', 'Contact Us')); ?></h5>
-                        <ul class="sc-footer-contact">
-                            <?php if ($platform_phone): ?>
-                            <li>
-                                <i class="fa-solid fa-phone"></i>
-                                <a href="tel:<?php echo esc_attr($platform_phone); ?>"><?php echo esc_html($platform_phone); ?></a>
-                            </li>
-                            <?php endif; ?>
-                            <?php if ($platform_email): ?>
-                            <li>
-                                <i class="fa-solid fa-envelope"></i>
-                                <a href="mailto:<?php echo esc_attr($platform_email); ?>"><?php echo esc_html($platform_email); ?></a>
-                            </li>
-                            <?php endif; ?>
-                            <?php if ($platform_address): ?>
-                            <li>
-                                <i class="fa-solid fa-location-dot"></i>
-                                <span><?php echo esc_html($platform_address); ?></span>
-                            </li>
-                            <?php endif; ?>
-                        </ul>
-                    </div>
-                </div>
+        <a href="<?php echo esc_url(home_url('/contact/')); ?>"><?php echo esc_html(sc_t('frontend.contact', 'Contact')); ?></a>
+        <a href="<?php echo esc_url(home_url('/privacy-policy/')); ?>"><?php echo esc_html(sc_t('frontend.privacy', 'Privacy')); ?></a>
+        <a href="<?php echo esc_url(home_url('/terms-and-conditions/')); ?>"><?php echo esc_html(sc_t('frontend.terms', 'Terms')); ?></a>
 
-                <!-- Column 4: Newsletter / Extra -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="sc-footer-widget">
-                        <h5 class="sc-footer-heading"><?php echo esc_html(sc_t('frontend.stay_updated', 'Stay Updated')); ?></h5>
-                        <p class="sc-footer-desc"><?php echo esc_html(sc_t('frontend.follow_social_media', 'Follow us on social media for the latest events and updates.')); ?></p>
-                        <div class="sc-social-links" style="margin: var(--sc-space-3) 0;">
-                            <?php if ($platform_facebook): ?>
-                            <a href="<?php echo esc_url($platform_facebook); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-facebook-f"></i></a>
-                            <?php endif; ?>
-                            <?php if ($platform_instagram): ?>
-                            <a href="<?php echo esc_url($platform_instagram); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-instagram"></i></a>
-                            <?php endif; ?>
-                            <?php if ($platform_linkedin): ?>
-                            <a href="<?php echo esc_url($platform_linkedin); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-linkedin-in"></i></a>
-                            <?php endif; ?>
-                            <?php if ($platform_twitter): ?>
-                            <a href="<?php echo esc_url($platform_twitter); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-twitter"></i></a>
-                            <?php endif; ?>
-                        </div>
-                        <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-btn sc-btn-outline sc-btn-sm">
-                            <?php echo esc_html(sc_t('frontend.browse_events', 'Browse Events')); ?> <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        <?php if ($w_social): ?>
+        <span class="w-footer__social">
+            <?php foreach ($w_social as $w_icon => $w_url): ?>
+                <a href="<?php echo esc_url($w_url); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr(ucfirst(strtok($w_icon, '-'))); ?>">
+                    <i class="fa-brands fa-<?php echo esc_attr($w_icon); ?>" aria-hidden="true"></i>
+                </a>
+            <?php endforeach; ?>
+        </span>
+        <?php endif; ?>
 
-    <!-- Copyright Bar -->
-    <div class="sc-footer-bottom">
-        <div class="container">
-            <div class="sc-footer-bottom-inner">
-                <p>&copy; <?php echo date('Y'); ?> All rights reserved for <a href="https://eventsorganize.online/" target="_blank" rel="noopener">eventsorganize</a></p>
-            </div>
-        </div>
+        <span class="w-footer__copy">&copy; <?php echo esc_html(date('Y')); ?></span>
     </div>
 </footer>
 
