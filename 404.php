@@ -1,60 +1,49 @@
 <?php
 /**
- * 404 Page - Not Found
- * Dark & Premium Design
+ * 404 — page not found
+ *
+ * Most arrivals here followed a link to a past edition, so the page says so
+ * plainly and then offers the four things people actually came for rather
+ * than a lone "back to home".
  *
  * @package sc_events
- * @version 5.0.0
  */
 
-// Load header
 get_template_part('template-parts/public/header', 'public');
 
-// Get platform settings
-$platform_name = get_option('sc_platform_name', get_bloginfo('name'));
-$assets_url = get_template_directory_uri() . '/assets/frontend/';
+$tiles = [
+    ['label' => sc_t('frontend.programme', 'Programme'), 'href' => home_url('/events/'),    'icon' => 'fa-regular fa-clock'],
+    ['label' => sc_t('frontend.speakers', 'Speakers'),   'href' => home_url('/speakers/'),  'icon' => 'fa-regular fa-user'],
+    ['label' => sc_t('frontend.workshops', 'Workshops'), 'href' => home_url('/workshops/'), 'icon' => 'fa-solid fa-bars'],
+    ['label' => sc_t('frontend.my_ticket', 'My ticket'), 'href' => home_url('/my-account/'), 'icon' => 'fa-solid fa-ticket'],
+];
 ?>
 
-<!-- 404 Section -->
-<section class="sc-404-section">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-7 col-md-9" data-aos="fade-up" data-aos-duration="800">
-                <div class="sc-404-content">
-
-                    <!-- Animated 404 Number -->
-                    <div class="sc-404-number">404</div>
-
-                    <!-- Icon -->
-                    <div class="sc-404-icon">
-                        <i class="fa-solid fa-compass"></i>
-                    </div>
-
-                    <h2 class="sc-404-title"><?php esc_html_e('Page Not Found', 'sc_events'); ?></h2>
-                    <p class="sc-404-desc"><?php esc_html_e('Sorry, the page you are looking for does not exist or has been moved.', 'sc_events'); ?></p>
-
-                    <!-- Buttons -->
-                    <div class="sc-404-buttons">
-                        <a href="<?php echo esc_url(home_url('/')); ?>" class="sc-btn sc-btn-gold">
-                            <i class="fa-solid fa-house"></i>
-                            <?php esc_html_e('Back to Home', 'sc_events'); ?>
-                        </a>
-                        <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-btn sc-btn-outline">
-                            <i class="fa-solid fa-calendar-days"></i>
-                            <?php esc_html_e('Browse Events', 'sc_events'); ?>
-                        </a>
-                    </div>
-
-                </div>
-            </div>
+<section class="w-404">
+    <div class="w-404__say">
+        <span class="w-404__code" aria-hidden="true">404</span>
+        <h1 class="w-404__title"><?php echo esc_html(sc_t('frontend.404_title', 'This page has left the building.')); ?></h1>
+        <p class="w-404__lede">
+            <?php echo esc_html(sc_t('frontend.404_lede', 'The link may be old — past editions move to the archive after each congress.')); ?>
+        </p>
+        <div class="w-404__actions">
+            <a class="w-btn w-btn--lg" href="<?php echo esc_url(home_url('/events/')); ?>">
+                <?php echo esc_html(sc_t('frontend.whats_on', "What's on")); ?>
+            </a>
+            <a class="w-btn w-btn--outline w-btn--lg" href="<?php echo esc_url(home_url('/')); ?>">
+                <?php echo esc_html(sc_t('frontend.home', 'Home')); ?>
+            </a>
         </div>
+    </div>
+
+    <div class="w-404__tiles">
+        <?php foreach ($tiles as $tile): ?>
+        <a class="w-tile-sm" href="<?php echo esc_url($tile['href']); ?>">
+            <span class="w-tile-sm__icon" aria-hidden="true"><i class="<?php echo esc_attr($tile['icon']); ?>"></i></span>
+            <span class="w-tile-sm__label"><?php echo esc_html($tile['label']); ?></span>
+        </a>
+        <?php endforeach; ?>
     </div>
 </section>
 
-<!-- 404 Page Styles -->
-<link rel="stylesheet" href="<?php echo esc_url(get_template_directory_uri()); ?>/assets/frontend/css/404-page.css">
-
-<?php
-// Load footer
-get_template_part('template-parts/public/footer', 'public');
-?>
+<?php get_template_part('template-parts/public/footer', 'public'); ?>

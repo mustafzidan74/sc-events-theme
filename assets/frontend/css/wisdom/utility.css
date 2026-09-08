@@ -1,0 +1,99 @@
+/*
+ * Utility pages — 404 and the other dead ends.
+ *
+ * Deliberately its own file: a visitor who lands here should not pay for the
+ * whole home stylesheet on the way to leaving. Depends on tokens.css and
+ * components.css only.
+ */
+
+.w-404 {
+  max-width: 1200px;
+  margin: var(--w-space-8) auto var(--w-space-10);
+  padding: clamp(28px, 4vw, 64px);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-xl);
+  background: var(--w-surface);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: clamp(24px, 3vw, 48px);
+  align-items: center;
+}
+
+.w-404__say { display: flex; flex-direction: column; gap: var(--w-space-4); }
+
+.w-404__code {
+  font-size: clamp(4.5rem, 9vw, 8.75rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  color: var(--w-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.w-404__title {
+  margin: 0;
+  font-size: clamp(1.875rem, 3.4vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.w-404__lede { margin: 0; color: var(--w-text-2); max-width: 40ch; }
+
+.w-404__actions { display: flex; gap: var(--w-space-3); flex-wrap: wrap; margin-top: var(--w-space-2); }
+
+/* Rather than a bare "go home", offer the four things people actually
+   arrived for. */
+.w-404__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--w-space-3);
+}
+
+.w-tile-sm {
+  min-height: 110px;
+  padding: var(--w-space-4);
+  border-radius: var(--w-radius-lg);
+  border: 1px solid transparent;
+  background: var(--w-bg);
+  color: var(--w-text);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--w-space-4);
+  transition: border-color var(--w-duration) var(--w-ease),
+              transform var(--w-duration) var(--w-ease);
+}
+
+.w-tile-sm:hover {
+  border-color: var(--w-primary);
+  color: var(--w-text);
+  transform: translateY(-2px);
+}
+
+.w-tile-sm__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--w-radius);
+  background: var(--w-surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--w-primary);
+  font-size: 1.125rem;
+}
+
+.w-tile-sm__label { font-weight: 600; letter-spacing: -0.015em; }
+
+@media (max-width: 560px) {
+  .w-404 { margin-inline: var(--w-space-4); }
+  .w-404__tiles { grid-template-columns: 1fr; }
+  .w-tile-sm { min-height: 0; flex-direction: row; align-items: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-tile-sm { transition: none; }
+  .w-tile-sm:hover { transform: none; }
+}
