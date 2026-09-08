@@ -1,55 +1,34 @@
 <?php
 /**
- * Event FAQ - Dark Accordion
+ * Good to know.
+ *
+ * Native <details> rather than a scripted accordion: it opens without
+ * JavaScript, it is findable with the browser's own in-page search, and the
+ * first answer starts open so the section never reads as an empty list.
  *
  * @package sc_events
- * @version 2.0.0
  */
 
 if (!defined('ABSPATH')) exit;
 
-$event_faq = $args['event_faq'] ?? array();
+$event_faq = $args['event_faq'] ?? [];
 
 if (empty($event_faq) || !is_array($event_faq)) return;
 ?>
 
-<section class="sc-section sc-section-alt" id="faq">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.faq', 'Frequently Asked Questions')); ?></h2>
-            <p><?php echo esc_html(sc_t('frontend.faq_desc', 'Find answers to common questions about this event')); ?></p>
-        </div>
+<section class="w-ev__section" id="faq">
+    <h2 class="w-ev__h2"><?php echo esc_html(sc_t('frontend.good_to_know', 'Good to know')); ?></h2>
 
-        <div class="row g-4">
-            <?php
-            $half = ceil(count($event_faq) / 2);
-            $left = array_slice($event_faq, 0, $half);
-            $right = array_slice($event_faq, $half);
-            $columns = array($left, $right);
-
-            foreach ($columns as $col_idx => $faq_items):
-            ?>
-            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="<?php echo $col_idx * 100; ?>">
-                <div class="sc-accordion" id="faq-accordion-<?php echo $col_idx; ?>">
-                    <?php foreach ($faq_items as $idx => $faq):
-                        $faq_id = 'faq-' . $col_idx . '-' . $idx;
-                        $is_first = ($col_idx === 0 && $idx === 0);
-                    ?>
-                    <div class="sc-accordion-item glass-card-subtle">
-                        <button class="sc-accordion-trigger <?php echo $is_first ? 'active' : ''; ?>" data-target="#<?php echo $faq_id; ?>">
-                            <span><?php echo esc_html($faq['question'] ?? ''); ?></span>
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                        <div class="sc-accordion-body" id="<?php echo $faq_id; ?>" <?php echo $is_first ? 'style="display: block;"' : ''; ?>>
-                            <div class="sc-accordion-content">
-                                <?php echo wp_kses_post($faq['answer'] ?? ''); ?>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
+    <div class="w-faq">
+        <?php foreach ($event_faq as $i => $faq):
+            $q = $faq['question'] ?? '';
+            $a = $faq['answer'] ?? '';
+            if (!$q) { continue; }
+        ?>
+        <details<?php echo $i === 0 ? ' open' : ''; ?>>
+            <summary><?php echo esc_html($q); ?></summary>
+            <div class="w-faq__a"><?php echo wp_kses_post(wpautop($a)); ?></div>
+        </details>
+        <?php endforeach; ?>
     </div>
 </section>

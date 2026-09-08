@@ -226,3 +226,409 @@
 .sc-favorite-btn .fa-solid.fa-heart { display: none; }
 .sc-favorite-btn.is-favorite .fa-regular.fa-heart { display: none; }
 .sc-favorite-btn.is-favorite .fa-solid.fa-heart { display: inline-block; color: var(--w-primary); }
+
+/* ---- about ---- */
+
+.w-ev__section { display: flex; flex-direction: column; gap: var(--w-space-5); scroll-margin-top: 96px; }
+
+.w-ev__h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.4vw, 2.125rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.w-ev__lead {
+  margin: 0;
+  font-size: clamp(1.125rem, 1.6vw, 1.375rem);
+  color: var(--w-text-2);
+  max-width: 60ch;
+}
+
+.w-prose { color: var(--w-text-2); line-height: 1.7; max-width: 72ch; }
+.w-prose > :first-child { margin-top: 0; }
+.w-prose > :last-child { margin-bottom: 0; }
+.w-prose img { border-radius: var(--w-radius); height: auto; }
+.w-prose a { color: var(--w-primary); }
+
+/* Long descriptions are clamped until asked for — the page has more below it
+   that people should still be able to reach. */
+.w-prose--clamped {
+  max-height: 22em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+}
+
+/* ---- tickets ---- */
+
+.w-ev__buy {
+  border-radius: var(--w-radius-xl);
+  border: 1px solid var(--w-border);
+  background: var(--w-surface);
+  padding: clamp(24px, 3vw, 44px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-5);
+  scroll-margin-top: 96px;
+}
+
+.w-ev__pay {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color: var(--w-text-3);
+}
+
+.w-ev__pay span { display: inline-flex; align-items: center; gap: var(--w-space-2); }
+
+.w-ev__tickets { display: flex; flex-direction: column; gap: var(--w-space-3); }
+
+.w-tk {
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-bg);
+  padding: var(--w-space-5);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--w-space-4) var(--w-space-5);
+  align-items: start;
+}
+
+.w-tk--gone { opacity: .55; }
+
+.w-tk__text { display: flex; flex-direction: column; gap: var(--w-space-2); min-width: 0; }
+.w-tk__name { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.015em; }
+.w-tk__desc { margin: 0; font-size: 0.875rem; color: var(--w-text-2); }
+
+.w-tk__price {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.w-tk__price--free { color: var(--w-teal); }
+
+.w-tk__act { grid-column: 1 / -1; }
+.w-tk__act .w-btn { width: 100%; }
+
+/* Stock bar: only shown when the ticket actually has a cap. */
+.w-tk__stock { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--w-space-2); }
+
+.w-tk__bar {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--w-border);
+  overflow: hidden;
+}
+
+.w-tk__bar span { display: block; height: 100%; background: var(--w-primary); border-radius: inherit; }
+.w-tk__left { font-size: 0.75rem; color: var(--w-text-3); }
+
+.w-ev__coupon { display: flex; flex-direction: column; gap: var(--w-space-3); }
+.w-ev__coupon-row { display: flex; gap: var(--w-space-2); }
+.w-ev__coupon-row .w-input { flex: 1; min-width: 0; }
+
+@media (min-width: 720px) {
+  .w-tk { grid-template-columns: 1fr auto auto; align-items: center; }
+  .w-tk__act { grid-column: auto; }
+  .w-tk__act .w-btn { width: auto; }
+  .w-tk__stock { grid-column: 1 / -1; }
+}
+
+/* ---- programme ---- */
+
+.w-ev__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--w-space-3);
+  flex-wrap: wrap;
+}
+
+.w-days {
+  display: flex;
+  gap: var(--w-space-1);
+  padding: 5px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  border: 1px solid var(--w-border);
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.w-days button {
+  height: 40px;
+  padding: 0 var(--w-space-4);
+  border: 0;
+  border-radius: var(--w-radius-pill);
+  background: transparent;
+  color: var(--w-text-2);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--w-duration) var(--w-ease), color var(--w-duration) var(--w-ease);
+}
+
+.w-days button[aria-pressed="true"] { background: var(--w-text); color: var(--w-bg); }
+
+.w-slot {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--w-space-4);
+  align-items: start;
+}
+
+.w-slot__time {
+  font-size: clamp(1.375rem, 2.6vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  padding-top: 22px;
+}
+
+/* Concurrent sessions run across halls, so a slot scrolls sideways rather
+   than stacking and hiding the parallel track. */
+.w-slot__list {
+  display: flex;
+  gap: var(--w-space-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 4px 4px 8px;
+  margin: 0 -4px;
+  scrollbar-width: none;
+}
+
+.w-slot__list::-webkit-scrollbar { display: none; }
+
+.w-ses {
+  flex: 0 0 min(100%, 380px);
+  scroll-snap-align: start;
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: var(--w-space-5);
+  border-radius: var(--w-radius-lg);
+  border: 1px solid var(--w-border);
+  background: var(--w-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-4);
+}
+
+/* A break is not a session; it says so quietly and takes less room. */
+.w-ses--break {
+  min-height: 0;
+  background: var(--w-bg);
+  border-style: dashed;
+  color: var(--w-text-2);
+}
+
+.w-ses__top { display: flex; justify-content: space-between; align-items: center; gap: var(--w-space-2); }
+.w-ses__hall { font-size: 0.875rem; font-weight: 600; color: var(--w-text-3); }
+
+.w-ses__tag {
+  height: 28px;
+  padding: 0 var(--w-space-3);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-primary-soft);
+  color: var(--w-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.w-ses__title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  text-wrap: pretty;
+  flex: 1;
+}
+
+.w-ses__by { font-size: 0.9375rem; color: var(--w-text-2); }
+
+@media (max-width: 640px) {
+  .w-slot { grid-template-columns: 1fr; gap: var(--w-space-2); }
+  .w-slot__time { padding-top: 0; font-size: 1.5rem; }
+}
+
+/* ---- faculty ---- */
+
+.w-ev__faculty {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 168px), 1fr));
+  gap: var(--w-space-4);
+}
+
+.w-face {
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-3);
+  text-decoration: none;
+  color: inherit;
+}
+
+.w-face__pic {
+  aspect-ratio: 3 / 4;
+  border-radius: var(--w-radius-lg);
+  overflow: hidden;
+  background: var(--w-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.w-face__pic img { width: 100%; height: 100%; object-fit: cover; }
+
+.w-face__initials {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--w-text-3);
+}
+
+.w-face__name { font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
+.w-face__role { font-size: 0.8125rem; color: var(--w-text-2); }
+
+.w-face:hover .w-face__name { color: var(--w-primary); }
+
+/* ---- venue ---- */
+
+.w-venue {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--w-space-6);
+  align-items: center;
+  border-radius: var(--w-radius-xl);
+  border: 1px solid var(--w-border);
+  background: var(--w-surface);
+  padding: clamp(24px, 3vw, 44px);
+}
+
+.w-venue__say { display: flex; flex-direction: column; gap: var(--w-space-4); align-items: flex-start; }
+.w-venue__name { margin: 0; font-size: clamp(1.5rem, 2.2vw, 2rem); font-weight: 600; letter-spacing: -0.025em; }
+.w-venue__halls { display: flex; gap: var(--w-space-2); flex-wrap: wrap; }
+
+.w-venue__hall {
+  height: 32px;
+  padding: 0 var(--w-space-4);
+  border-radius: var(--w-radius-pill);
+  border: 1px solid var(--w-border);
+  background: var(--w-bg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--w-text-2);
+  display: inline-flex;
+  align-items: center;
+}
+
+.w-venue__pic {
+  border-radius: var(--w-radius-lg);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  background: var(--w-bg);
+}
+
+.w-venue__pic img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---- good to know ---- */
+
+.w-faq { display: flex; flex-direction: column; gap: var(--w-space-2); }
+
+.w-faq details {
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  padding: var(--w-space-4) var(--w-space-5);
+}
+
+.w-faq summary {
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--w-space-4);
+}
+
+.w-faq summary::-webkit-details-marker { display: none; }
+
+.w-faq summary::after {
+  content: "+";
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--w-text-3);
+  flex: none;
+}
+
+.w-faq details[open] summary::after { content: "–"; }
+.w-faq details[open] summary { margin-bottom: var(--w-space-3); }
+.w-faq__a { margin: 0; color: var(--w-text-2); line-height: 1.6; }
+
+/* ---- gallery ---- */
+
+.w-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--w-space-3);
+}
+
+.w-gallery__shot {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--w-radius-lg);
+  overflow: hidden;
+  background: var(--w-surface);
+}
+
+.w-gallery__shot img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---- sticky buy bar ----
+   Phones only: on a wide screen the ticket panel is never far, but on a phone
+   it scrolls away long before someone has decided. */
+
+.w-ev__sticky { display: none; }
+
+@media (max-width: 900px) {
+  .w-ev__sticky {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--w-space-4);
+    padding: var(--w-space-3) var(--w-space-4);
+    padding-bottom: calc(var(--w-space-3) + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--w-surface) 92%, transparent);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--w-border);
+  }
+
+  .w-ev__sticky-text { display: flex; flex-direction: column; min-width: 0; }
+  .w-ev__sticky-text strong {
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .w-ev__sticky-text span { font-size: 0.75rem; color: var(--w-text-2); }
+  .w-ev__sticky .w-btn { flex: none; }
+
+  /* Leave room so the bar never covers the last section. */
+  .w-ev { padding-bottom: 96px; }
+}

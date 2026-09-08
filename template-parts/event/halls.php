@@ -1,56 +1,79 @@
 <?php
 /**
- * Event Halls - Dark & Premium Cards
+ * Venue.
+ *
+ * One place, not a gallery of rooms: the halls are listed as chips under the
+ * address, because knowing which halls run matters more to someone planning
+ * the day than a photo of each room.
  *
  * @package sc_events
- * @version 2.0.0
  */
 
 if (!defined('ABSPATH')) exit;
 
-$event_halls = $args['event_halls'] ?? array();
+$event       = $args['event'] ?? null;
+$event_halls = $args['event_halls'] ?? [];
+$location    = $args['location'] ?? '';
+$maps_url    = $args['google_maps_url'] ?? '';
 
-if (empty($event_halls)) return;
+if (!$event) return;
+
+$name = $event->venue_name ?: $location;
+if (!$name && !$event_halls) return;
+
+$address = trim(implode(', ', array_filter([
+    $event->venue_address ?? '',
+    $event->venue_city ?? '',
+    $event->venue_country ?? '',
+])));
+
+// The address field often just repeats the venue name; saying it twice
+// reads as a mistake.
+if ($address !== '' && $name !== '' && str_starts_with(mb_strtolower($address), mb_strtolower($name))) {
+    $address = trim(mb_substr($address, mb_strlen($name)), " ,");
+}
+
+$photo = !empty($event->venue_image) ? wp_get_attachment_image_url($event->venue_image, 'large') : '';
 ?>
 
-<section class="sc-section" id="halls">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.event_halls', 'Event Halls')); ?></h2>
-            <p><?php echo esc_html(sc_t('frontend.event_halls_desc', 'Explore our event venues and facilities')); ?></p>
+<section class="w-ev__section" id="venue">
+    <h2 class="w-ev__h2"><?php echo esc_html(sc_t('frontend.venue', 'Venue')); ?></h2>
+
+    <div class="w-venue">
+        <div class="w-venue__say">
+            <?php if ($name): ?>
+                <h3 class="w-venue__name"><?php echo esc_html($name); ?></h3>
+            <?php endif; ?>
+
+            <?php if ($address): ?>
+                <p class="w-ev__lead" style="font-size:1rem;margin:0"><?php echo esc_html($address); ?></p>
+            <?php endif; ?>
+
+            <?php if ($event_halls): ?>
+            <div class="w-venue__halls">
+                <?php foreach ($event_halls as $hall): ?>
+                <span class="w-venue__hall">
+                    <?php echo esc_html($hall->name); ?>
+                    <?php if (!empty($hall->capacity)): ?>
+                        · <?php printf(esc_html(sc_t('frontend.d_seats', '%s seats')), esc_html(number_format_i18n($hall->capacity))); ?>
+                    <?php endif; ?>
+                </span>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($maps_url): ?>
+            <a class="w-btn w-btn--outline" href="<?php echo esc_url($maps_url); ?>" target="_blank" rel="noopener noreferrer">
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <?php echo esc_html(sc_t('frontend.open_in_maps', 'Open in Maps')); ?>
+            </a>
+            <?php endif; ?>
         </div>
 
-        <div class="sc-mobile-scroll-container">
-        <div class="row g-4 sc-mobile-scroll-row">
-            <?php $delay = 0; foreach ($event_halls as $hall):
-                $hall_img = !empty($hall->image) ? wp_get_attachment_image_url($hall->image, 'medium_large') : '';
-            ?>
-            <div class="col-lg-4 col-md-6 sc-mobile-scroll-item" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
-                <div class="glass-card sc-hall-card">
-                    <?php if ($hall_img): ?>
-                    <div class="sc-hall-image">
-                        <img src="<?php echo esc_url($hall_img); ?>" alt="<?php echo esc_attr($hall->name); ?>">
-                        <div class="sc-hall-overlay"></div>
-                    </div>
-                    <?php endif; ?>
-                    <h5 style="color: var(--sc-text-primary); margin-bottom: var(--sc-space-3);"><?php echo esc_html($hall->name); ?></h5>
-                    <div class="sc-hall-meta">
-                        <?php if (!empty($hall->capacity)): ?>
-                        <span><i class="fa-solid fa-users"></i> <?php printf(sc_t('frontend.d_seats', '%d seats'), $hall->capacity); ?></span>
-                        <?php endif; ?>
-                        <?php if (!empty($hall->location)): ?>
-                        <span><i class="fa-solid fa-location-dot"></i> <?php echo esc_html($hall->location); ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <?php if (!empty($hall->description)): ?>
-                    <p style="font-size: var(--sc-text-sm); color: var(--sc-text-muted); margin-top: var(--sc-space-2); margin-bottom: 0;">
-                        <?php echo esc_html(wp_trim_words($hall->description, 20)); ?>
-                    </p>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php $delay += 100; endforeach; ?>
+        <?php if ($photo): ?>
+        <div class="w-venue__pic">
+            <img src="<?php echo esc_url($photo); ?>" alt="<?php echo esc_attr($name); ?>" loading="lazy" decoding="async">
         </div>
-        </div>
+        <?php endif; ?>
     </div>
 </section>

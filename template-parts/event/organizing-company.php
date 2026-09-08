@@ -1,6 +1,10 @@
 <?php
 /**
- * Event Organizing Company Section
+ * Organiser.
+ *
+ * A credit line with a way to reach them, not a second landing page — so it
+ * sits low, stays quiet, and the contact links loop rather than repeating the
+ * same block per network.
  *
  * @package sc_events
  */
@@ -11,93 +15,78 @@ $oc = $args['organizing_company'] ?? null;
 
 if (empty($oc) || empty($oc['name'])) return;
 
-$logo_url = !empty($oc['logo']) ? wp_get_attachment_url($oc['logo']) : '';
-$banner_url = !empty($oc['banner']) ? wp_get_attachment_url($oc['banner']) : '';
-$social = $oc['social'] ?? [];
+$logo   = !empty($oc['logo']) ? wp_get_attachment_url($oc['logo']) : '';
+$social = is_array($oc['social'] ?? null) ? $oc['social'] : [];
+
+$links = [];
+if (!empty($oc['website'])) {
+    $links[] = ['href' => $oc['website'], 'icon' => 'fa-solid fa-globe',
+                'text' => parse_url($oc['website'], PHP_URL_HOST) ?: $oc['website']];
+}
+if (!empty($oc['phone'])) {
+    $links[] = ['href' => 'tel:' . $oc['phone'], 'icon' => 'fa-solid fa-phone', 'text' => $oc['phone']];
+}
+if (!empty($oc['email'])) {
+    $links[] = ['href' => 'mailto:' . $oc['email'], 'icon' => 'fa-solid fa-envelope', 'text' => $oc['email']];
+}
+if (!empty($oc['whatsapp'])) {
+    $links[] = ['href' => 'https://wa.me/' . preg_replace('/[^0-9]/', '', $oc['whatsapp']),
+                'icon' => 'fa-brands fa-whatsapp', 'text' => 'WhatsApp'];
+}
+
+$social_icons = [
+    'facebook'  => 'fa-brands fa-facebook-f',
+    'twitter'   => 'fa-brands fa-twitter',
+    'instagram' => 'fa-brands fa-instagram',
+    'linkedin'  => 'fa-brands fa-linkedin-in',
+    'youtube'   => 'fa-brands fa-youtube',
+];
 ?>
 
-<section class="sc-section" id="organizing-company">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.organizing_company', 'Organized By')); ?></h2>
-        </div>
+<section class="w-ev__section" id="organizing-company">
+    <h2 class="w-ev__h2"><?php echo esc_html(sc_t('frontend.organizing_company', 'Organised by')); ?></h2>
 
-        <div class="row justify-content-center" data-aos="fade-up">
-            <div class="col-lg-8">
-                <div style="background: var(--sc-card-bg, rgba(255,255,255,0.03)); border: 1px solid var(--sc-border, rgba(255,255,255,0.08)); border-radius: 16px; overflow: hidden;">
+    <div class="w-venue">
+        <div class="w-venue__say">
+            <h3 class="w-venue__name"><?php echo esc_html($oc['name']); ?></h3>
 
-                    <?php if ($banner_url): ?>
-                    <div style="height: 180px; background: url('<?php echo esc_url($banner_url); ?>') center/cover no-repeat;"></div>
-                    <?php endif; ?>
+            <?php if (!empty($oc['description'])): ?>
+                <div class="w-prose"><?php echo wp_kses_post(wpautop($oc['description'])); ?></div>
+            <?php endif; ?>
 
-                    <div style="padding: 30px; text-align: center; <?php echo $banner_url ? 'margin-top: -50px;' : ''; ?>">
-                        <?php if ($logo_url): ?>
-                        <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr($oc['name']); ?>"
-                             style="width: 100px; height: 100px; border-radius: 16px; object-fit: contain; background: var(--sc-bg, #fff); border: 3px solid var(--sc-border, rgba(255,255,255,0.1)); padding: 8px; <?php echo $banner_url ? 'position: relative;' : ''; ?>">
-                        <?php endif; ?>
-
-                        <h3 style="margin-top: 16px; color: var(--sc-text-primary, #f1f5f9); font-size: 1.4rem;">
-                            <?php echo esc_html($oc['name']); ?>
-                        </h3>
-
-                        <?php if (!empty($oc['description'])): ?>
-                        <p style="color: var(--sc-text-secondary, #94a3b8); margin-top: 12px; font-size: 0.95rem; line-height: 1.7;">
-                            <?php echo wp_kses_post($oc['description']); ?>
-                        </p>
-                        <?php endif; ?>
-
-                        <?php if (!empty($oc['website']) || !empty($oc['phone']) || !empty($oc['email'])): ?>
-                        <div style="margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; font-size: 0.9rem;">
-                            <?php if (!empty($oc['website'])): ?>
-                            <a href="<?php echo esc_url($oc['website']); ?>" target="_blank" style="color: var(--sc-primary, #3b82f6); text-decoration: none;">
-                                <i class="fa-solid fa-globe"></i> <?php echo esc_html(parse_url($oc['website'], PHP_URL_HOST)); ?>
-                            </a>
-                            <?php endif; ?>
-                            <?php if (!empty($oc['phone'])): ?>
-                            <a href="tel:<?php echo esc_attr($oc['phone']); ?>" style="color: var(--sc-text-secondary, #94a3b8); text-decoration: none;">
-                                <i class="fa-solid fa-phone"></i> <?php echo esc_html($oc['phone']); ?>
-                            </a>
-                            <?php endif; ?>
-                            <?php if (!empty($oc['email'])): ?>
-                            <a href="mailto:<?php echo esc_attr($oc['email']); ?>" style="color: var(--sc-text-secondary, #94a3b8); text-decoration: none;">
-                                <i class="fa-solid fa-envelope"></i> <?php echo esc_html($oc['email']); ?>
-                            </a>
-                            <?php endif; ?>
-                            <?php if (!empty($oc['whatsapp'])): ?>
-                            <a href="https://wa.me/<?php echo esc_attr(preg_replace('/[^0-9]/', '', $oc['whatsapp'])); ?>" target="_blank" style="color: #25d366; text-decoration: none;">
-                                <i class="fa-brands fa-whatsapp"></i> WhatsApp
-                            </a>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-
-                        <?php if (!empty($social)): ?>
-                        <div style="margin-top: 20px; display: flex; justify-content: center; gap: 12px;">
-                            <?php if (!empty($social['facebook'])): ?>
-                            <a href="<?php echo esc_url($social['facebook']); ?>" target="_blank" style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59,130,246,0.1); display: flex; align-items: center; justify-content: center; color: #3b82f6; text-decoration: none; transition: all 0.2s;">
-                                <i class="fa-brands fa-facebook-f"></i>
-                            </a>
-                            <?php endif; ?>
-                            <?php if (!empty($social['twitter'])): ?>
-                            <a href="<?php echo esc_url($social['twitter']); ?>" target="_blank" style="width: 40px; height: 40px; border-radius: 10px; background: rgba(29,161,242,0.1); display: flex; align-items: center; justify-content: center; color: #1da1f2; text-decoration: none; transition: all 0.2s;">
-                                <i class="fa-brands fa-twitter"></i>
-                            </a>
-                            <?php endif; ?>
-                            <?php if (!empty($social['instagram'])): ?>
-                            <a href="<?php echo esc_url($social['instagram']); ?>" target="_blank" style="width: 40px; height: 40px; border-radius: 10px; background: rgba(228,64,95,0.1); display: flex; align-items: center; justify-content: center; color: #e4405f; text-decoration: none; transition: all 0.2s;">
-                                <i class="fa-brands fa-instagram"></i>
-                            </a>
-                            <?php endif; ?>
-                            <?php if (!empty($social['linkedin'])): ?>
-                            <a href="<?php echo esc_url($social['linkedin']); ?>" target="_blank" style="width: 40px; height: 40px; border-radius: 10px; background: rgba(10,102,194,0.1); display: flex; align-items: center; justify-content: center; color: #0a66c2; text-decoration: none; transition: all 0.2s;">
-                                <i class="fa-brands fa-linkedin-in"></i>
-                            </a>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
+            <?php if ($links): ?>
+            <div class="w-venue__halls">
+                <?php foreach ($links as $link): ?>
+                <a class="w-venue__hall" href="<?php echo esc_url($link['href']); ?>"
+                   <?php echo str_starts_with($link['href'], 'http') ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>
+                   style="text-decoration:none;gap:8px">
+                    <i class="<?php echo esc_attr($link['icon']); ?>" aria-hidden="true"></i>
+                    <?php echo esc_html($link['text']); ?>
+                </a>
+                <?php endforeach; ?>
             </div>
+            <?php endif; ?>
+
+            <?php if ($social): ?>
+            <div class="w-ev__socials">
+                <?php foreach ($social as $network => $url):
+                    if (empty($url) || !isset($social_icons[$network])) { continue; }
+                ?>
+                <a class="w-ev__social" href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener noreferrer"
+                   aria-label="<?php echo esc_attr(ucfirst($network)); ?>">
+                    <i class="<?php echo esc_attr($social_icons[$network]); ?>" aria-hidden="true"></i>
+                </a>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
+
+        <?php if ($logo): ?>
+        <div class="w-venue__pic" style="aspect-ratio:16/9;display:grid;place-items:center;padding:var(--w-space-6);box-sizing:border-box">
+            <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr($oc['name']); ?>"
+                 loading="lazy" decoding="async"
+                 style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain">
+        </div>
+        <?php endif; ?>
     </div>
 </section>

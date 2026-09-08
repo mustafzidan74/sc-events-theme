@@ -155,17 +155,10 @@ $event_halls = $wpdb->get_results($wpdb->prepare(
 ));
 
 // Extract gallery images from additional_sections
+// Every section carries its own heading, so they stay separate rather than
+// being melted into one anonymous gallery.
 $gallery_images = array();
-$other_sections = array();
-if (!empty($additional_sections) && is_array($additional_sections)) {
-    foreach ($additional_sections as $section) {
-        if (($section['type'] ?? '') === 'image_slider') {
-            $gallery_images = array_merge($gallery_images, $section['images'] ?? array());
-        } else {
-            $other_sections[] = $section;
-        }
-    }
-}
+$other_sections = is_array($additional_sections) ? $additional_sections : array();
 
 // Get featured image
 $event_banner = $event->banner_image;
@@ -289,29 +282,23 @@ echo '</main>';
 // Load Checkout Modal and Footer Assets
 get_template_part('template-parts/event/checkout-modal', null, $template_args);
 
-// Floating Register CTA (appears on scroll past tickets)
+// A sticky bar on small screens: the ticket panel scrolls out of reach on a
+// phone long before someone has decided.
 if (!$is_past && $has_tickets && !$is_registered):
 ?>
-<div class="sc-floating-cta" id="sc-floating-cta">
-    <div class="container">
-        <div class="sc-floating-cta-inner">
-            <div class="sc-floating-cta-info">
-                <strong><?php echo esc_html($event->title); ?></strong>
-                <span>
-                    <?php if ($is_free): ?>
-                        <?php echo esc_html(sc_t('frontend.free', 'Free')); ?>
-                    <?php else: ?>
-                        <?php echo esc_html(sc_t('frontend.from', 'From')); ?> <?php echo esc_html(number_format($min_price)); ?> <?php echo esc_html(sc_t('general.currency_symbol', 'EGP')); ?>
-                    <?php endif; ?>
-                </span>
-            </div>
-            <a href="#tickets" class="sc-btn sc-btn-gold sc-btn-sm">
-                <?php echo esc_html(sc_t('frontend.register_now', 'Register Now')); ?> <i class="fa-solid fa-arrow-right"></i>
-            </a>
-        </div>
-    </div>
+<div class="w-ev__sticky">
+    <span class="w-ev__sticky-text">
+        <strong><?php echo esc_html($event->title); ?></strong>
+        <span><?php echo $is_free
+            ? esc_html(sc_t('frontend.free', 'Free'))
+            : esc_html(sprintf(
+                sc_t('frontend.from_price', 'From %s %s'),
+                number_format_i18n($min_price),
+                sc_t('general.currency_symbol', 'EGP')
+              )); ?></span>
+    </span>
+    <a class="w-btn" href="#tickets"><?php echo esc_html(sc_t('frontend.get_ticket', 'Get ticket')); ?></a>
 </div>
 <?php endif;
 
-// Load footer
 get_template_part('template-parts/public/footer', 'public');

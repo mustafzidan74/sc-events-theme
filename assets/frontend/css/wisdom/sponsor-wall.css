@@ -1,0 +1,139 @@
+/*
+ * The sponsor wall.
+ *
+ * Shared by the home page, the sponsors page and each event, so it lives on
+ * its own rather than in any one of them.
+ */
+
+.w-sponsors {
+  border-radius: 28px;
+  padding: clamp(26px, 3.5vw, 56px);
+  background: var(--w-ink);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(24px, 3vw, 40px);
+}
+
+.w-tier { display: flex; flex-direction: column; gap: var(--w-space-4); }
+
+.w-tier__head { display: flex; align-items: baseline; gap: var(--w-space-3); }
+
+.w-tier__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding-inline: var(--w-space-3);
+  border: 1px solid var(--w-ink-600);
+  border-radius: var(--w-radius-xs);
+  color: var(--w-ink-200);
+  font-size: var(--w-caption-size);
+  font-weight: var(--w-caption-weight);
+  letter-spacing: var(--w-caption-ls);
+  text-transform: uppercase;
+}
+
+.w-tier--top .w-tier__badge { border-color: var(--w-gold); color: var(--w-gold); }
+
+.w-tier__note { font-size: 0.9375rem; color: var(--w-ink-300); }
+
+.w-tier__logos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.w-tier--top .w-tier__logos { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+
+.w-logo {
+  aspect-ratio: 2 / 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--w-space-4);
+  border: 1px solid var(--w-ink-700);
+  border-radius: var(--w-radius-lg);
+  background: rgba(255, 255, 255, .04);
+  text-decoration: none;
+  color: var(--w-ink-200);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: center;
+  transition: border-color var(--w-duration) var(--w-ease),
+              background var(--w-duration) var(--w-ease);
+}
+
+.w-tier--top .w-logo { border-color: var(--w-gold); box-shadow: inset 0 0 0 1px rgba(201, 162, 74, .35); }
+
+.w-logo:hover { border-color: var(--w-ink-500); background: rgba(255, 255, 255, .07); color: #fff; }
+
+.w-logo img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: grayscale(1) brightness(1.6);
+  opacity: .85;
+  transition: filter var(--w-duration) var(--w-ease), opacity var(--w-duration) var(--w-ease);
+}
+
+.w-logo:hover img { filter: none; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-logo, .w-logo img { transition: none; }
+}
+
+/* ==========================================================================
+   Page header and pagination
+
+   Shared by the listing pages, which reuse the event card above.
+   ========================================================================== */
+
+.w-partners {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--w-space-3);
+}
+
+.w-partner {
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--w-space-4);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  color: var(--w-text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  transition: border-color var(--w-duration) var(--w-ease);
+}
+
+.w-partner:hover { border-color: var(--w-primary); color: var(--w-text); }
+
+.w-partner img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: .75;
+  transition: filter var(--w-duration) var(--w-ease), opacity var(--w-duration) var(--w-ease);
+}
+
+.w-partner:hover img { filter: none; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-partner, .w-partner img { transition: none; }
+}
