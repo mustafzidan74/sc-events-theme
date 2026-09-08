@@ -274,6 +274,12 @@ require get_template_directory() . '/inc/public-frontend/chat-widget-init.php';
 require get_template_directory() . '/inc/public-frontend/certificate-public.php';
 
 /**
+ * Speaker URLs — speakers live in the custom table, so WordPress cannot route
+ * to them without help.
+ */
+require get_template_directory() . '/inc/public-frontend/speaker-routing.php';
+
+/**
  * Scanner REST API
  */
 require get_template_directory() . '/inc/rest-api/scanner-api.php';

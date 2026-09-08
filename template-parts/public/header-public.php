@@ -88,7 +88,7 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
      * the redesign ones do not. home.css also carries the event card, filter
      * pills and pagination, which the listings reuse.
      */
-    if (is_front_page() || is_page(['events', 'workshops']) || is_post_type_archive(['sc_event', 'sc_workshop'])):
+    if (is_front_page() || is_page(['events', 'workshops', 'speakers']) || is_post_type_archive(['sc_event', 'sc_workshop']) || get_query_var('sc_speaker_slug')):
     ?>
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/home.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <?php endif; ?>
@@ -195,7 +195,10 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
  * their destination resolves, so the bar grows on its own as those land
  * instead of shipping links that 404.
  */
-$w_speakers_url = get_post_type_archive_link('sc_speaker');
+// Speakers live in the custom table, so the listing is a page rather than a
+// post-type archive; fall back to the archive link if that ever changes.
+$w_speakers_page = get_page_by_path('speakers');
+$w_speakers_url = $w_speakers_page ? get_permalink($w_speakers_page) : get_post_type_archive_link('sc_speaker');
 $w_partners_page = get_page_by_path('partners');
 $w_partners_url = $w_partners_page ? get_permalink($w_partners_page) : '';
 $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
@@ -232,7 +235,7 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
         </a>
 
         <?php if ($w_speakers_url): ?>
-        <a href="<?php echo esc_url($w_speakers_url); ?>" class="w-header__link"<?php echo is_post_type_archive('sc_speaker') ? ' aria-current="page"' : ''; ?>>
+        <a href="<?php echo esc_url($w_speakers_url); ?>" class="w-header__link"<?php echo (is_page('speakers') || get_query_var('sc_speaker_slug')) ? ' aria-current="page"' : ''; ?>>
             <?php echo esc_html(sc_t('frontend.speakers', 'Speakers')); ?>
         </a>
         <?php endif; ?>
