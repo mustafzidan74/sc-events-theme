@@ -1,0 +1,282 @@
+/**
+ * Wisdom header and footer
+ *
+ * Namespaced `.w-` so the legacy `header-styles.css` (still loaded) cannot
+ * reach any of it, and vice versa.
+ *
+ * Requires: wisdom/tokens.css, wisdom/components.css
+ *
+ * @package sc_events
+ */
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
+.w-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-6);
+  padding-inline: var(--w-space-5);
+  background: var(--w-bg);
+  border-bottom: 1px solid var(--w-border);
+  font-family: var(--w-font);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .w-header {
+    background: color-mix(in srgb, var(--w-bg) 90%, transparent);
+    backdrop-filter: blur(14px);
+  }
+}
+
+@media (min-width: 992px) {
+  .w-header {
+    height: 80px;
+    padding-inline: clamp(20px, 3vw, 40px);
+  }
+}
+
+/* --- brand ------------------------------------------------------------- */
+
+.w-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  color: var(--w-text);
+  font-weight: 600;
+  text-decoration: none;
+  flex: none;
+}
+
+.w-header__brand img { height: 34px; width: auto; display: block; }
+
+/* Only one logo file shows at a time — the other is hidden by theme. */
+.w-header__brand .w-logo-light { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .w-header__brand .w-logo-dark { display: none; }
+  :root:not([data-theme="light"]) .w-header__brand .w-logo-light { display: block; }
+}
+:root[data-theme="dark"] .w-header__brand .w-logo-dark { display: none; }
+:root[data-theme="dark"] .w-header__brand .w-logo-light { display: block; }
+
+.w-header__wordmark { font-size: 1.0625rem; letter-spacing: -0.01em; }
+
+/* --- primary navigation ------------------------------------------------ */
+
+.w-header__nav { display: none; }
+
+@media (min-width: 992px) {
+  .w-header__nav {
+    display: flex;
+    align-items: center;
+    gap: 34px;
+    margin-inline-end: auto;
+    font-size: 1.0625rem;
+    font-weight: 500;
+    color: var(--w-text-2);
+  }
+}
+
+.w-header__link {
+  color: inherit;
+  text-decoration: none;
+  padding-block: var(--w-space-2);
+  transition: color var(--w-duration) var(--w-ease);
+}
+
+.w-header__link:hover,
+.w-header__link[aria-current="page"] {
+  color: var(--w-text);
+  font-weight: 600;
+}
+
+/* Categories live under Events rather than as a fifth top-level item, so the
+   bar keeps the four the design specifies. */
+.w-header__has-menu { position: relative; }
+
+.w-header__submenu {
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(100% + var(--w-space-2));
+  min-width: 220px;
+  margin: 0;
+  padding: var(--w-space-2);
+  list-style: none;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  box-shadow: var(--w-shadow-4);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity var(--w-duration) var(--w-ease),
+              transform var(--w-duration) var(--w-ease),
+              visibility var(--w-duration);
+}
+
+.w-header__has-menu:hover .w-header__submenu,
+.w-header__has-menu:focus-within .w-header__submenu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.w-header__submenu a {
+  display: block;
+  padding: var(--w-space-2) var(--w-space-3);
+  border-radius: var(--w-radius-sm);
+  color: var(--w-text-2);
+  font-size: var(--w-body-size);
+  text-decoration: none;
+}
+
+.w-header__submenu a:hover { background: var(--w-surface-2); color: var(--w-text); }
+
+/* --- actions ----------------------------------------------------------- */
+
+.w-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  margin-inline-start: auto;
+}
+
+@media (min-width: 992px) {
+  .w-header__actions { margin-inline-start: 0; }
+}
+
+/* Circular controls: theme toggle, language, favourites. */
+.w-header__icon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  color: var(--w-text-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: color var(--w-duration) var(--w-ease),
+              border-color var(--w-duration) var(--w-ease);
+}
+
+.w-header__icon:hover { color: var(--w-text); border-color: var(--w-grey-400); }
+
+.w-header__icon:focus-visible {
+  outline: 2px solid var(--w-focus);
+  outline-offset: 2px;
+}
+
+@media (min-width: 992px) {
+  .w-header__icon { width: 48px; height: 48px; }
+}
+
+/* "My ticket" reads as a link on desktop and collapses to the icon below it. */
+.w-header__ticket { display: none; }
+
+@media (min-width: 992px) {
+  .w-header__ticket {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--w-space-2);
+    height: 48px;
+    padding-inline: var(--w-space-4);
+    color: var(--w-text-2);
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .w-header__ticket:hover { color: var(--w-text); }
+}
+
+.w-header__badge {
+  position: absolute;
+  top: -2px;
+  inset-inline-end: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-primary);
+  color: var(--w-on-primary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The single primary call to action in the viewport. */
+.w-header__cta {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding-inline: var(--w-space-5);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-primary);
+  color: var(--w-on-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--w-duration) var(--w-ease);
+}
+
+.w-header__cta:hover { background: var(--w-primary-hover); color: var(--w-on-primary); }
+
+.w-header__cta:focus-visible {
+  outline: 2px solid var(--w-focus);
+  outline-offset: 2px;
+  box-shadow: var(--w-focus-ring);
+}
+
+@media (min-width: 992px) {
+  .w-header__cta { height: 48px; font-size: 1rem; }
+}
+
+/* --- hamburger --------------------------------------------------------- */
+
+.w-header__burger {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  cursor: pointer;
+}
+
+.w-header__burger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--w-text);
+}
+
+@media (min-width: 992px) {
+  .w-header__burger { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-header__link,
+  .w-header__icon,
+  .w-header__cta,
+  .w-header__submenu { transition: none; }
+}

@@ -79,6 +79,9 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
          cannot reach an element the legacy stylesheets or Bootstrap own. -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/components.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
 
+    <!-- Redesign: header and footer shell. -->
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/header.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/fontawesome.css">
@@ -168,89 +171,128 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
 </div>
 
 <!--===== HEADER =======-->
-<header class="sc-header" id="sc-header">
-    <div class="sc-header-inner">
-        <div class="container">
-            <!-- Logo -->
-            <div class="sc-header-logo">
-                <a href="<?php echo esc_url(home_url('/')); ?>">
-                    <?php if ($platform_logo_url): ?>
-                        <img class="sc-logo-dark" src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>">
-                        <?php if ($platform_logo_light_url): ?>
-                            <img class="sc-logo-light" src="<?php echo esc_url($platform_logo_light_url); ?>" alt="<?php echo esc_attr($platform_name); ?>">
-                        <?php endif; ?>
-                    <?php else: ?>
-                        <span class="logo-text"><?php echo esc_html($platform_name); ?></span>
-                    <?php endif; ?>
-                </a>
-            </div>
+<?php
+/*
+ * Redesign header.
+ *
+ * The design specifies four items — Events, Workshops, Speakers, Partners —
+ * and a single primary call to action. Event categories move under Events
+ * rather than becoming a fifth item, which keeps the bar at the specified
+ * width and puts them next to what they filter.
+ *
+ * Speakers and Partners have no template yet; both are rendered only once
+ * their destination resolves, so the bar grows on its own as those land
+ * instead of shipping links that 404.
+ */
+$w_speakers_url = get_post_type_archive_link('sc_speaker');
+$w_partners_page = get_page_by_path('partners');
+$w_partners_url = $w_partners_page ? get_permalink($w_partners_page) : '';
+$w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
+?>
+<header class="w-header" id="sc-header">
+    <a class="w-header__brand" href="<?php echo esc_url(home_url('/')); ?>">
+        <?php if ($platform_logo_url): ?>
+            <img class="w-logo-dark" src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>">
+            <?php if ($platform_logo_light_url): ?>
+                <img class="w-logo-light" src="<?php echo esc_url($platform_logo_light_url); ?>" alt="<?php echo esc_attr($platform_name); ?>">
+            <?php endif; ?>
+        <?php else: ?>
+            <span class="w-header__wordmark"><?php echo esc_html($platform_name); ?></span>
+        <?php endif; ?>
+    </a>
 
-            <!-- Desktop Navigation -->
-            <nav class="sc-nav">
-                <ul class="sc-nav-list">
-                    <li class="sc-nav-item">
-                        <a href="<?php echo esc_url(home_url('/')); ?>" class="sc-nav-link"><?php echo esc_html(sc_t('frontend.home', 'Home')); ?></a>
-                    </li>
-                    <li class="sc-nav-item">
-                        <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-nav-link"><?php echo esc_html(sc_t('frontend.events', 'Events')); ?></a>
-                    </li>
-                    <li class="sc-nav-item">
-                        <a href="<?php echo esc_url(home_url('/workshops/')); ?>" class="sc-nav-link"><?php echo esc_html(sc_t('frontend.workshops', 'Workshops')); ?></a>
-                    </li>
-                    <?php if (!is_wp_error($categories) && !empty($categories)): ?>
-                    <li class="sc-nav-item">
-                        <a href="#" class="sc-nav-link"><?php echo esc_html(sc_t('frontend.categories', 'Categories')); ?> <i class="fa-solid fa-angle-down"></i></a>
-                        <ul class="sc-nav-dropdown">
-                            <?php foreach ($categories as $category): ?>
-                            <li>
-                                <a href="<?php echo esc_url(get_term_link($category)); ?>">
-                                    <?php echo esc_html($category->name); ?>
-                                </a>
-                            </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </li>
-                    <?php endif; ?>
-                    <li class="sc-nav-item">
-                        <a href="<?php echo esc_url(home_url('/contact/')); ?>" class="sc-nav-link"><?php echo esc_html(sc_t('frontend.contact', 'Contact')); ?></a>
-                    </li>
-                </ul>
-            </nav>
-
-            <!-- Header Actions -->
-            <div class="sc-header-actions">
-                <!-- Theme Toggle -->
-                <button class="sc-theme-toggle" id="sc-theme-toggle" title="<?php esc_attr_e('Toggle theme', 'sc_events'); ?>" aria-label="<?php esc_attr_e('Toggle light/dark theme', 'sc_events'); ?>">
-                    <i class="fa-solid fa-sun sc-theme-icon-light"></i>
-                    <i class="fa-solid fa-moon sc-theme-icon-dark"></i>
-                </button>
-
-                <?php if ($is_logged_in): ?>
-                    <a href="<?php echo esc_url(home_url('/my-account/#favorites')); ?>" class="sc-header-favorites" id="sc-header-favorites" title="<?php esc_attr_e('My Favorites', 'sc_events'); ?>">
-                        <i class="fa-solid fa-heart"></i>
-                        <span class="sc-favorites-badge" id="sc-favorites-badge" style="display:none;">0</span>
-                    </a>
-                    <a href="<?php echo esc_url(home_url('/my-account/')); ?>" class="sc-header-btn">
-                        <i class="fa-solid fa-user"></i>
-                        <?php echo esc_html(sc_t('frontend.my_account', 'My Account')); ?>
-                    </a>
-                <?php else: ?>
-                    <a href="<?php echo esc_url(home_url('/login/')); ?>" class="sc-header-btn">
-                        <i class="fa-solid fa-right-to-bracket"></i>
-                        <?php echo esc_html(sc_t('frontend.login', 'Login')); ?>
-                    </a>
-                <?php endif; ?>
-
-                <!-- Mobile Hamburger -->
-                <div class="sc-hamburger" id="sc-hamburger">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
+    <nav class="w-header__nav" aria-label="<?php esc_attr_e('Primary', 'sc_events'); ?>">
+        <?php $w_has_categories = !is_wp_error($categories) && !empty($categories); ?>
+        <div class="<?php echo $w_has_categories ? 'w-header__has-menu' : ''; ?>">
+            <a href="<?php echo esc_url(home_url('/events/')); ?>" class="w-header__link"<?php echo is_page('events') ? ' aria-current="page"' : ''; ?>>
+                <?php echo esc_html(sc_t('frontend.events', 'Events')); ?>
+            </a>
+            <?php if ($w_has_categories): ?>
+            <ul class="w-header__submenu">
+                <?php foreach ($categories as $category): ?>
+                <li><a href="<?php echo esc_url(get_term_link($category)); ?>"><?php echo esc_html($category->name); ?></a></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
         </div>
+
+        <a href="<?php echo esc_url(home_url('/workshops/')); ?>" class="w-header__link"<?php echo is_page('workshops') ? ' aria-current="page"' : ''; ?>>
+            <?php echo esc_html(sc_t('frontend.workshops', 'Workshops')); ?>
+        </a>
+
+        <?php if ($w_speakers_url): ?>
+        <a href="<?php echo esc_url($w_speakers_url); ?>" class="w-header__link"<?php echo is_post_type_archive('sc_speaker') ? ' aria-current="page"' : ''; ?>>
+            <?php echo esc_html(sc_t('frontend.speakers', 'Speakers')); ?>
+        </a>
+        <?php endif; ?>
+
+        <?php if ($w_partners_url): ?>
+        <a href="<?php echo esc_url($w_partners_url); ?>" class="w-header__link"<?php echo is_page('partners') ? ' aria-current="page"' : ''; ?>>
+            <?php echo esc_html(sc_t('frontend.partners', 'Partners')); ?>
+        </a>
+        <?php endif; ?>
+    </nav>
+
+    <div class="w-header__actions">
+        <a href="<?php echo esc_url($w_account_url); ?>" class="w-header__ticket">
+            <i class="fa-solid fa-ticket" aria-hidden="true"></i>
+            <?php echo esc_html(sc_t('frontend.my_ticket', 'My ticket')); ?>
+        </a>
+
+        <?php if ($is_logged_in): ?>
+        <a href="<?php echo esc_url(home_url('/my-account/#favorites')); ?>" class="w-header__icon" id="sc-header-favorites" title="<?php esc_attr_e('My Favorites', 'sc_events'); ?>">
+            <i class="fa-solid fa-heart" aria-hidden="true"></i>
+            <span class="w-header__badge" id="sc-favorites-badge" style="display:none;">0</span>
+        </a>
+        <?php endif; ?>
+
+        <button class="w-header__icon" id="sc-theme-toggle" title="<?php esc_attr_e('Toggle theme', 'sc_events'); ?>" aria-label="<?php esc_attr_e('Toggle light/dark theme', 'sc_events'); ?>">
+            <i class="fa-solid fa-sun sc-theme-icon-light" aria-hidden="true"></i>
+            <i class="fa-solid fa-moon sc-theme-icon-dark" aria-hidden="true"></i>
+        </button>
+
+        <?php $w_next_lang = sc_get_lang() === 'ar' ? 'en' : 'ar'; ?>
+        <button type="button" class="w-header__icon" id="w-lang-toggle"
+                data-lang="<?php echo esc_attr($w_next_lang); ?>"
+                data-nonce="<?php echo esc_attr(wp_create_nonce('sc_language_switch')); ?>"
+                title="<?php esc_attr_e('Switch language', 'sc_events'); ?>">
+            <?php echo esc_html($w_next_lang === 'en' ? 'EN' : 'ع'); ?>
+        </button>
+
+        <a href="<?php echo esc_url(home_url('/events/')); ?>" class="w-header__cta">
+            <?php echo esc_html(sc_t('frontend.get_tickets', 'Get tickets')); ?>
+        </a>
+
+        <button class="w-header__burger" id="sc-hamburger" aria-label="<?php esc_attr_e('Open menu', 'sc_events'); ?>">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
     </div>
 </header>
+
+<script>
+// Language toggle — same endpoint the dashboard switcher uses.
+(function () {
+    var btn = document.getElementById('w-lang-toggle');
+    if (!btn) { return; }
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=sc_switch_language&lang=' + encodeURIComponent(btn.dataset.lang) +
+                  '&nonce=' + encodeURIComponent(btn.dataset.nonce)
+        }).then(function (r) {
+            if (!r.ok) { throw new Error('HTTP ' + r.status); }
+            location.reload();
+        }).catch(function () {
+            btn.disabled = false;
+        });
+    });
+})();
+</script>
 
 <!--===== MOBILE SIDEBAR =======-->
 <div class="sc-mobile-overlay" id="sc-mobile-overlay"></div>
@@ -334,5 +376,10 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     </div>
 </div>
 
-<!--===== BODY SPACER (for fixed header) =======-->
-<div class="sc-body-spacer"></div>
+<?php
+/*
+ * The old header was fixed, so the page needed a spacer to sit below it. The
+ * redesigned header is sticky and occupies its own space in the flow, so the
+ * spacer would now leave a blank band under it.
+ */
+?>
