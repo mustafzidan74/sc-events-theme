@@ -558,3 +558,77 @@
 @media (prefers-reduced-motion: reduce) {
   .w-workshop, .w-ticket { transition: none; }
 }
+
+/* ==========================================================================
+   Headline stat + intent tiles
+
+   One figure stated as a sentence, then four shortcuts into the event. Each
+   tile carries a live count, and a tile whose count is zero is not rendered —
+   a shortcut to an empty section is worse than no shortcut.
+   ========================================================================== */
+
+.w-intent { display: flex; flex-direction: column; gap: clamp(18px, 2.5vw, 28px); }
+
+.w-intent__stat {
+  margin: 0;
+  font-size: clamp(1.375rem, 2vw, 1.75rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--w-text);
+}
+
+.w-intent__stat b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-primary);
+}
+
+.w-intent__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--w-space-3);
+}
+
+.w-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  padding: 18px;
+  border: 1px solid var(--w-border);
+  border-radius: 22px;
+  background: var(--w-surface);
+  color: var(--w-text);
+  text-decoration: none;
+  transition: border-color var(--w-duration) var(--w-ease),
+              box-shadow var(--w-duration) var(--w-ease);
+}
+
+.w-tile:hover { border-color: var(--w-grey-300); box-shadow: var(--w-shadow-3); color: var(--w-text); }
+.w-tile:focus-visible { outline: 2px solid var(--w-focus); outline-offset: 2px; }
+
+/* The last tile is the one the design highlights. */
+.w-tile--accent { background: var(--w-primary-soft); border-color: transparent; color: var(--w-primary); }
+.w-tile--accent:hover { background: var(--w-burgundy-200); color: var(--w-primary); }
+
+.w-tile__icon {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--w-surface-2);
+  color: var(--w-primary);
+  font-size: 1.125rem;
+}
+
+.w-tile--accent .w-tile__icon { background: rgba(255, 255, 255, .55); }
+
+.w-tile__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.w-tile__label { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.015em; line-height: 1.15; }
+.w-tile__sub { font-size: 0.9375rem; color: var(--w-text-2); }
+.w-tile--accent .w-tile__sub { color: var(--w-burgundy-600); }
+
+@media (prefers-reduced-motion: reduce) { .w-tile { transition: none; } }

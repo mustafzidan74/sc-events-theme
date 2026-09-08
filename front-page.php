@@ -370,31 +370,71 @@ if ($next_event):
 
 <?php
 /*
- * Redesign stats.
+ * Redesign headline stat and intent tiles.
  *
- * The design labels this block "Last year", but these figures are lifetime
- * totals from the database, so the label would be wrong. A neutral eyebrow is
- * used until the numbers are actually scoped to a season.
+ * The design states one figure as a sentence rather than a row of stat tiles,
+ * then offers four shortcuts into the event. The wording avoids "last year",
+ * which these lifetime totals would not support.
  *
- * A tile whose figure is zero is not rendered, as the design specifies.
+ * A tile whose count is zero is dropped: a shortcut into an empty section is
+ * worse than no shortcut at all.
  */
-$w_stats = array_filter([
-    ['n' => (int) $total_events,             'l' => sc_t('frontend.events', 'Events')],
-    ['n' => (int) $total_attendees,          'l' => sc_t('frontend.attendees', 'Attendees')],
-    ['n' => (int) $total_speakers,           'l' => sc_t('frontend.speakers', 'Speakers')],
-    ['n' => (int) $total_sponsors_partners,  'l' => sc_t('frontend.sponsors_partners', 'Sponsors & partners')],
-], static function ($w_s) { return $w_s['n'] > 0; });
+$w_counts = ['programme' => 0, 'speakers' => 0, 'workshops' => 0];
+if ($next_event) {
+    global $wpdb;
+    $w_p = $wpdb->prefix . 'sc_';
+    $w_counts['programme'] = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$w_p}schedules WHERE event_id = %d", $next_event->id));
+    $w_counts['speakers'] = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$w_p}event_speakers WHERE event_id = %d", $next_event->id));
+    $w_counts['workshops'] = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$w_p}workshops WHERE event_id = %d AND status = 'publish'", $next_event->id));
+}
+$w_ev_url = $next_event ? home_url('/event/' . $next_event->slug) : home_url('/events/');
+
+$w_tiles = [];
+if ($w_counts['programme']) {
+    $w_tiles[] = ['icon' => 'clock', 'label' => sc_t('frontend.programme', 'Programme'),
+        'sub' => sprintf(sc_t('frontend.n_sessions', '%d sessions'), $w_counts['programme']),
+        'href' => $w_ev_url . '#schedule'];
+}
+if ($w_counts['speakers']) {
+    $w_tiles[] = ['icon' => 'user-group', 'label' => sc_t('frontend.speakers', 'Speakers'),
+        'sub' => sprintf(sc_t('frontend.n_faculty', '%d faculty'), $w_counts['speakers']),
+        'href' => $w_ev_url . '#speakers'];
+}
+if ($w_counts['workshops']) {
+    $w_tiles[] = ['icon' => 'wrench', 'label' => sc_t('frontend.workshops', 'Workshops'),
+        'sub' => sprintf(sc_t('frontend.n_hands_on', '%d hands-on'), $w_counts['workshops']),
+        'href' => home_url('/workshops/')];
+}
+$w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.my_ticket', 'My ticket'),
+    'sub' => sc_t('frontend.badge_certificate', 'E-badge & certificate'),
+    'href' => home_url(is_user_logged_in() ? '/my-account/' : '/login/'), 'accent' => true];
 ?>
-<?php if ($w_stats): ?>
+<?php if ($total_attendees > 0 || count($w_tiles) > 1): ?>
 <section class="w-section">
-    <div class="w-stats">
-        <span class="w-stats__label"><?php echo esc_html(sc_t('frontend.by_the_numbers', 'By the numbers')); ?></span>
-        <?php foreach ($w_stats as $w_s): ?>
-        <div class="w-stat">
-            <span class="w-stat__value"><?php echo esc_html(number_format_i18n($w_s['n'])); ?></span>
-            <span class="w-stat__label"><?php echo esc_html($w_s['l']); ?></span>
+    <div class="w-intent">
+        <?php if ($total_attendees > 0): ?>
+        <p class="w-intent__stat">
+            <?php printf(
+                esc_html(sc_t('frontend.attendees_so_far', '%s dentists have attended so far')),
+                '<b>' . esc_html(number_format_i18n((int) $total_attendees)) . '</b>'
+            ); ?>
+        </p>
+        <?php endif; ?>
+
+        <div class="w-intent__tiles">
+            <?php foreach ($w_tiles as $w_t): ?>
+            <a class="w-tile<?php echo !empty($w_t['accent']) ? ' w-tile--accent' : ''; ?>" href="<?php echo esc_url($w_t['href']); ?>">
+                <span class="w-tile__icon"><i class="fa-solid fa-<?php echo esc_attr($w_t['icon']); ?>" aria-hidden="true"></i></span>
+                <span class="w-tile__text">
+                    <span class="w-tile__label"><?php echo esc_html($w_t['label']); ?></span>
+                    <span class="w-tile__sub"><?php echo esc_html($w_t['sub']); ?></span>
+                </span>
+            </a>
+            <?php endforeach; ?>
         </div>
-        <?php endforeach; ?>
     </div>
 </section>
 <?php endif; ?>
