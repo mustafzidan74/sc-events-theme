@@ -111,6 +111,11 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-event.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
     <?php endif; ?>
 
+    <?php if (is_page('my-account')): ?>
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/account.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
+    <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-account.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
+    <?php endif; ?>
+
     <?php if (is_page(['login', 'register', 'forgot-password'])): ?>
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/auth.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-auth.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>

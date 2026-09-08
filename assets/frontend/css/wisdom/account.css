@@ -1,0 +1,248 @@
+/*
+ * The account.
+ *
+ * The one thing someone opens this page for on the morning of a congress is
+ * the pass, so the pass is the first thing on it and the QR is big enough to
+ * scan off a screen held at arm's length.
+ */
+
+.w-acc {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--w-space-6) var(--w-space-6) var(--w-space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-6);
+}
+
+.w-acc__hello { display: flex; align-items: center; gap: var(--w-space-4); }
+
+.w-acc__avatar {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: var(--w-radius-pill);
+  overflow: hidden;
+  background: var(--w-surface);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  color: var(--w-text-2);
+}
+
+.w-acc__avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.w-acc__greet { font-size: 0.9375rem; color: var(--w-text-2); }
+
+.w-acc__name {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+/* ---- tabs ---- */
+
+.w-acc__tabs {
+  display: flex;
+  gap: var(--w-space-1);
+  padding: 5px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  border: 1px solid var(--w-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.w-acc__tabs::-webkit-scrollbar { display: none; }
+
+.w-acc__tab {
+  height: 40px;
+  padding: 0 var(--w-space-5);
+  border-radius: var(--w-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--w-text-2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--w-duration) var(--w-ease), color var(--w-duration) var(--w-ease);
+}
+
+.w-acc__tab:hover { color: var(--w-text); }
+.w-acc__tab.active { background: var(--w-text); color: var(--w-bg); }
+
+.w-acc__count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-primary-soft);
+  color: var(--w-primary);
+  font-size: 0.6875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.w-acc__tab.active .w-acc__count { background: rgba(255, 255, 255, .2); color: inherit; }
+
+.w-acc__panel { display: flex; flex-direction: column; gap: var(--w-space-4); }
+
+/* ---- the pass ---- */
+
+.w-pass {
+  border-radius: var(--w-radius-xl);
+  overflow: hidden;
+  background: var(--w-ink-900);
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.w-pass--past { opacity: .72; }
+
+.w-pass__top {
+  padding: clamp(20px, 2.5vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-4);
+}
+
+.w-pass__status {
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 var(--w-space-3);
+  border-radius: var(--w-radius-pill);
+  background: rgba(255, 255, 255, .16);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-2);
+}
+
+.w-pass__status--live { background: var(--w-teal); color: #06231f; }
+
+.w-pass__event {
+  margin: 0;
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #fff;
+}
+
+.w-pass__holder { font-size: 1.0625rem; font-weight: 600; }
+.w-pass__meta { font-size: 0.875rem; color: var(--w-ink-200); }
+
+/* The code is read aloud at the door often enough to deserve monospace and
+   room to breathe. */
+.w-pass__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.125rem;
+  letter-spacing: .12em;
+  color: var(--w-gold);
+}
+
+.w-pass__qr {
+  padding: clamp(20px, 2.5vw, 32px);
+  border-top: 1px dashed rgba(255, 255, 255, .2);
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-5);
+  flex-wrap: wrap;
+}
+
+.w-pass__qr canvas,
+.w-pass__qr img {
+  width: 148px;
+  height: 148px;
+  border-radius: var(--w-radius);
+  background: #fff;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.w-pass__qr-say { display: flex; flex-direction: column; gap: var(--w-space-3); min-width: 0; flex: 1; }
+.w-pass__hint { font-size: 0.8125rem; color: var(--w-ink-200); max-width: 34ch; }
+.w-pass__acts { display: flex; gap: var(--w-space-2); flex-wrap: wrap; }
+
+.w-pass__acts .w-btn--onink {
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+}
+
+.w-pass__acts .w-btn--onink:hover { background: rgba(255, 255, 255, .28); color: #fff; }
+
+.w-pass__extra {
+  padding: var(--w-space-4) clamp(20px, 2.5vw, 32px);
+  background: rgba(255, 255, 255, .05);
+  display: flex;
+  gap: var(--w-space-5);
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color: var(--w-ink-200);
+}
+
+.w-pass__extra strong { color: #fff; font-variant-numeric: tabular-nums; }
+
+@media (min-width: 780px) {
+  .w-pass { grid-template-columns: 1fr auto; }
+  .w-pass__qr { border-top: 0; border-inline-start: 1px dashed rgba(255, 255, 255, .2); }
+  .w-pass__extra { grid-column: 1 / -1; }
+}
+
+/* ---- certificates & saved ---- */
+
+.w-acc__row {
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  padding: var(--w-space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--w-space-4);
+  flex-wrap: wrap;
+}
+
+.w-acc__row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.w-acc__row-title { font-weight: 600; letter-spacing: -0.015em; }
+.w-acc__row-meta { font-size: 0.8125rem; color: var(--w-text-2); }
+
+/* ---- profile ---- */
+
+.w-acc__form {
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-xl);
+  background: var(--w-surface);
+  padding: clamp(24px, 3vw, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-5);
+  max-width: 560px;
+}
+
+.w-acc__legend {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--w-text-3);
+}
+
+.w-acc__tel { display: flex; gap: var(--w-space-2); }
+.w-acc__tel .w-select { flex: 0 0 auto; width: auto; }
+.w-acc__tel .w-input { flex: 1; min-width: 0; }
+
+@media (max-width: 560px) {
+  .w-acc { padding-inline: var(--w-space-4); }
+}
