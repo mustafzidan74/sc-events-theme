@@ -82,6 +82,10 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <!-- Redesign: header and footer shell. -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/header.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
 
+    <?php if (is_front_page()): /* Page-specific — the old stylesheets load on every page regardless; the redesign ones do not. */ ?>
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/home.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
+    <?php endif; ?>
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/fontawesome.css">

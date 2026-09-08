@@ -244,107 +244,129 @@ if (class_exists('SC_Sponsor')) {
 get_template_part('template-parts/public/header', 'public');
 ?>
 
-<!--===== SECTION 1: HERO =======-->
-<section class="sc-hero sc-grid-bg">
-    <!-- Decorative orbs -->
-    <div class="sc-orb" style="width: 500px; height: 500px; top: -150px; right: -100px; background: var(--sc-primary);"></div>
-    <div class="sc-orb" style="width: 400px; height: 400px; bottom: -100px; left: -100px; background: var(--sc-secondary);"></div>
+<?php
+/*
+ * Redesign hero — the date is the headline.
+ *
+ * Everything is read from the event rather than written into the markup, so a
+ * single-day event, a run that crosses a month boundary, or a free ticket all
+ * render correctly without a second template.
+ */
+if ($next_event):
+    $w_start = strtotime($next_event->start_date);
+    $w_end = !empty($next_event->end_date) ? strtotime($next_event->end_date) : $w_start;
+    $w_url = home_url('/event/' . $next_event->slug);
+    $w_img = $next_event->featured_image ? wp_get_attachment_url($next_event->featured_image) : '';
+    $w_starts_at = strtotime($next_event->start_date . ' ' . ($next_event->start_time ?: '00:00:00'));
+    $w_is_upcoming = $w_starts_at > current_time('timestamp');
 
-    <div class="container sc-relative">
-        <div class="row align-items-center">
-            <!-- Left: Text -->
-            <div class="col-lg-6 mb-5 mb-lg-0">
-                <div class="sc-hero-content" data-aos="fade-right">
-                    <div class="sc-badge-gold mb-3">
-                        <i class="fa-solid fa-bolt"></i>
-                        <?php echo esc_html(sc_t('frontend.premium_platform', 'Premium Event Platform')); ?>
-                    </div>
-                    <h1 class="sc-hero-title">
-                        <?php echo esc_html($platform_name); ?>
-                    </h1>
-                    <p class="sc-hero-desc">
-                        <?php echo esc_html(
-                            wp_trim_words(
-                                $platform_description ?: sc_t(
-                                    'frontend.hero_description',
-                                    'Discover extraordinary events, connect with industry leaders, and create unforgettable experiences.'
-                                ),
-                                40, // عدد الكلمات
-                                '...'
-                            )
-                        ); ?>
-                    </p>                    <div class="sc-hero-actions">
-                        <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-btn sc-btn-gold sc-btn-xl">
-                            <?php echo esc_html(sc_t('frontend.browse_events', 'Browse Events')); ?> <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                        <a href="<?php echo esc_url(home_url('/contact/')); ?>" class="sc-btn sc-btn-outline sc-btn-xl">
-                            <?php echo esc_html(sc_t('frontend.contact_us', 'Contact Us')); ?>
-                        </a>
-                    </div>
-                </div>
+    // "7–9" when the run stays inside one month, "28 Nov – 2 Dec" when it does not.
+    $w_same_month = date('Y-m', $w_start) === date('Y-m', $w_end);
+    if ($w_start === $w_end) {
+        $w_big = date_i18n('j', $w_start);
+    } elseif ($w_same_month) {
+        $w_big = date_i18n('j', $w_start) . '–' . date_i18n('j', $w_end);
+    } else {
+        $w_big = date_i18n('j M', $w_start) . ' – ' . date_i18n('j M', $w_end);
+    }
+    $w_small = $w_same_month ? date_i18n('M Y', $w_start) : date_i18n('Y', $w_end);
+
+    // Lowest active ticket price. Zero across the board means the event is free.
+    $w_price_label = '';
+    if (class_exists('SC_Ticket')) {
+        $w_prices = array_map(
+            static function ($t) { return (float) $t->price; },
+            SC_Ticket::get_by_event($next_event->id) ?: []
+        );
+        if ($w_prices) {
+            $w_min = min($w_prices);
+            $w_price_label = $w_min > 0
+                ? sprintf(sc_t('frontend.from_price', 'from %s'), sc_currency($w_min))
+                : sc_t('frontend.free', 'Free');
+        }
+    }
+
+    $w_venue = trim(implode('، ', array_filter([
+        $next_event->venue_name,
+        $next_event->venue_city,
+    ])));
+?>
+<main class="w-main">
+    <section class="w-hero">
+        <div class="w-hero__copy">
+            <span class="w-hero__status">
+                <span class="w-hero__pulse" aria-hidden="true"></span>
+                <?php echo esc_html(sc_t('frontend.registration_open', 'Registration open')); ?>
+                <?php if ($w_venue): ?>· <?php echo esc_html($w_venue); ?><?php endif; ?>
+            </span>
+
+            <h1 class="w-hero__date">
+                <?php echo esc_html($w_big); ?>
+                <span><?php echo esc_html($w_small); ?></span>
+            </h1>
+
+            <p class="w-hero__title"><?php echo esc_html($next_event->title); ?></p>
+
+            <div class="w-hero__actions">
+                <a class="w-hero__cta" href="<?php echo esc_url($w_url); ?>">
+                    <?php echo esc_html(sc_t('frontend.register', 'Register')); ?><?php
+                    if ($w_price_label) { echo ' · ' . esc_html($w_price_label); }
+                    ?>
+                </a>
             </div>
 
-            <!-- Right: Next Event Card -->
-            <div class="col-lg-5 offset-lg-1">
-                <?php if ($next_event):
-                    $hero_img = $next_event->featured_image ? wp_get_attachment_url($next_event->featured_image) : '';
-                    $event_url = home_url('/event/' . $next_event->slug);
-                    $event_location = $next_event->venue_name ?: sc_t('frontend.online', 'Online');
-                    $start_date = $next_event->start_date;
-                    $event_timestamp = strtotime($start_date . ' ' . ($next_event->start_time ?: '00:00:00'));
-                ?>
-                <div class="sc-hero-card glass-card" data-aos="fade-left" data-aos-delay="200">
-                    <?php if ($hero_img): ?>
-                    <div class="sc-hero-card-image">
-                        <img src="<?php echo esc_url($hero_img); ?>" alt="<?php echo esc_attr($next_event->title); ?>">
-                        <div class="sc-hero-card-overlay"></div>
-                        <span class="sc-badge-gold sc-hero-card-badge"><?php echo esc_html(sc_t('frontend.next_event', 'Next Event')); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    <div class="sc-hero-card-body">
-                        <h3 class="sc-hero-card-title"><?php echo esc_html($next_event->title); ?></h3>
-                        <div class="sc-hero-card-meta">
-                            <span><i class="fa-regular fa-calendar"></i> <?php echo esc_html(date_i18n('M d, Y', strtotime($start_date))); ?></span>
-                            <span><i class="fa-solid fa-location-dot"></i> <?php echo esc_html(wp_trim_words($event_location, 4)); ?></span>
-                        </div>
-
-                        <!-- Mini Countdown -->
-                        <div class="event-countdown-mini" data-timestamp="<?php echo esc_attr($event_timestamp); ?>">
-                            <div class="countdown-item">
-                                <span class="countdown-value days">00</span>
-                                <span class="countdown-label"><?php echo esc_html(sc_t('frontend.days', 'Days')); ?></span>
-                            </div>
-                            <div class="countdown-item">
-                                <span class="countdown-value hours">00</span>
-                                <span class="countdown-label"><?php echo esc_html(sc_t('frontend.hours_short', 'Hrs')); ?></span>
-                            </div>
-                            <div class="countdown-item">
-                                <span class="countdown-value minutes">00</span>
-                                <span class="countdown-label"><?php echo esc_html(sc_t('frontend.minutes_short', 'Min')); ?></span>
-                            </div>
-                            <div class="countdown-item">
-                                <span class="countdown-value seconds">00</span>
-                                <span class="countdown-label"><?php echo esc_html(sc_t('frontend.seconds_short', 'Sec')); ?></span>
-                            </div>
-                        </div>
-
-                        <a href="<?php echo esc_url($event_url); ?>" class="sc-btn sc-btn-gold" style="width: 100%; margin-top: var(--sc-space-4);">
-                            <?php echo esc_html(sc_t('frontend.get_tickets', 'Get Tickets')); ?> <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                    </div>
+            <?php if ($w_is_upcoming): ?>
+            <div class="w-countdown" data-starts="<?php echo esc_attr($w_starts_at); ?>" aria-live="off">
+                <?php
+                $w_left = max(0, $w_starts_at - current_time('timestamp'));
+                $w_units = [
+                    'days' => [intdiv($w_left, 86400), sc_t('frontend.days', 'days')],
+                    'hrs'  => [intdiv($w_left % 86400, 3600), sc_t('frontend.hours', 'hrs')],
+                    'min'  => [intdiv($w_left % 3600, 60), sc_t('frontend.minutes', 'min')],
+                ];
+                foreach ($w_units as $w_key => $w_unit): ?>
+                <div class="w-countdown__unit">
+                    <span class="w-countdown__value" data-unit="<?php echo esc_attr($w_key); ?>"><?php echo esc_html($w_unit[0]); ?></span>
+                    <span class="w-countdown__label"><?php echo esc_html($w_unit[1]); ?></span>
                 </div>
-                <?php else: ?>
-                <div class="sc-hero-card glass-card text-center" data-aos="fade-left" data-aos-delay="200" style="padding: var(--sc-space-12);">
-                    <?php if ($platform_logo_url): ?>
-                    <img src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>" style="max-height: 120px; opacity: 0.7; margin-bottom: var(--sc-space-4);">
-                    <?php endif; ?>
-                    <p class="sc-text-muted"><?php echo esc_html(sc_t('frontend.new_events_coming', 'New events coming soon!')); ?></p>
-                </div>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </div>
-    </div>
-</section>
+
+        <div class="w-hero__media<?php echo $w_img ? '' : ' w-hero__media--empty'; ?>">
+            <?php if ($w_img): ?>
+                <img src="<?php echo esc_url($w_img); ?>"
+                     alt="<?php echo esc_attr($next_event->title); ?>"
+                     fetchpriority="high" decoding="async">
+            <?php endif; ?>
+        </div>
+    </section>
+</main>
+
+<script>
+// Tick the countdown without re-rendering the page. Values come from the
+// server, so the first paint is already correct with JavaScript disabled.
+(function () {
+    var box = document.querySelector('.w-countdown[data-starts]');
+    if (!box) { return; }
+    var target = parseInt(box.dataset.starts, 10) * 1000;
+    var out = {
+        days: box.querySelector('[data-unit="days"]'),
+        hrs: box.querySelector('[data-unit="hrs"]'),
+        min: box.querySelector('[data-unit="min"]')
+    };
+    function tick() {
+        var left = Math.max(0, target - Date.now()) / 1000;
+        out.days.textContent = Math.floor(left / 86400);
+        out.hrs.textContent = Math.floor((left % 86400) / 3600);
+        out.min.textContent = Math.floor((left % 3600) / 60);
+    }
+    tick();
+    setInterval(tick, 30000);
+})();
+</script>
+<?php endif; ?>
 
 <!--===== SECTION 2: STATS =======-->
 <section class="sc-stats-section">
