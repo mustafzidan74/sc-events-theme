@@ -223,3 +223,44 @@
   .w-hero__pulse { animation: none; }
   .w-hero__cta { transition: none; }
 }
+
+/* ==========================================================================
+   Section wrapper
+
+   During the migration each rebuilt section carries its own container instead
+   of sharing one, because the sections around it still use the legacy grid.
+   ========================================================================== */
+
+.w-section {
+  max-width: 1360px;
+  margin-inline: auto;
+  padding: clamp(28px, 4vw, 56px) clamp(20px, 3vw, 40px);
+  font-family: var(--w-font);
+  color: var(--w-text);
+}
+
+.w-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--w-space-4);
+  flex-wrap: wrap;
+  margin-bottom: clamp(20px, 2.5vw, 32px);
+}
+
+.w-section__title {
+  margin: 0;
+  font-size: var(--w-h2-size);
+  line-height: var(--w-h2-lh);
+  font-weight: var(--w-h2-weight);
+  letter-spacing: var(--w-h2-ls);
+}
+
+.w-section__link {
+  color: var(--w-primary);
+  font-size: var(--w-body-size);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.w-section__link:hover { text-decoration: underline; }

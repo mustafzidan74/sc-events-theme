@@ -368,32 +368,36 @@ if ($next_event):
 </script>
 <?php endif; ?>
 
-<!--===== SECTION 2: STATS =======-->
-<section class="sc-stats-section">
-    <div class="container">
-        <div class="sc-stats-strip" data-aos="fade-up">
-            <div class="sc-stat-item">
-                <span class="sc-stat-number" data-count="<?php echo $total_events; ?>">0</span>
-                <span class="sc-stat-label"><?php echo esc_html(sc_t('frontend.events', 'Events')); ?></span>
-            </div>
-            <div class="sc-stat-divider"></div>
-            <div class="sc-stat-item">
-                <span class="sc-stat-number" data-count="<?php echo $total_attendees; ?>">0</span>
-                <span class="sc-stat-label"><?php echo esc_html(sc_t('frontend.attendees', 'Attendees')); ?></span>
-            </div>
-            <div class="sc-stat-divider"></div>
-            <div class="sc-stat-item">
-                <span class="sc-stat-number" data-count="<?php echo $total_speakers; ?>">0</span>
-                <span class="sc-stat-label"><?php echo esc_html(sc_t('frontend.speakers', 'Speakers')); ?></span>
-            </div>
-            <div class="sc-stat-divider"></div>
-            <div class="sc-stat-item">
-                <span class="sc-stat-number" data-count="<?php echo $total_sponsors_partners; ?>">0</span>
-                <span class="sc-stat-label"><?php echo esc_html(sc_t('frontend.sponsors_partners', 'Sponsors & Partners')); ?></span>
-            </div>
+<?php
+/*
+ * Redesign stats.
+ *
+ * The design labels this block "Last year", but these figures are lifetime
+ * totals from the database, so the label would be wrong. A neutral eyebrow is
+ * used until the numbers are actually scoped to a season.
+ *
+ * A tile whose figure is zero is not rendered, as the design specifies.
+ */
+$w_stats = array_filter([
+    ['n' => (int) $total_events,             'l' => sc_t('frontend.events', 'Events')],
+    ['n' => (int) $total_attendees,          'l' => sc_t('frontend.attendees', 'Attendees')],
+    ['n' => (int) $total_speakers,           'l' => sc_t('frontend.speakers', 'Speakers')],
+    ['n' => (int) $total_sponsors_partners,  'l' => sc_t('frontend.sponsors_partners', 'Sponsors & partners')],
+], static function ($w_s) { return $w_s['n'] > 0; });
+?>
+<?php if ($w_stats): ?>
+<section class="w-section">
+    <div class="w-stats">
+        <span class="w-stats__label"><?php echo esc_html(sc_t('frontend.by_the_numbers', 'By the numbers')); ?></span>
+        <?php foreach ($w_stats as $w_s): ?>
+        <div class="w-stat">
+            <span class="w-stat__value"><?php echo esc_html(number_format_i18n($w_s['n'])); ?></span>
+            <span class="w-stat__label"><?php echo esc_html($w_s['l']); ?></span>
         </div>
+        <?php endforeach; ?>
     </div>
 </section>
+<?php endif; ?>
 
 <!--===== SECTION 3: UPCOMING EVENTS =======-->
 <?php if (!empty($upcoming_events) || !empty($past_events)): ?>
