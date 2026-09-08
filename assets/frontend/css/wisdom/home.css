@@ -872,3 +872,99 @@
 @media (prefers-reduced-motion: reduce) {
   .w-logo, .w-logo img { transition: none; }
 }
+
+/* ==========================================================================
+   Page header and pagination
+
+   Shared by the listing pages, which reuse the event card above.
+   ========================================================================== */
+
+.w-page-head {
+  max-width: 1360px;
+  margin-inline: auto;
+  padding: clamp(28px, 4vw, 56px) clamp(20px, 3vw, 40px) 0;
+  font-family: var(--w-font);
+  color: var(--w-text);
+}
+
+.w-page-head h1 {
+  margin: 0;
+  font-size: var(--w-h1-size);
+  line-height: var(--w-h1-lh);
+  font-weight: var(--w-h1-weight);
+  letter-spacing: var(--w-h1-ls);
+}
+
+.w-page-head p {
+  margin: var(--w-space-3) 0 0;
+  font-size: var(--w-body-lg-size);
+  line-height: var(--w-body-lg-lh);
+  color: var(--w-text-2);
+  max-width: 60ch;
+}
+
+.w-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--w-space-4);
+  flex-wrap: wrap;
+  margin-bottom: clamp(20px, 2.5vw, 32px);
+}
+
+.w-search {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  height: 54px;
+  padding-inline: var(--w-space-5);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  min-width: min(100%, 320px);
+}
+
+.w-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--w-text);
+  font-family: var(--w-font);
+  font-size: var(--w-body-size);
+}
+
+.w-search input:focus { outline: none; }
+.w-search input::placeholder { color: var(--w-text-3); }
+.w-search:focus-within { border-color: var(--w-primary); box-shadow: var(--w-focus-ring); }
+
+.w-count { font-size: var(--w-small-size); color: var(--w-text-2); }
+
+.w-pagination {
+  display: flex;
+  justify-content: center;
+  gap: var(--w-space-2);
+  flex-wrap: wrap;
+  margin-top: clamp(28px, 4vw, 48px);
+}
+
+.w-pagination a,
+.w-pagination span {
+  min-width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--w-space-3);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  color: var(--w-text-2);
+  font-size: var(--w-body-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.w-pagination a:hover { border-color: var(--w-primary); color: var(--w-primary); }
+.w-pagination .current { background: var(--w-primary); border-color: var(--w-primary); color: var(--w-on-primary); }

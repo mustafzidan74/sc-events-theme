@@ -82,7 +82,14 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <!-- Redesign: header and footer shell. -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/header.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
 
-    <?php if (is_front_page()): /* Page-specific — the old stylesheets load on every page regardless; the redesign ones do not. */ ?>
+    <?php
+    /*
+     * Page-specific — the legacy stylesheets load on every page regardless;
+     * the redesign ones do not. home.css also carries the event card, filter
+     * pills and pagination, which the listings reuse.
+     */
+    if (is_front_page() || is_page(['events', 'workshops']) || is_post_type_archive(['sc_event', 'sc_workshop'])):
+    ?>
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/home.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <?php endif; ?>
 

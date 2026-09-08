@@ -18,7 +18,12 @@ $assets_url = get_template_directory_uri() . '/assets/frontend/';
 
 // Get filter parameters
 $filter = isset($_GET['filter']) ? sanitize_text_field($_GET['filter']) : 'all';
-$search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+// `s` is WordPress's own search variable: sending it here hands the request to
+// the search template and the page 404s. The form submits `event_s` instead;
+// `s` is still read so any link already shared with it keeps working.
+$search = isset($_GET['event_s'])
+    ? sanitize_text_field($_GET['event_s'])
+    : (isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '');
 $category_filter = isset($_GET['category']) ? intval($_GET['category']) : 0;
 $page = get_query_var('paged') ? get_query_var('paged') : 1;
 $per_page = 9;
@@ -100,290 +105,123 @@ get_template_part('template-parts/public/header', 'public');
 ?>
 
 <!-- Page Header -->
-<section class="sc-page-header">
-    <div class="container">
-        <nav class="sc-breadcrumb" data-aos="fade-up">
-            <a href="<?php echo esc_url(home_url('/')); ?>"><?php echo esc_html(sc_t('frontend.home', 'Home')); ?></a>
-            <i class="fa-solid fa-chevron-right"></i>
-            <span><?php echo esc_html(sc_t('frontend.events', 'Events')); ?></span>
-        </nav>
-        <h1 data-aos="fade-up" data-aos-delay="100">
-            <?php
-            if ($filter === 'upcoming') {
-                echo esc_html(sc_t('frontend.upcoming_events', 'Upcoming Events'));
-            } elseif ($filter === 'past') {
-                echo esc_html(sc_t('frontend.past_events', 'Past Events'));
-            } else {
-                echo esc_html(sc_t('frontend.all_events', 'All Events'));
-            }
+<?php
+/*
+ * Redesign events listing.
+ *
+ * Reuses the card and filter pills built for the home page, so a listing and
+ * the home read as the same system. Filters stay as links rather than script,
+ * which keeps them shareable, crawlable and working without JavaScript.
+ */
+$w_base = home_url('/events/');
+$w_filters = [
+    'all'      => sc_t('frontend.all', 'All'),
+    'upcoming' => sc_t('frontend.upcoming', 'Upcoming'),
+    'past'     => sc_t('frontend.past', 'Past'),
+];
+?>
+<header class="w-page-head">
+    <h1><?php echo esc_html(sc_t('frontend.whats_on', "What's on")); ?></h1>
+    <p><?php echo esc_html(sc_t('frontend.events_lede', 'Congresses, workshops and CME courses for dentists across Egypt and MENA.')); ?></p>
+</header>
+
+<section class="w-section">
+    <div class="w-toolbar">
+        <div class="w-filters">
+            <?php foreach ($w_filters as $w_key => $w_label):
+                $w_href = $w_key === 'all' ? $w_base : add_query_arg('filter', $w_key, $w_base);
+                if (!empty($search)) { $w_href = add_query_arg("event_s", $search, $w_href); }
             ?>
-        </h1>
-        <p data-aos="fade-up" data-aos-delay="150"><?php echo esc_html(sc_t('frontend.events_subtitle', 'Discover conferences, workshops, and networking opportunities')); ?></p>
-    </div>
-</section>
-
-<!-- Filter Bar -->
-<section class="sc-section" style="padding-top: var(--sc-space-8); padding-bottom: 0;">
-    <div class="container">
-        <div class="sc-filter-bar glass-card-static" data-aos="fade-up">
-            <div class="sc-filter-row">
-                <!-- Filter Pills -->
-                <div class="sc-filter-pills">
-                    <a href="<?php echo esc_url(add_query_arg('filter', 'all', remove_query_arg('paged'))); ?>"
-                       class="sc-filter-pill <?php echo $filter === 'all' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-calendar-days"></i>
-                        <?php echo esc_html(sc_t('frontend.all', 'All')); ?>
-                    </a>
-                    <a href="<?php echo esc_url(add_query_arg('filter', 'upcoming', remove_query_arg('paged'))); ?>"
-                       class="sc-filter-pill <?php echo $filter === 'upcoming' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-clock"></i>
-                        <?php echo esc_html(sc_t('frontend.upcoming', 'Upcoming')); ?>
-                    </a>
-                    <a href="<?php echo esc_url(add_query_arg('filter', 'past', remove_query_arg('paged'))); ?>"
-                       class="sc-filter-pill <?php echo $filter === 'past' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-check-circle"></i>
-                        <?php echo esc_html(sc_t('frontend.past', 'Past')); ?>
-                    </a>
-                </div>
-
-                <!-- Category Dropdown -->
-                <?php if (!empty($event_categories)): ?>
-                <div class="sc-filter-select">
-                    <select class="sc-select" id="category-filter" onchange="window.location.href=this.value">
-                        <option value="<?php echo esc_url(remove_query_arg(array('category', 'paged'))); ?>"><?php echo esc_html(sc_t('frontend.all_categories', 'All Categories')); ?></option>
-                        <?php foreach ($event_categories as $cat): ?>
-                        <option value="<?php echo esc_url(add_query_arg('category', $cat->term_id, remove_query_arg('paged'))); ?>" <?php selected($category_filter, $cat->term_id); ?>>
-                            <?php echo esc_html($cat->name); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <?php endif; ?>
-
-                <!-- Search -->
-                <div class="sc-filter-search">
-                    <form action="" method="get" class="sc-search-form">
-                        <i class="fa-solid fa-search"></i>
-                        <input type="text" name="s" value="<?php echo esc_attr($search); ?>"
-                               placeholder="<?php echo esc_attr(sc_t('frontend.search_events', 'Search events...')); ?>">
-                        <?php if ($filter !== 'all'): ?>
-                        <input type="hidden" name="filter" value="<?php echo esc_attr($filter); ?>">
-                        <?php endif; ?>
-                        <?php if ($category_filter > 0): ?>
-                        <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
-                        <?php endif; ?>
-                        <button type="submit"><?php echo esc_html(sc_t('frontend.search', 'Search')); ?></button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Active Filters -->
-            <?php if (!empty($search) || $category_filter > 0): ?>
-            <div class="sc-active-filters">
-                <span class="sc-active-filters-label"><?php echo esc_html(sc_t('frontend.active', 'Active:')); ?></span>
-                <?php if (!empty($search)): ?>
-                <span class="sc-filter-tag">
-                    <i class="fa-solid fa-search"></i>
-                    <?php echo esc_html($search); ?>
-                    <a href="<?php echo esc_url(remove_query_arg('s')); ?>"><i class="fa-solid fa-xmark"></i></a>
-                </span>
-                <?php endif; ?>
-                <?php if ($category_filter > 0):
-                    $active_cat = get_term($category_filter, 'sc_event_category');
-                    if ($active_cat && !is_wp_error($active_cat)):
-                ?>
-                <span class="sc-filter-tag">
-                    <i class="fa-solid fa-tag"></i>
-                    <?php echo esc_html($active_cat->name); ?>
-                    <a href="<?php echo esc_url(remove_query_arg('category')); ?>"><i class="fa-solid fa-xmark"></i></a>
-                </span>
-                <?php endif; endif; ?>
-                <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-filter-clear">
-                    <i class="fa-solid fa-rotate-right"></i>
-                    <?php echo esc_html(sc_t('frontend.clear_all', 'Clear All')); ?>
-                </a>
-            </div>
-            <?php endif; ?>
-
-            <!-- Results Count -->
-            <div class="sc-results-count">
-                <?php printf(esc_html(sc_t('frontend.showing_events', 'Showing %d events')), $total); ?>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Events Grid -->
-<section class="sc-section">
-    <div class="container">
-        <?php if (!empty($events)): ?>
-        <div class="row g-4">
-            <?php
-            $delay = 0;
-            foreach ($events as $event):
-                $event_id = $event->id;
-                $start_date = $event->start_date;
-                $end_date = $event->end_date;
-                $start_time = $event->start_time;
-                $end_time = $event->end_time;
-
-                // Build location string
-                $location = '';
-                if (!empty($event->venue_name)) {
-                    $location = $event->venue_name;
-                } elseif (!empty($event->venue_address)) {
-                    $location = $event->venue_address;
-                } elseif ($event->location_type === 'online') {
-                    $location = sc_t('frontend.online', 'Online');
-                }
-
-                $ev_end_dt = ($end_date ?: $start_date) . ($end_time ? ' ' . $end_time : ' 23:59:59');
-                $is_past = strtotime($ev_end_dt) < time();
-
-                // Get featured image
-                $thumbnail_url = '';
-                if ($event->featured_image) {
-                    $thumbnail_url = wp_get_attachment_image_url($event->featured_image, 'medium_large');
-                }
-                if (!$thumbnail_url && $event->banner_image) {
-                    $thumbnail_url = wp_get_attachment_image_url($event->banner_image, 'medium_large');
-                }
-
-                // Event URL
-                $event_url = home_url('/event/' . $event->slug);
-
-                // Get tickets for price (from batch-loaded map)
-                $tickets = isset($event_tickets_map[$event_id]) ? $event_tickets_map[$event_id] : array();
-                $min_price = 0;
-                $is_free = true;
-                if (!empty($tickets)) {
-                    foreach ($tickets as $ticket) {
-                        $price = floatval($ticket->price ?? 0);
-                        if ($price > 0) {
-                            $is_free = false;
-                            if ($min_price == 0 || $price < $min_price) $min_price = $price;
-                        }
-                    }
-                }
-
-                // Event branding
-                $event_bg = $event->calendar_bg_color;
-            ?>
-            <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
-                <a href="<?php echo esc_url($event_url); ?>" class="sc-event-card glass-card">
-                    <div class="sc-event-card-image">
-                        <?php if ($thumbnail_url): ?>
-                        <img src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php echo esc_attr($event->title); ?>" loading="lazy">
-                        <?php else: ?>
-                        <div class="sc-event-card-placeholder">
-                            <i class="fa-solid fa-calendar-days"></i>
-                        </div>
-                        <?php endif; ?>
-                        <div class="sc-event-card-overlay"></div>
-
-                        <!-- Date Badge -->
-                        <div class="sc-event-card-date" <?php if ($event_bg): ?>style="background: <?php echo esc_attr($event_bg); ?>"<?php endif; ?>>
-                            <span class="sc-event-card-day"><?php echo esc_html(date('d', strtotime($start_date))); ?></span>
-                            <span class="sc-event-card-month"><?php echo esc_html(date_i18n('M', strtotime($start_date))); ?></span>
-                        </div>
-
-                        <!-- Status Badge -->
-                        <div class="sc-event-card-status <?php echo $is_past ? 'past' : 'upcoming'; ?>">
-                            <?php echo $is_past ? esc_html(sc_t('frontend.past', 'Past')) : esc_html(sc_t('frontend.upcoming', 'Upcoming')); ?>
-                        </div>
-
-                        <!-- Favorite Button -->
-                        <button class="sc-favorite-btn" data-event-id="<?php echo esc_attr($event_id); ?>" title="<?php echo esc_attr(sc_t('frontend.add_to_favorites', 'Add to favorites')); ?>" aria-label="<?php echo esc_attr(sc_t('frontend.toggle_favorite', 'Toggle favorite')); ?>">
-                            <i class="fa-regular fa-heart"></i>
-                            <i class="fa-solid fa-heart"></i>
-                        </button>
-                    </div>
-
-                    <div class="sc-event-card-body">
-                        <h3 class="sc-event-card-title"><?php echo esc_html($event->title); ?></h3>
-
-                        <div class="sc-event-card-meta">
-                            <span>
-                                <i class="fa-regular fa-clock"></i>
-                                <?php
-                                if ($start_time) {
-                                    echo esc_html(date('g:i A', strtotime($start_time)));
-                                } else {
-                                    echo esc_html(sc_t('frontend.tba', 'TBA'));
-                                }
-                                ?>
-                            </span>
-                            <span>
-                                <i class="fa-solid fa-location-dot"></i>
-                                <?php echo esc_html($location ? wp_trim_words($location, 4) : sc_t('frontend.tba', 'TBA')); ?>
-                            </span>
-                            <?php
-                            $sc_session_count = isset($event_session_counts[$event_id]) ? $event_session_counts[$event_id] : 0;
-                            if ($sc_session_count > 0):
-                            ?>
-                            <span>
-                                <i class="fa-solid fa-chalkboard-user"></i>
-                                <?php echo esc_html($sc_session_count . ' ' . ($sc_session_count === 1 ? sc_t('frontend.session', 'Session') : sc_t('frontend.sessions', 'Sessions'))); ?>
-                            </span>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="sc-event-card-footer">
-                            <span class="sc-event-card-price">
-                                <?php if ($is_free): ?>
-                                    <?php echo esc_html(sc_t('frontend.free', 'Free')); ?>
-                                <?php else: ?>
-                                    <?php echo esc_html(sc_t('frontend.from', 'From')); ?> <?php echo esc_html(number_format($min_price)); ?> <?php echo esc_html(sc_t('general.currency_symbol', 'EGP')); ?>
-                                <?php endif; ?>
-                            </span>
-                            <span class="sc-event-card-arrow">
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </span>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <?php $delay += 80; if ($delay > 320) $delay = 0; endforeach; ?>
-        </div>
-
-        <!-- Pagination -->
-        <?php if ($max_pages > 1): ?>
-        <div class="sc-pagination" data-aos="fade-up">
-            <?php
-            $pagination = paginate_links(array(
-                'total' => $max_pages,
-                'current' => $page,
-                'prev_text' => '<i class="fa-solid fa-chevron-left"></i>',
-                'next_text' => '<i class="fa-solid fa-chevron-right"></i>',
-                'type' => 'array'
-            ));
-
-            if ($pagination):
-                foreach ($pagination as $page_link):
-                    $is_current = strpos($page_link, 'current') !== false;
-            ?>
-                <span class="<?php echo $is_current ? 'active' : ''; ?>"><?php echo $page_link; ?></span>
-            <?php endforeach; endif; ?>
-        </div>
-        <?php endif; ?>
-
-        <?php else: ?>
-        <!-- No Events Found -->
-        <div class="sc-empty-state" data-aos="fade-up">
-            <div class="sc-empty-icon">
-                <i class="fa-regular fa-calendar-xmark"></i>
-            </div>
-            <h3><?php echo esc_html(sc_t('frontend.no_events_found', 'No Events Found')); ?></h3>
-            <p><?php echo esc_html(sc_t('frontend.no_events_message', 'We couldn\'t find any events matching your criteria. Try adjusting your filters or check back later.')); ?></p>
-            <?php if ($filter !== 'all' || !empty($search) || $category_filter > 0): ?>
-            <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-btn sc-btn-outline">
-                <i class="fa-solid fa-rotate-right"></i>
-                <?php echo esc_html(sc_t('frontend.clear_filters', 'Clear Filters')); ?>
+            <a href="<?php echo esc_url($w_href); ?>" style="text-decoration:none">
+                <button type="button" aria-pressed="<?php echo $filter === $w_key ? 'true' : 'false'; ?>">
+                    <?php echo esc_html($w_label); ?>
+                </button>
             </a>
-            <?php endif; ?>
+            <?php endforeach; ?>
         </div>
-        <?php endif; ?>
+
+        <form class="w-search" method="get" action="<?php echo esc_url($w_base); ?>" role="search">
+            <?php if ($filter !== 'all'): ?>
+                <input type="hidden" name="filter" value="<?php echo esc_attr($filter); ?>">
+            <?php endif; ?>
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true" style="color:var(--w-text-3)"></i>
+            <input type="search" name="event_s" value="<?php echo esc_attr($search); ?>"
+                   placeholder="<?php echo esc_attr(sc_t('frontend.search_events', 'Search events…')); ?>"
+                   aria-label="<?php echo esc_attr(sc_t('frontend.search_events', 'Search events…')); ?>">
+        </form>
     </div>
+
+    <?php if ($events): ?>
+    <p class="w-count" style="margin:0 0 var(--w-space-5)">
+        <?php printf(esc_html(sc_t('frontend.showing_n_events', 'Showing %s events')), esc_html(number_format_i18n($total))); ?>
+    </p>
+
+    <div class="w-events">
+        <?php foreach ($events as $w_ev):
+            $w_s = strtotime($w_ev->start_date);
+            $w_e = !empty($w_ev->end_date) ? strtotime($w_ev->end_date) : $w_s;
+            $w_same = date('Y-m', $w_s) === date('Y-m', $w_e);
+            $w_big = $w_s === $w_e
+                ? date_i18n('j', $w_s)
+                : ($w_same ? date_i18n('j', $w_s) . '–' . date_i18n('j', $w_e)
+                           : date_i18n('j M', $w_s) . ' – ' . date_i18n('j M', $w_e));
+            $w_small = $w_same ? date_i18n('M Y', $w_s) : date_i18n('Y', $w_e);
+            $w_img = $w_ev->featured_image ? wp_get_attachment_url($w_ev->featured_image) : '';
+            $w_past = $w_e < current_time('timestamp');
+        ?>
+        <a class="w-event<?php echo $w_img ? '' : ' w-event--empty'; ?>" href="<?php echo esc_url(home_url('/event/' . $w_ev->slug)); ?>">
+            <?php if ($w_img): ?>
+                <img class="w-event__cover" src="<?php echo esc_url($w_img); ?>" alt="" loading="lazy" decoding="async">
+            <?php endif; ?>
+            <span class="w-event__body">
+                <span class="w-event__badges">
+                    <?php if ($w_past): ?>
+                        <span class="w-event__badge"><?php echo esc_html(sc_t('frontend.past', 'Past')); ?></span>
+                    <?php else: ?>
+                        <span class="w-event__badge">
+                            <span class="w-hero__pulse" aria-hidden="true"></span>
+                            <?php echo esc_html(sc_t('frontend.registration_open', 'Registration open')); ?>
+                        </span>
+                    <?php endif; ?>
+                    <?php if (!empty($w_ev->venue_city)): ?>
+                        <span class="w-event__badge"><?php echo esc_html($w_ev->venue_city); ?></span>
+                    <?php endif; ?>
+                </span>
+                <span class="w-event__foot">
+                    <span class="w-event__text">
+                        <span class="w-event__date"><?php echo esc_html($w_big); ?> <span><?php echo esc_html($w_small); ?></span></span>
+                        <span class="w-event__title"><?php echo esc_html($w_ev->title); ?></span>
+                        <?php if (!empty($w_ev->venue_name)): ?>
+                            <span class="w-event__meta"><?php echo esc_html($w_ev->venue_name); ?></span>
+                        <?php endif; ?>
+                    </span>
+                </span>
+            </span>
+        </a>
+        <?php endforeach; ?>
+    </div>
+
+    <?php if ($max_pages > 1):
+        $w_links = paginate_links([
+            'total'     => $max_pages,
+            'current'   => max(1, get_query_var('paged') ?: 1),
+            'type'      => 'array',
+            'prev_text' => '‹',
+            'next_text' => '›',
+        ]);
+    ?>
+    <nav class="w-pagination" aria-label="<?php esc_attr_e('Pagination', 'sc_events'); ?>">
+        <?php foreach ((array) $w_links as $w_link) { echo wp_kses_post($w_link); } ?>
+    </nav>
+    <?php endif; ?>
+
+    <?php else: ?>
+    <div class="w-empty">
+        <span class="w-empty__title"><?php echo esc_html(sc_t('frontend.no_events_found', 'No events found')); ?></span>
+        <p><?php echo esc_html(sc_t('frontend.try_another_filter', 'Try another filter or clear your search.')); ?></p>
+        <a class="w-btn w-btn--outline" href="<?php echo esc_url($w_base); ?>"><?php echo esc_html(sc_t('frontend.all', 'All')); ?></a>
+    </div>
+    <?php endif; ?>
 </section>
 
 <!-- Archive Events Styles -->
