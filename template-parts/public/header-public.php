@@ -97,6 +97,11 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/utility.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <?php endif; ?>
 
+    <?php if (is_page(['login', 'register', 'forgot-password'])): ?>
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/auth.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
+    <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-auth.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
+    <?php endif; ?>
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/fontawesome.css">

@@ -1,0 +1,293 @@
+/*
+ * Sign in, register, password reset.
+ *
+ * All three share one shell: a dark panel making the case for an account
+ * beside a card carrying the form. The panel is decoration, so it drops out
+ * below 900px rather than pushing the form down the page.
+ */
+
+.w-auth {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: var(--w-space-6) var(--w-space-6) var(--w-space-10);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+  gap: var(--w-space-4);
+  align-items: stretch;
+}
+
+/* ---- the pitch panel ---- */
+
+.w-auth__aside {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--w-radius-xl);
+  background: var(--w-ink-900);
+  color: #fff;
+  padding: clamp(24px, 3vw, 44px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--w-space-4);
+  min-height: 560px;
+}
+
+.w-auth__aside img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  opacity: .9;
+}
+
+.w-auth__aside::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top,
+    rgba(20, 24, 38, .98) 0%,
+    rgba(20, 24, 38, .90) 45%,
+    rgba(20, 24, 38, .35) 100%);
+}
+
+.w-auth__aside > :not(img) { position: relative; z-index: 1; }
+
+.w-auth__kicker { color: var(--w-gold); font-weight: 600; font-size: 0.9375rem; }
+
+.w-auth__pitch {
+  margin: 0;
+  color: #fff; /* a legacy h2 rule outranks the inherited panel colour */
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.w-auth__sub { margin: 0; color: var(--w-ink-200); max-width: 40ch; }
+
+@media (max-width: 900px) {
+  .w-auth__aside { display: none; }
+}
+
+/* ---- the form card ---- */
+
+.w-auth__card {
+  border-radius: var(--w-radius-xl);
+  border: 1px solid var(--w-border);
+  background: var(--w-surface);
+  padding: clamp(24px, 3vw, 44px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.w-auth__form {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-5);
+}
+
+.w-auth__title {
+  margin: 0;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.w-auth__lede { margin: 0; color: var(--w-text-2); }
+
+/* Sign in / register live on separate URLs, so the pill pair is navigation
+   rather than a tab control — links, with the current page marked. */
+.w-auth__modes {
+  display: flex;
+  gap: var(--w-space-1);
+  padding: 5px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-bg);
+  border: 1px solid var(--w-border);
+  width: max-content;
+  max-width: 100%;
+}
+
+.w-auth__mode {
+  height: 40px;
+  padding: 0 var(--w-space-5);
+  border-radius: var(--w-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--w-text-2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--w-duration) var(--w-ease), color var(--w-duration) var(--w-ease);
+}
+
+.w-auth__mode:hover { color: var(--w-text); }
+
+.w-auth__mode[aria-current="page"] {
+  background: var(--w-text);
+  color: var(--w-bg);
+}
+
+.w-auth__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--w-space-3);
+  flex-wrap: wrap;
+}
+
+.w-auth__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--w-space-3);
+}
+
+/* Password field with a reveal toggle sitting inside the control. */
+.w-auth__pw { position: relative; display: flex; }
+.w-auth__pw .w-input { flex: 1; padding-inline-end: 48px; }
+
+.w-auth__reveal {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--w-radius-sm);
+  background: none;
+  color: var(--w-text-3);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.w-auth__reveal:hover { color: var(--w-text); }
+
+/* Mobile number: the country code is fixed, so it reads as part of the field
+   rather than as a control the visitor has to think about. */
+.w-auth__tel { display: flex; gap: var(--w-space-2); }
+
+.w-auth__tel .w-select { flex: 0 0 auto; width: auto; }
+.w-auth__tel .w-input { flex: 1; min-width: 0; }
+
+.w-auth__check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--w-space-3);
+  font-size: 0.875rem;
+  color: var(--w-text-2);
+}
+
+.w-auth__check input { margin-top: 3px; accent-color: var(--w-primary); width: 18px; height: 18px; flex: none; }
+.w-auth__check a { color: var(--w-primary); }
+
+.w-auth__link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--w-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.w-auth__foot { font-size: 0.875rem; color: var(--w-text-2); text-align: center; }
+.w-auth__foot a { color: var(--w-primary); font-weight: 600; }
+
+.w-auth__note {
+  font-size: 0.75rem;
+  color: var(--w-text-3);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--w-space-2);
+}
+
+@media (max-width: 560px) {
+  .w-auth { padding-inline: var(--w-space-4); }
+  .w-auth__pair { grid-template-columns: 1fr; }
+}
+
+/* ---- password reset stepper ----
+   The step markup is driven by the page's own script, which toggles .active
+   and .done on #indicator-N / #line-N, so those hooks are kept as-is and only
+   the look changes. */
+
+.w-steps {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-2);
+}
+
+.sc-step {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--w-text-3);
+}
+
+.sc-step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--w-radius-pill);
+  border: 1.5px solid var(--w-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+}
+
+.sc-step.active { color: var(--w-text); }
+.sc-step.active .sc-step-circle { border-color: var(--w-primary); color: var(--w-primary); }
+
+.sc-step.done { color: var(--w-text-2); }
+.sc-step.done .sc-step-circle {
+  border-color: var(--w-primary);
+  background: var(--w-primary);
+  color: var(--w-on-primary);
+}
+
+.sc-step-line {
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--w-border);
+}
+
+.sc-step-line.done, .sc-step-line.active { background: var(--w-primary); }
+
+.w-otp {
+  font-family: var(--w-font-mono, ui-monospace, monospace);
+  font-size: 1.5rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.w-auth__verified {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  padding: var(--w-space-4);
+  border-radius: var(--w-radius);
+  background: var(--w-teal-soft, var(--w-bg));
+  color: var(--w-text-2);
+  font-size: 0.875rem;
+}
+
+.w-auth__verified i { color: var(--w-teal); }

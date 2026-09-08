@@ -1,205 +1,126 @@
 <?php
 /**
  * Template Name: Register Page
- * Public Frontend Registration Page - Dark & Premium Design
+ *
+ * The form contract is public-scripts.js: #register-form with name, email,
+ * phone, password, confirm_password and terms. The name goes over the wire as
+ * one string; the two visible boxes feed the hidden field (wisdom-auth.js).
  *
  * @package sc_events
- * @version 5.0.0
  */
 
-// Redirect if already logged in
 if (is_user_logged_in()) {
     wp_redirect(home_url('/my-account/'));
     exit;
 }
 
-$assets_url = get_template_directory_uri() . '/assets/frontend/';
-$platform_name = get_option('sc_platform_name', get_bloginfo('name'));
-$platform_logo_id = get_option('sc_platform_logo');
-$platform_logo_url = $platform_logo_id ? wp_get_attachment_image_url($platform_logo_id, 'medium') : '';
-
-// Load header
 get_template_part('template-parts/public/header', 'public');
 ?>
 
-<!-- Page Header -->
-<div class="sc-page-header">
-    <div class="container">
-        <h1><?php esc_html_e('Create Account', 'sc_events'); ?></h1>
-        <div class="sc-breadcrumb">
-            <a href="<?php echo esc_url(home_url('/')); ?>"><?php esc_html_e('Home', 'sc_events'); ?></a>
-            <i class="fa-solid fa-chevron-right"></i>
-            <span><?php esc_html_e('Register', 'sc_events'); ?></span>
-        </div>
-    </div>
-</div>
+<section class="w-auth">
+    <?php get_template_part('template-parts/public/auth-aside'); ?>
 
-<!-- Register Section -->
-<section class="sc-auth-section">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-7 col-md-9" data-aos="fade-up" data-aos-duration="800">
-                <div class="sc-auth-card">
+    <div class="w-auth__card">
+        <form class="w-auth__form" id="register-form">
+            <nav class="w-auth__modes" aria-label="<?php echo esc_attr(sc_t('frontend.account', 'Account')); ?>">
+                <a class="w-auth__mode" href="<?php echo esc_url(home_url('/login/')); ?>">
+                    <?php echo esc_html(sc_t('frontend.sign_in', 'Sign in')); ?>
+                </a>
+                <a class="w-auth__mode" aria-current="page" href="<?php echo esc_url(home_url('/register/')); ?>">
+                    <?php echo esc_html(sc_t('frontend.create_account', 'Create account')); ?>
+                </a>
+            </nav>
 
-                    <!-- Header -->
-                    <div class="sc-auth-header">
-                        <?php if ($platform_logo_url): ?>
-                        <img src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>" class="sc-auth-logo">
-                        <?php else: ?>
-                        <div class="sc-auth-icon">
-                            <i class="fa-solid fa-user-plus"></i>
-                        </div>
-                        <?php endif; ?>
-                        <h2 class="sc-auth-title"><?php esc_html_e('Join Us Today!', 'sc_events'); ?></h2>
-                        <p class="sc-auth-subtitle"><?php esc_html_e('Create your account to register for events', 'sc_events'); ?></p>
-                    </div>
+            <h1 class="w-auth__title"><?php echo esc_html(sc_t('frontend.create_your_account', 'Create your account')); ?></h1>
 
-                    <!-- Register Form -->
-                    <form id="register-form">
-                        <div class="row">
-                            <!-- Full Name -->
-                            <div class="col-12">
-                                <div class="sc-form-group">
-                                    <label class="sc-form-label" for="name">
-                                        <i class="fa-solid fa-user"></i>
-                                        <?php esc_html_e('Full Name', 'sc_events'); ?>
-                                        <span class="required">*</span>
-                                    </label>
-                                    <input type="text" id="name" name="name" class="sc-auth-input" placeholder="<?php esc_attr_e('Enter your full name', 'sc_events'); ?>" autocomplete="name" required>
-                                </div>
-                            </div>
+            <input type="hidden" id="name" name="name" value="">
 
-                            <!-- Email -->
-                            <div class="col-lg-6 col-md-6">
-                                <div class="sc-form-group">
-                                    <label class="sc-form-label" for="email">
-                                        <i class="fa-solid fa-envelope"></i>
-                                        <?php esc_html_e('Email Address', 'sc_events'); ?>
-                                        <span class="required">*</span>
-                                    </label>
-                                    <input type="email" id="email" name="email" class="sc-auth-input" placeholder="<?php esc_attr_e('Enter your email', 'sc_events'); ?>" autocomplete="email" required>
-                                </div>
-                            </div>
-
-                            <!-- Phone -->
-                            <div class="col-lg-6 col-md-6">
-                                <div class="sc-form-group">
-                                    <label class="sc-form-label" for="phone">
-                                        <i class="fa-solid fa-phone"></i>
-                                        <?php esc_html_e('Phone Number', 'sc_events'); ?>
-                                    </label>
-                                    <div class="sc-phone-group">
-                                        <select id="phone_code" name="phone_code" class="sc-phone-code">
-                                            <option value="+20">+20</option>
-                                            <option value="+966">+966</option>
-                                            <option value="+971">+971</option>
-                                        </select>
-                                        <input type="tel" id="phone" name="phone" class="sc-auth-input" placeholder="<?php esc_attr_e('XXX XXX XXXX', 'sc_events'); ?>" autocomplete="tel">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Password -->
-                            <div class="col-lg-6 col-md-6">
-                                <div class="sc-form-group">
-                                    <label class="sc-form-label" for="password">
-                                        <i class="fa-solid fa-lock"></i>
-                                        <?php esc_html_e('Password', 'sc_events'); ?>
-                                        <span class="required">*</span>
-                                    </label>
-                                    <div class="sc-password-field">
-                                        <input type="password" id="password" name="password" class="sc-auth-input" placeholder="<?php esc_attr_e('Create a password', 'sc_events'); ?>" autocomplete="new-password" required minlength="6">
-                                        <button type="button" class="sc-toggle-password" onclick="togglePassword('password')">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-                                    </div>
-                                    <small class="sc-input-hint"><?php esc_html_e('At least 6 characters', 'sc_events'); ?></small>
-                                </div>
-                            </div>
-
-                            <!-- Confirm Password -->
-                            <div class="col-lg-6 col-md-6">
-                                <div class="sc-form-group">
-                                    <label class="sc-form-label" for="confirm_password">
-                                        <i class="fa-solid fa-lock"></i>
-                                        <?php esc_html_e('Confirm Password', 'sc_events'); ?>
-                                        <span class="required">*</span>
-                                    </label>
-                                    <div class="sc-password-field">
-                                        <input type="password" id="confirm_password" name="confirm_password" class="sc-auth-input" placeholder="<?php esc_attr_e('Confirm your password', 'sc_events'); ?>" autocomplete="new-password" required>
-                                        <button type="button" class="sc-toggle-password" onclick="togglePassword('confirm_password')">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Terms -->
-                            <div class="col-12">
-                                <div class="sc-terms-check">
-                                    <input type="checkbox" id="terms" name="terms" required>
-                                    <label for="terms">
-                                        <?php esc_html_e('I agree to the', 'sc_events'); ?>
-                                        <a href="<?php echo esc_url(home_url('/terms-and-conditions/')); ?>" class="sc-terms-link" target="_blank"><?php esc_html_e('Terms & Conditions', 'sc_events'); ?></a>
-                                        <?php esc_html_e('and', 'sc_events'); ?>
-                                        <a href="<?php echo esc_url(home_url('/privacy-policy/')); ?>" class="sc-terms-link" target="_blank"><?php esc_html_e('Privacy Policy', 'sc_events'); ?></a>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Submit -->
-                            <div class="col-12">
-                                <button type="submit" class="sc-auth-btn">
-                                    <i class="fa-solid fa-user-plus"></i>
-                                    <?php esc_html_e('Create Account', 'sc_events'); ?>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <!-- Divider -->
-                    <div class="sc-auth-divider">
-                        <span><?php esc_html_e('or', 'sc_events'); ?></span>
-                    </div>
-
-                    <!-- Login Link -->
-                    <div class="sc-auth-footer">
-                        <?php esc_html_e('Already have an account?', 'sc_events'); ?>
-                        <a href="<?php echo esc_url(home_url('/login/')); ?>">
-                            <?php esc_html_e('Login', 'sc_events'); ?>
-                        </a>
-                    </div>
-
+            <div class="w-auth__pair">
+                <div class="w-field">
+                    <label class="w-label" for="first_name"><?php echo esc_html(sc_t('frontend.first_name', 'First name')); ?></label>
+                    <input class="w-input" type="text" id="first_name" data-name-part
+                           autocomplete="given-name" required>
+                </div>
+                <div class="w-field">
+                    <label class="w-label" for="last_name"><?php echo esc_html(sc_t('frontend.last_name', 'Last name')); ?></label>
+                    <input class="w-input" type="text" id="last_name" data-name-part
+                           autocomplete="family-name" required>
                 </div>
             </div>
-        </div>
+
+            <div class="w-field">
+                <label class="w-label" for="email"><?php echo esc_html(sc_t('frontend.email', 'Email')); ?></label>
+                <input class="w-input" type="email" id="email" name="email" autocomplete="email"
+                       placeholder="you@clinic.com" required>
+            </div>
+
+            <div class="w-field">
+                <label class="w-label" for="phone"><?php echo esc_html(sc_t('frontend.mobile_for_badge', 'Mobile — for your e-badge')); ?></label>
+                <span class="w-auth__tel">
+                    <select class="w-select" id="phone_code" name="phone_code"
+                            aria-label="<?php echo esc_attr(sc_t('frontend.country_code', 'Country code')); ?>">
+                        <option value="+20" selected>+20</option>
+                        <option value="+966">+966</option>
+                        <option value="+971">+971</option>
+                        <option value="+965">+965</option>
+                        <option value="+974">+974</option>
+                        <option value="+218">+218</option>
+                        <option value="+249">+249</option>
+                    </select>
+                    <input class="w-input" type="tel" id="phone" name="phone" autocomplete="tel"
+                           placeholder="100 000 0000">
+                </span>
+            </div>
+
+            <div class="w-field">
+                <label class="w-label" for="password"><?php echo esc_html(sc_t('frontend.password', 'Password')); ?></label>
+                <span class="w-auth__pw">
+                    <input class="w-input" type="password" id="password" name="password"
+                           autocomplete="new-password" minlength="6" required>
+                    <button class="w-auth__reveal" type="button" data-reveal="password"
+                            aria-label="<?php echo esc_attr(sc_t('frontend.show_password', 'Show password')); ?>">
+                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                    </button>
+                </span>
+                <span class="w-hint"><?php echo esc_html(sc_t('frontend.password_hint', 'At least 6 characters.')); ?></span>
+            </div>
+
+            <div class="w-field">
+                <label class="w-label" for="confirm_password"><?php echo esc_html(sc_t('frontend.confirm_password', 'Confirm password')); ?></label>
+                <span class="w-auth__pw">
+                    <input class="w-input" type="password" id="confirm_password" name="confirm_password"
+                           autocomplete="new-password" required>
+                    <button class="w-auth__reveal" type="button" data-reveal="confirm_password"
+                            aria-label="<?php echo esc_attr(sc_t('frontend.show_password', 'Show password')); ?>">
+                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                    </button>
+                </span>
+            </div>
+
+            <label class="w-auth__check">
+                <input type="checkbox" id="terms" name="terms" required>
+                <span><?php printf(
+                    wp_kses(
+                        sc_t('frontend.agree_terms', 'I agree to the <a href="%1$s">Terms</a> and <a href="%2$s">Privacy policy</a>.'),
+                        ['a' => ['href' => []]]
+                    ),
+                    esc_url(home_url('/terms/')),
+                    esc_url(home_url('/privacy/'))
+                ); ?></span>
+            </label>
+
+            <button class="w-btn w-btn--lg" type="submit">
+                <?php echo esc_html(sc_t('frontend.continue', 'Continue')); ?>
+            </button>
+
+            <p class="w-auth__foot">
+                <?php echo esc_html(sc_t('frontend.have_account', 'Already have an account?')); ?>
+                <a href="<?php echo esc_url(home_url('/login/')); ?>">
+                    <?php echo esc_html(sc_t('frontend.sign_in', 'Sign in')); ?>
+                </a>
+            </p>
+        </form>
     </div>
 </section>
 
-<script>
-function togglePassword(fieldId) {
-    var field = document.getElementById(fieldId);
-    if (!field) return;
-    var toggleBtn = field.parentElement.querySelector('.sc-toggle-password');
-    if (!toggleBtn) return;
-    var icon = toggleBtn.querySelector('i');
-    if (!icon) return;
-
-    if (field.type === 'password') {
-        field.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-    } else {
-        field.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-    }
-}
-</script>
-
-<!-- Register form handler is in public-scripts.js -->
-
-<?php
-// Load footer
-get_template_part('template-parts/public/footer', 'public');
-?>
+<?php get_template_part('template-parts/public/footer', 'public'); ?>

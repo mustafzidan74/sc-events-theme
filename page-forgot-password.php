@@ -22,167 +22,114 @@ $platform_logo_url = $platform_logo_id ? wp_get_attachment_image_url($platform_l
 // Load header
 get_template_part('template-parts/public/header', 'public');
 ?>
+<section class="w-auth">
+    <?php get_template_part('template-parts/public/auth-aside'); ?>
 
-<!-- Page Header -->
-<div class="sc-page-header">
-    <div class="container">
-        <h1><?php esc_html_e('Forgot Password', 'sc_events'); ?></h1>
-        <div class="sc-breadcrumb">
-            <a href="<?php echo esc_url(home_url('/')); ?>"><?php esc_html_e('Home', 'sc_events'); ?></a>
-            <i class="fa-solid fa-chevron-right"></i>
-            <span><?php esc_html_e('Forgot Password', 'sc_events'); ?></span>
-        </div>
-    </div>
-</div>
+    <div class="w-auth__card">
+        <div class="w-auth__form">
+            <h1 class="w-auth__title"><?php echo esc_html(sc_t('frontend.reset_password', 'Reset your password')); ?></h1>
+            <p class="w-auth__lede" id="step-subtitle">
+                <?php echo esc_html(sc_t('frontend.reset_lede', 'Enter the email on your account and we will send a verification code.')); ?>
+            </p>
 
-<!-- Forgot Password Section -->
-<section class="sc-auth-section">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-5 col-md-7" data-aos="fade-up" data-aos-duration="800">
-                <div class="sc-auth-card">
-
-                    <!-- Header -->
-                    <div class="sc-auth-header">
-                        <?php if ($platform_logo_url): ?>
-                        <img src="<?php echo esc_url($platform_logo_url); ?>" alt="<?php echo esc_attr($platform_name); ?>" class="sc-auth-logo">
-                        <?php else: ?>
-                        <div class="sc-auth-icon">
-                            <i class="fa-solid fa-key"></i>
-                        </div>
-                        <?php endif; ?>
-                        <h2 class="sc-auth-title"><?php esc_html_e('Reset Your Password', 'sc_events'); ?></h2>
-                        <p class="sc-auth-subtitle" id="step-subtitle"><?php esc_html_e('Enter your email address to receive a verification code', 'sc_events'); ?></p>
-                    </div>
-
-                    <!-- Progress Steps -->
-                    <div class="sc-steps-indicator">
-                        <div class="sc-step active" id="indicator-1">
-                            <div class="sc-step-circle">1</div>
-                            <span><?php esc_html_e('Email', 'sc_events'); ?></span>
-                        </div>
-                        <div class="sc-step-line" id="line-1"></div>
-                        <div class="sc-step" id="indicator-2">
-                            <div class="sc-step-circle">2</div>
-                            <span><?php esc_html_e('Verify', 'sc_events'); ?></span>
-                        </div>
-                        <div class="sc-step-line" id="line-2"></div>
-                        <div class="sc-step" id="indicator-3">
-                            <div class="sc-step-circle">3</div>
-                            <span><?php esc_html_e('Reset', 'sc_events'); ?></span>
-                        </div>
-                    </div>
-
-                    <!-- ========== STEP 1: Email ========== -->
-                    <form id="email-form" class="sc-forgot-step">
-                        <div class="sc-form-group">
-                            <label class="sc-form-label" for="email">
-                                <i class="fa-solid fa-envelope"></i>
-                                <?php esc_html_e('Email Address', 'sc_events'); ?> <span class="sc-required">*</span>
-                            </label>
-                            <input type="email" id="email" name="email" class="sc-auth-input" placeholder="<?php esc_attr_e('Enter your email', 'sc_events'); ?>" autocomplete="email" required>
-                        </div>
-
-                        <button type="submit" class="sc-auth-btn">
-                            <i class="fa-solid fa-paper-plane"></i>
-                            <?php esc_html_e('Send Verification Code', 'sc_events'); ?>
-                        </button>
-                    </form>
-
-                    <!-- ========== STEP 2: OTP Verification ========== -->
-                    <form id="otp-form" class="sc-forgot-step" style="display: none;">
-                        <input type="hidden" id="otp-email" name="otp_email">
-
-                        <div class="sc-otp-sent-notice">
-                            <i class="fa-solid fa-mobile-screen-button"></i>
-                            <p>
-                                <?php esc_html_e('Enter the last 4 digits of the phone number on file', 'sc_events'); ?>
-                                <br>
-                                <strong id="phone-hint" style="font-family: monospace; letter-spacing: 2px;"></strong>
-                            </p>
-                        </div>
-
-                        <div class="sc-form-group">
-                            <label class="sc-form-label" for="otp-code">
-                                <i class="fa-solid fa-shield-halved"></i>
-                                <?php esc_html_e('Last 4 digits', 'sc_events'); ?> <span class="sc-required">*</span>
-                            </label>
-                            <input type="text" id="otp-code" name="otp" class="sc-auth-input sc-otp-input" placeholder="0000" maxlength="4" pattern="[0-9]{4}" autocomplete="off" inputmode="numeric" required>
-                            <small class="sc-input-hint"><?php esc_html_e('Enter the last 4 digits of your registered phone number.', 'sc_events'); ?></small>
-                        </div>
-
-                        <button type="submit" class="sc-auth-btn">
-                            <i class="fa-solid fa-check-circle"></i>
-                            <?php esc_html_e('Verify', 'sc_events'); ?>
-                        </button>
-                    </form>
-
-                    <!-- ========== STEP 3: New Password ========== -->
-                    <form id="reset-password-form" class="sc-forgot-step" style="display: none;">
-                        <input type="hidden" id="reset-email" name="reset_email">
-                        <input type="hidden" id="reset-otp" name="reset_otp">
-
-                        <div class="sc-verify-success">
-                            <div class="sc-verify-icon">
-                                <i class="fa-solid fa-check"></i>
-                            </div>
-                            <p class="sc-success-text"><?php esc_html_e('Email Verified!', 'sc_events'); ?></p>
-                            <p class="sc-help-text"><?php esc_html_e('Now set your new password', 'sc_events'); ?></p>
-                        </div>
-
-                        <div class="sc-form-group">
-                            <label class="sc-form-label" for="new-password">
-                                <i class="fa-solid fa-lock"></i>
-                                <?php esc_html_e('New Password', 'sc_events'); ?> <span class="sc-required">*</span>
-                            </label>
-                            <div class="sc-password-field">
-                                <input type="password" id="new-password" name="new_password" class="sc-auth-input" placeholder="<?php esc_attr_e('Enter new password', 'sc_events'); ?>" autocomplete="new-password" minlength="6" required>
-                                <button type="button" class="sc-toggle-password" onclick="togglePassword('new-password')">
-                                    <i class="fa-solid fa-eye"></i>
-                                </button>
-                            </div>
-                            <small class="sc-input-hint"><?php esc_html_e('At least 6 characters', 'sc_events'); ?></small>
-                        </div>
-
-                        <div class="sc-form-group">
-                            <label class="sc-form-label" for="confirm-password">
-                                <i class="fa-solid fa-lock"></i>
-                                <?php esc_html_e('Confirm Password', 'sc_events'); ?> <span class="sc-required">*</span>
-                            </label>
-                            <div class="sc-password-field">
-                                <input type="password" id="confirm-password" name="confirm_password" class="sc-auth-input" placeholder="<?php esc_attr_e('Confirm new password', 'sc_events'); ?>" autocomplete="new-password" required>
-                                <button type="button" class="sc-toggle-password" onclick="togglePassword('confirm-password')">
-                                    <i class="fa-solid fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="sc-auth-btn">
-                            <i class="fa-solid fa-lock"></i>
-                            <?php esc_html_e('Reset Password', 'sc_events'); ?>
-                        </button>
-                    </form>
-
-                    <!-- Back to Login -->
-                    <div class="sc-auth-divider">
-                        <span></span>
-                    </div>
-                    <div class="sc-auth-footer">
-                        <?php esc_html_e('Remember your password?', 'sc_events'); ?>
-                        <a href="<?php echo esc_url(home_url('/login/')); ?>">
-                            <?php esc_html_e('Back to Login', 'sc_events'); ?>
-                        </a>
-                    </div>
-
+            <div class="w-steps sc-steps-indicator">
+                <div class="sc-step active" id="indicator-1">
+                    <span class="sc-step-circle">1</span>
+                    <span><?php echo esc_html(sc_t('frontend.email', 'Email')); ?></span>
+                </div>
+                <div class="sc-step-line" id="line-1"></div>
+                <div class="sc-step" id="indicator-2">
+                    <span class="sc-step-circle">2</span>
+                    <span><?php echo esc_html(sc_t('frontend.verify', 'Verify')); ?></span>
+                </div>
+                <div class="sc-step-line" id="line-2"></div>
+                <div class="sc-step" id="indicator-3">
+                    <span class="sc-step-circle">3</span>
+                    <span><?php echo esc_html(sc_t('frontend.reset', 'Reset')); ?></span>
                 </div>
             </div>
+
+            <!-- Step 1 — email -->
+            <form id="email-form" class="sc-forgot-step w-auth__form">
+                <div class="w-field">
+                    <label class="w-label" for="email"><?php echo esc_html(sc_t('frontend.email', 'Email')); ?></label>
+                    <input class="w-input" type="email" id="email" name="email" autocomplete="email"
+                           placeholder="you@clinic.com" required>
+                </div>
+                <button class="w-btn w-btn--lg" type="submit">
+                    <?php echo esc_html(sc_t('frontend.send_code', 'Send code')); ?>
+                </button>
+            </form>
+
+            <!-- Step 2 — the last four digits of the phone on file -->
+            <form id="otp-form" class="sc-forgot-step w-auth__form" style="display: none;">
+                <input type="hidden" id="otp-email" name="otp_email">
+
+                <p class="w-auth__lede">
+                    <?php echo esc_html(sc_t('frontend.otp_notice', 'Enter the last 4 digits of the phone number on your account')); ?>
+                    <br><strong id="phone-hint" class="w-otp" style="font-size:1rem"></strong>
+                </p>
+
+                <div class="w-field">
+                    <label class="w-label" for="otp-code"><?php echo esc_html(sc_t('frontend.last_4_digits', 'Last 4 digits')); ?></label>
+                    <input class="w-input w-otp" type="text" id="otp-code" name="otp" placeholder="0000"
+                           maxlength="4" pattern="[0-9]{4}" inputmode="numeric" autocomplete="off" required>
+                </div>
+
+                <button class="w-btn w-btn--lg" type="submit">
+                    <?php echo esc_html(sc_t('frontend.verify', 'Verify')); ?>
+                </button>
+            </form>
+
+            <!-- Step 3 — the new password -->
+            <form id="reset-password-form" class="sc-forgot-step w-auth__form" style="display: none;">
+                <input type="hidden" id="reset-email" name="reset_email">
+                <input type="hidden" id="reset-otp" name="reset_otp">
+
+                <p class="w-auth__verified">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    <span><?php echo esc_html(sc_t('frontend.verified_set_password', 'Verified — now set your new password.')); ?></span>
+                </p>
+
+                <div class="w-field">
+                    <label class="w-label" for="new-password"><?php echo esc_html(sc_t('frontend.new_password', 'New password')); ?></label>
+                    <span class="w-auth__pw">
+                        <input class="w-input" type="password" id="new-password" name="new_password"
+                               autocomplete="new-password" minlength="6" required>
+                        <button class="w-auth__reveal" type="button" data-reveal="new-password"
+                                aria-label="<?php echo esc_attr(sc_t('frontend.show_password', 'Show password')); ?>">
+                            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                    <span class="w-hint"><?php echo esc_html(sc_t('frontend.password_hint', 'At least 6 characters.')); ?></span>
+                </div>
+
+                <div class="w-field">
+                    <label class="w-label" for="confirm-password"><?php echo esc_html(sc_t('frontend.confirm_password', 'Confirm password')); ?></label>
+                    <span class="w-auth__pw">
+                        <input class="w-input" type="password" id="confirm-password" name="confirm_password"
+                               autocomplete="new-password" required>
+                        <button class="w-auth__reveal" type="button" data-reveal="confirm-password"
+                                aria-label="<?php echo esc_attr(sc_t('frontend.show_password', 'Show password')); ?>">
+                            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                </div>
+
+                <button class="w-btn w-btn--lg" type="submit">
+                    <?php echo esc_html(sc_t('frontend.reset_password_action', 'Reset password')); ?>
+                </button>
+            </form>
+
+            <p class="w-auth__foot">
+                <?php echo esc_html(sc_t('frontend.remember_password', 'Remember your password?')); ?>
+                <a href="<?php echo esc_url(home_url('/login/')); ?>">
+                    <?php echo esc_html(sc_t('frontend.sign_in', 'Sign in')); ?>
+                </a>
+            </p>
         </div>
     </div>
 </section>
-
-<!-- Forgot Password Page Styles -->
-<link rel="stylesheet" href="<?php echo esc_url(get_template_directory_uri()); ?>/assets/frontend/css/forgot-password-page.css">
-
 
 <script>
 // Toggle Password Visibility
