@@ -10,7 +10,10 @@
  */
 
 // Get event from URL slug or post
-$event_slug = get_query_var('sc_event'); // Post type query var
+// sc_event_slug is what inc/custom-post-types.php sets when it routes an
+// event that lives only in the custom table; sc_event is WordPress's own var
+// for the handful that also have a post.
+$event_slug = get_query_var('sc_event_slug') ?: get_query_var('sc_event');
 $event = null;
 $wp_post = null;
 
@@ -206,8 +209,17 @@ if (is_user_logged_in() && class_exists('SC_Attendee')) {
     $is_registered = !empty($existing);
 }
 
+// Counts the hero states on its jump tiles. Cheap enough to read here rather
+// than have each partial ask again.
+$session_count = (int) $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM {$sc_prefix}schedules WHERE event_id = %d AND is_active = 1",
+    $event_id
+));
+
 // Prepare template args for reuse
 $template_args = array(
+    'session_count'   => $session_count,
+    'speaker_count'   => count($event_speakers),
     'event'           => $event,
     'event_id'        => $event_id,
     'event_logo'      => $event_logo,
@@ -243,6 +255,8 @@ $template_args = array(
     'organizing_company' => is_array($event->organizing_company ?? null) ? $event->organizing_company : (is_string($event->organizing_company ?? null) ? (json_decode($event->organizing_company, true) ?: null) : null),
 );
 
+echo '<main class="w-ev">';
+
 // Load Banner Section
 get_template_part('template-parts/event/banner', null, $template_args);
 
@@ -269,6 +283,8 @@ get_template_part('template-parts/event/faq', null, $template_args);
 
 // Load Gallery & Additional Sections
 get_template_part('template-parts/event/gallery', null, $template_args);
+
+echo '</main>';
 
 // Load Checkout Modal and Footer Assets
 get_template_part('template-parts/event/checkout-modal', null, $template_args);

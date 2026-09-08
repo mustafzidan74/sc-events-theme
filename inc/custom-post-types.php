@@ -154,8 +154,9 @@ add_action('parse_request', 'sc_parse_custom_event_request', 1);
  * This runs AFTER WordPress determines the template, allowing us to override 404
  */
 function sc_custom_event_template_include($template) {
-    // Check URL directly
-    $request = trim($_SERVER['REQUEST_URI'], '/');
+    // Check URL directly. The query string has to come off first, or a link
+    // carrying campaign parameters would never match and would 404.
+    $request = trim(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '', '/');
     $base = trim(parse_url(home_url(), PHP_URL_PATH) ?: '', '/');
     if ($base) {
         $request = preg_replace('#^' . preg_quote($base, '#') . '/?#', '', $request);
