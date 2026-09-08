@@ -839,8 +839,12 @@
 
 .w-logo {
   aspect-ratio: 2 / 1;
-  display: grid;
-  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--w-space-4);
   border: 1px solid var(--w-ink-700);
   border-radius: var(--w-radius-lg);
@@ -859,6 +863,8 @@
 .w-logo:hover { border-color: var(--w-ink-500); background: rgba(255, 255, 255, .07); color: #fff; }
 
 .w-logo img {
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
@@ -1062,3 +1068,62 @@
 .w-prose { color: var(--w-text-2); font-size: var(--w-body-size); line-height: 1.75; max-width: 68ch; }
 .w-prose p { margin: 0 0 var(--w-space-4); }
 .w-prose p:last-child { margin-bottom: 0; }
+
+/* ==========================================================================
+   Sponsors page
+   ========================================================================== */
+
+.w-eyebrow {
+  margin: 0 0 var(--w-space-3);
+  font-size: var(--w-caption-size);
+  font-weight: var(--w-caption-weight);
+  letter-spacing: var(--w-caption-ls);
+  text-transform: uppercase;
+  color: var(--w-primary);
+}
+
+/* Partner marks are square and sit on the page ground, not on ink. */
+.w-partners {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--w-space-3);
+}
+
+.w-partner {
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--w-space-4);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  color: var(--w-text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  transition: border-color var(--w-duration) var(--w-ease);
+}
+
+.w-partner:hover { border-color: var(--w-primary); color: var(--w-text); }
+
+.w-partner img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: .75;
+  transition: filter var(--w-duration) var(--w-ease), opacity var(--w-duration) var(--w-ease);
+}
+
+.w-partner:hover img { filter: none; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-partner, .w-partner img { transition: none; }
+}

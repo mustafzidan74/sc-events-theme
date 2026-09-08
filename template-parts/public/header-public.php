@@ -88,7 +88,7 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
      * the redesign ones do not. home.css also carries the event card, filter
      * pills and pagination, which the listings reuse.
      */
-    if (is_front_page() || is_page(['events', 'workshops', 'speakers']) || is_post_type_archive(['sc_event', 'sc_workshop']) || get_query_var('sc_speaker_slug')):
+    if (is_front_page() || is_page(['events', 'workshops', 'speakers', 'sponsors']) || is_post_type_archive(['sc_event', 'sc_workshop']) || get_query_var('sc_speaker_slug')):
     ?>
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/home.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <?php endif; ?>
