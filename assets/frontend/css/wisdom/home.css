@@ -968,3 +968,13 @@
 
 .w-pagination a:hover { border-color: var(--w-primary); color: var(--w-primary); }
 .w-pagination .current { background: var(--w-primary); border-color: var(--w-primary); color: var(--w-on-primary); }
+
+/* On the listing the workshop cards become a grid; on the home they are a rail,
+   so the card itself carries no width of its own here. */
+.w-workshops {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: var(--w-space-4);
+}
+
+.w-workshops .w-workshop { flex: initial; }
