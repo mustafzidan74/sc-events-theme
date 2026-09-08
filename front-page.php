@@ -439,126 +439,74 @@ $w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.my_ticket', 'My tick
 </section>
 <?php endif; ?>
 
-<!--===== SECTION 3: UPCOMING EVENTS =======-->
-<?php if (!empty($upcoming_events) || !empty($past_events)): ?>
-<section class="sc-section sc-section-alt" id="events">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.upcoming_events', 'Upcoming Events')); ?></h2>
-            <p><?php echo esc_html(sc_t('frontend.discover_next', 'Discover the next extraordinary experiences waiting for you')); ?></p>
-        </div>
-
-        <div class="row g-4">
-            <?php
-            $display_events = !empty($upcoming_events) ? $upcoming_events : $past_events;
-            $delay = 0;
-            foreach (array_slice($display_events, 0, 6) as $event):
-                $event_url = home_url('/event/' . $event->slug);
-                $event_img = $event->featured_image ? wp_get_attachment_url($event->featured_image) : '';
-                $start_date = $event->start_date;
-                $event_location = $event->venue_name ?: sc_t('frontend.online', 'Online');
-                $is_upcoming = strtotime($start_date) >= strtotime(date('Y-m-d'));
-
-                // Ticket pricing
-                $ev_min_price = 0; $ev_is_free = true;
-                if (class_exists('SC_Ticket')) {
-                    $ev_tickets = SC_Ticket::get_by_event($event->id);
-                    foreach ($ev_tickets as $t) {
-                        $p = floatval($t->price ?? 0);
-                        if ($p > 0) { $ev_is_free = false; if ($ev_min_price == 0 || $p < $ev_min_price) $ev_min_price = $p; }
-                    }
-                }
-            ?>
-            <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
-                <a href="<?php echo esc_url($event_url); ?>" class="sc-event-card d-block">
-                    <div class="card-image">
-                        <?php if ($event_img): ?>
-                        <img src="<?php echo esc_url($event_img); ?>" alt="<?php echo esc_attr($event->title); ?>">
-                        <?php else: ?>
-                        <div style="width:100%;height:100%;background:var(--sc-bg-surface);display:flex;align-items:center;justify-content:center;">
-                            <i class="fa-solid fa-calendar-days" style="font-size:3rem;color:var(--sc-text-muted);"></i>
-                        </div>
-                        <?php endif; ?>
-                        <div class="card-date-badge">
-                            <?php echo date_i18n('M', strtotime($start_date)); ?><br>
-                            <?php echo date_i18n('d', strtotime($start_date)); ?>
-                        </div>
-                        <div class="card-status">
-                            <span class="event-status-badge <?php echo $is_upcoming ? 'upcoming' : 'past'; ?>">
-                                <?php echo $is_upcoming ? sc_t('frontend.upcoming', 'Upcoming') : sc_t('frontend.past', 'Past'); ?>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <h4 class="card-title"><?php echo esc_html($event->title); ?></h4>
-                        <div class="card-meta">
-                            <div class="card-meta-item">
-                                <i class="fa-regular fa-calendar"></i>
-                                <?php echo esc_html(date_i18n('F d, Y', strtotime($start_date))); ?>
-                            </div>
-                            <div class="card-meta-item">
-                                <i class="fa-solid fa-location-dot"></i>
-                                <?php echo esc_html(wp_trim_words($event_location, 5)); ?>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <span class="card-price">
-                                <?php if ($ev_is_free): ?>
-                                    <span class="free-tag"><?php echo esc_html(sc_t('frontend.free', 'Free')); ?></span>
-                                <?php else: ?>
-                                    <?php echo esc_html(number_format($ev_min_price)); ?> <?php echo esc_html(sc_t('general.currency_symbol', 'EGP')); ?>
-                                <?php endif; ?>
-                            </span>
-                            <span class="sc-btn sc-btn-sm sc-btn-ghost"><?php echo esc_html(sc_t('frontend.details', 'Details')); ?> <i class="fa-solid fa-arrow-right"></i></span>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <?php $delay += 100; endforeach; ?>
-        </div>
-
-        <div class="text-center" style="margin-top: var(--sc-space-10);" data-aos="fade-up">
-            <a href="<?php echo esc_url(home_url('/events/')); ?>" class="sc-btn sc-btn-outline sc-btn-lg">
-                <?php echo esc_html(sc_t('frontend.view_all_events', 'View All Events')); ?> <i class="fa-solid fa-arrow-right"></i>
-            </a>
-        </div>
+<?php
+/*
+ * Redesign event grid.
+ *
+ * The card mirrors the hero — an ink panel with the date carrying the weight
+ * and the cover behind a scrim — so a listing and the page it leads to read as
+ * the same system. The first card spans the row.
+ *
+ * The categories section that used to sit below this is gone: categories are
+ * now a submenu under Events in the header, and repeating them here duplicated
+ * navigation the design does not have.
+ */
+$w_all_events = array_merge($upcoming_events ?: [], $past_events ?: []);
+?>
+<?php if ($w_all_events): ?>
+<!--===== EVENTS =======-->
+<section class="w-section" id="events">
+    <div class="w-section__head">
+        <h2 class="w-section__title"><?php echo esc_html(sc_t('frontend.whats_on', "What's on")); ?></h2>
+        <a class="w-section__link" href="<?php echo esc_url(home_url('/events/')); ?>">
+            <?php echo esc_html(sc_t('frontend.see_all', 'See all')); ?>
+        </a>
     </div>
-</section>
-<?php endif; ?>
 
-<!--===== SECTION 4: CATEGORIES =======-->
-<?php if (!is_wp_error($categories) && !empty($categories)): ?>
-<section class="sc-section" id="categories">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.event_categories', 'Event Categories')); ?></h2>
-            <p><?php echo esc_html(sc_t('frontend.find_events_interests', 'Find events that match your interests')); ?></p>
-        </div>
+    <div class="w-events">
+        <?php foreach (array_slice($w_all_events, 0, 5) as $w_ev):
+            $w_ev_start = strtotime($w_ev->start_date);
+            $w_ev_end = !empty($w_ev->end_date) ? strtotime($w_ev->end_date) : $w_ev_start;
+            $w_ev_same = date('Y-m', $w_ev_start) === date('Y-m', $w_ev_end);
+            $w_ev_big = $w_ev_start === $w_ev_end
+                ? date_i18n('j', $w_ev_start)
+                : ($w_ev_same ? date_i18n('j', $w_ev_start) . '–' . date_i18n('j', $w_ev_end)
+                              : date_i18n('j M', $w_ev_start) . ' – ' . date_i18n('j M', $w_ev_end));
+            $w_ev_small = $w_ev_same ? date_i18n('M Y', $w_ev_start) : date_i18n('Y', $w_ev_end);
+            $w_ev_img = $w_ev->featured_image ? wp_get_attachment_url($w_ev->featured_image) : '';
+            $w_ev_past = $w_ev_end < current_time('timestamp');
+        ?>
+        <a class="w-event<?php echo $w_ev_img ? '' : ' w-event--empty'; ?>" href="<?php echo esc_url(home_url('/event/' . $w_ev->slug)); ?>">
+            <?php if ($w_ev_img): ?>
+                <img class="w-event__cover" src="<?php echo esc_url($w_ev_img); ?>" alt="" loading="lazy" decoding="async">
+            <?php endif; ?>
+            <span class="w-event__body">
+                <span class="w-event__badges">
+                    <?php if ($w_ev_past): ?>
+                        <span class="w-event__badge"><?php echo esc_html(sc_t('frontend.past', 'Past')); ?></span>
+                    <?php else: ?>
+                        <span class="w-event__badge">
+                            <span class="w-hero__pulse" aria-hidden="true"></span>
+                            <?php echo esc_html(sc_t('frontend.registration_open', 'Registration open')); ?>
+                        </span>
+                    <?php endif; ?>
+                    <?php if (!empty($w_ev->venue_city)): ?>
+                        <span class="w-event__badge"><?php echo esc_html($w_ev->venue_city); ?></span>
+                    <?php endif; ?>
+                </span>
 
-        <div class="row g-4">
-            <?php $delay = 0; foreach ($categories as $category):
-                $cat_icon = get_term_meta($category->term_id, 'sc_cat_icon', true);
-            ?>
-            <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
-                <a href="<?php echo esc_url(get_term_link($category)); ?>" class="sc-category-card glass-card d-block text-center">
-                    <div class="sc-icon-circle sc-icon-circle-lg" style="margin: 0 auto var(--sc-space-4);">
-                        <?php if ($cat_icon): ?>
-                            <i class="<?php echo esc_attr($cat_icon); ?>"></i>
-                        <?php else: ?>
-                            <i class="fa-solid fa-calendar-days"></i>
+                <span class="w-event__foot">
+                    <span class="w-event__text">
+                        <span class="w-event__date"><?php echo esc_html($w_ev_big); ?> <span><?php echo esc_html($w_ev_small); ?></span></span>
+                        <span class="w-event__title"><?php echo esc_html($w_ev->title); ?></span>
+                        <?php if (!empty($w_ev->venue_name)): ?>
+                            <span class="w-event__meta"><?php echo esc_html($w_ev->venue_name); ?></span>
                         <?php endif; ?>
-                    </div>
-                    <h5 style="color: var(--sc-text-primary); margin-bottom: var(--sc-space-2);"><?php echo esc_html($category->name); ?></h5>
-                    <p style="font-size: var(--sc-text-sm); color: var(--sc-text-muted); margin-bottom: var(--sc-space-3);">
-                        <?php echo esc_html($category->description ?: sc_t('frontend.browse_category', 'Browse events in this category')); ?>
-                    </p>
-                    <span class="sc-badge-gold">
-                        <?php echo $category->count . ' ' . ($category->count == 1 ? sc_t('frontend.event_singular', 'Event') : sc_t('frontend.event_plural', 'Events')); ?>
                     </span>
-                </a>
-            </div>
-            <?php $delay += 100; endforeach; ?>
-        </div>
+                </span>
+            </span>
+        </a>
+        <?php endforeach; ?>
     </div>
 </section>
 <?php endif; ?>
