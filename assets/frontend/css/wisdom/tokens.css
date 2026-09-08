@@ -1,0 +1,299 @@
+/**
+ * Wisdom design tokens
+ *
+ * The single source of truth for colour, type, spacing, radii and elevation on
+ * the public site. Nothing here targets an element — only custom properties.
+ *
+ * Themes resolve in three states, and all three must be covered:
+ *   1. bare :root                      -> light (also what a "system" viewer
+ *                                        gets when the OS prefers light)
+ *   2. prefers-color-scheme: dark      -> dark, unless the visitor explicitly
+ *                                        chose light via [data-theme="light"]
+ *   3. [data-theme="dark"]             -> dark, beating a light OS setting
+ *
+ * Fonts (Inter + IBM Plex Sans Arabic) are linked from header-public.php, not
+ * @import-ed here — an @import blocks rendering until it resolves.
+ *
+ * @package sc_events
+ */
+
+:root {
+
+  /* ==========================================================================
+     Colour ramps — raw values. Components should use the semantic tokens
+     below instead; reach for a ramp step only when no semantic token fits.
+     ========================================================================== */
+
+  /* Burgundy — primary. 700 is the logo colour.
+     Text on light needs 700+; text on dark needs 300. */
+  --w-burgundy-50:  #FBF3F3;
+  --w-burgundy-100: #F5E1E1;
+  --w-burgundy-200: #EBC3C3;
+  --w-burgundy-300: #D99A9B;
+  --w-burgundy-400: #BF6465;
+  --w-burgundy-500: #A33B3D;
+  --w-burgundy-600: #8A2426;
+  --w-burgundy-700: #7C1314;
+  --w-burgundy-800: #5E0F10;
+  --w-burgundy-900: #430B0C;
+  --w-burgundy-950: #2A0607;
+
+  /* Ink — secondary. Dark surfaces, header, footer. */
+  --w-ink-50:  #F4F5F8;
+  --w-ink-100: #E4E7EE;
+  --w-ink-200: #C9CEDB;
+  --w-ink-300: #A9AFC0;
+  --w-ink-400: #7B8296;
+  --w-ink-500: #565D73;
+  --w-ink-600: #3B4257;
+  --w-ink-700: #262C40;
+  --w-ink-800: #1C2133;
+  --w-ink-900: #141826;
+  --w-ink-950: #0B0E17;
+
+  /* Gold — accent only: tier badges, hairlines, micro-details. Never a fill. */
+  --w-gold-50:  #FBF6E8;
+  --w-gold-100: #F5EBCB;
+  --w-gold-200: #EDDCA7;
+  --w-gold-300: #E5C88A;
+  --w-gold-400: #D8B569;
+  --w-gold-500: #C9A24A;
+  --w-gold-600: #B08A3B;
+  --w-gold-700: #9A7530;
+  --w-gold-800: #7A5C25;
+  --w-gold-900: #5A431A;
+  --w-gold-950: #3A2B10;
+
+  /* Teal — success, check-in, Free, seats available. */
+  --w-teal-50:  #EEF8F6;
+  --w-teal-100: #D9F1EE;
+  --w-teal-200: #B3E2DC;
+  --w-teal-300: #7FCCC3;
+  --w-teal-400: #4FB3A8;
+  --w-teal-500: #2E9C8F;
+  --w-teal-600: #1F8A7E;
+  --w-teal-700: #146A61;
+  --w-teal-800: #0F5049;
+  --w-teal-900: #0A3833;
+  --w-teal-950: #062521;
+
+  /* Warm grey — neutrals. 50 page, white surface, 200 borders,
+     600 secondary text, 900 ink text. */
+  --w-grey-50:  #FAF9F7;
+  --w-grey-100: #F3F1ED;
+  --w-grey-200: #E7E4DE;
+  --w-grey-300: #D5D1C9;
+  --w-grey-400: #B3AEA5;
+  --w-grey-500: #8C877E;
+  --w-grey-600: #6B665E;
+  --w-grey-700: #4D4943;
+  --w-grey-800: #33302B;
+  --w-grey-900: #1F1D1A;
+  --w-grey-950: #141210;
+
+  /* ==========================================================================
+     Semantic colour — light. Style components through these, never through a
+     ramp step directly, or the dark theme will not follow.
+     ========================================================================== */
+
+  --w-bg:            #FAF9F7;
+  --w-surface:       #FFFFFF;
+  --w-surface-2:     #F3F1ED;
+  --w-border:        #E7E4DE;
+
+  --w-text:          #1F1D1A;
+  --w-text-2:        #6B665E;
+  --w-text-3:        #8C877E;
+
+  --w-primary:       #7C1314;
+  --w-primary-hover: #5E0F10;
+  --w-primary-soft:  #F5E1E1;
+  --w-on-primary:    #FFFFFF;
+
+  --w-ink:           #141826;
+  --w-gold:          #C9A24A;
+  --w-gold-soft:     #FBF6E8;
+  --w-teal:          #1F8A7E;
+  --w-teal-soft:     #D9F1EE;
+
+  --w-focus:         #7C1314;
+  --w-scrim:         rgba(20, 24, 38, .55);
+
+  /* ==========================================================================
+     Type
+     ========================================================================== */
+
+  --w-font: "IBM Plex Sans Arabic", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --w-font-latin: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --w-font-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  /* display — hero H1 */
+  --w-display-size: clamp(2.5rem, 4.4vw, 4rem);
+  --w-display-lh: 1.05;
+  --w-display-weight: 600;
+  --w-display-ls: -0.025em;
+
+  /* h1 — page title */
+  --w-h1-size: 2.5rem;      /* 40px */
+  --w-h1-lh: 1.1;
+  --w-h1-weight: 600;
+  --w-h1-ls: -0.02em;
+
+  /* h2 — section */
+  --w-h2-size: 2rem;        /* 32px */
+  --w-h2-lh: 1.15;
+  --w-h2-weight: 600;
+  --w-h2-ls: -0.02em;
+
+  /* h3 — card title */
+  --w-h3-size: 1.375rem;    /* 22px */
+  --w-h3-lh: 1.25;
+  --w-h3-weight: 600;
+  --w-h3-ls: -0.01em;
+
+  /* h4 — row title */
+  --w-h4-size: 1.125rem;    /* 18px */
+  --w-h4-lh: 1.35;
+  --w-h4-weight: 600;
+
+  /* body-lg — lead paragraph */
+  --w-body-lg-size: 1.125rem;
+  --w-body-lg-lh: 1.6;
+
+  /* body — default */
+  --w-body-size: 1rem;
+  --w-body-lh: 1.6;
+
+  /* small — meta */
+  --w-small-size: 0.875rem;
+  --w-small-lh: 1.5;
+  --w-small-weight: 500;
+
+  /* caption — labels, eyebrows. Uppercase at the usage site. */
+  --w-caption-size: 0.75rem;
+  --w-caption-lh: 1.4;
+  --w-caption-weight: 600;
+  --w-caption-ls: 0.08em;
+
+  /* stat — big numbers. Pair with font-variant-numeric: tabular-nums. */
+  --w-stat-size: 2.75rem;   /* 44px */
+  --w-stat-lh: 1;
+  --w-stat-weight: 600;
+  --w-stat-ls: -0.02em;
+
+  /* ==========================================================================
+     Spacing — a 4px base
+     ========================================================================== */
+
+  --w-space-1: 4px;
+  --w-space-2: 8px;
+  --w-space-3: 12px;
+  --w-space-4: 16px;
+  --w-space-5: 20px;
+  --w-space-6: 24px;
+  --w-space-8: 32px;
+  --w-space-10: 40px;
+  --w-space-12: 48px;
+  --w-space-16: 64px;
+  --w-space-24: 96px;
+
+  /* ==========================================================================
+     Radii
+     ========================================================================== */
+
+  --w-radius-xs: 4px;
+  --w-radius-sm: 6px;
+  --w-radius-md: 8px;
+  --w-radius-lg: 12px;
+  --w-radius-xl: 16px;
+  --w-radius-pill: 999px;
+
+  /* ==========================================================================
+     Elevation. Shadows carry a colour, so they are re-stated for dark below.
+     ========================================================================== */
+
+  --w-shadow-1: 0 1px 2px rgba(31, 29, 26, .04);
+  --w-shadow-2: 0 1px 3px rgba(0, 0, 0, .06);
+  --w-shadow-3: 0 4px 12px -2px rgba(31, 29, 26, .1);
+  --w-shadow-4: 0 16px 40px -12px rgba(31, 29, 26, .3);
+  --w-focus-ring: 0 0 0 4px var(--w-primary-soft);
+
+  /* ==========================================================================
+     Motion
+     ========================================================================== */
+
+  --w-ease: cubic-bezier(.2, .8, .3, 1);
+  --w-duration: 180ms;
+}
+
+/* ==========================================================================
+   Dark — for a visitor on "system" whose OS prefers dark. An explicit light
+   choice wins, which is what the :not() guard is for.
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --w-bg:            #0B0E17;
+    --w-surface:       #141826;
+    --w-surface-2:     #1C2133;
+    --w-border:        #262C40;
+
+    --w-text:          #F4F5F8;
+    --w-text-2:        #A9AFC0;
+    --w-text-3:        #7B8296;
+
+    --w-primary:       #A33B3D;
+    --w-primary-hover: #BF6465;
+    --w-primary-soft:  #2A0607;
+    --w-on-primary:    #FFFFFF;
+
+    --w-ink:           #0B0E17;
+    --w-gold:          #E5C88A;
+    --w-gold-soft:     #2A2416;
+    --w-teal:          #4FB3A8;
+    --w-teal-soft:     #0F2F2B;
+
+    --w-focus:         #E5C88A;
+    --w-scrim:         rgba(11, 14, 23, .7);
+
+    --w-shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --w-shadow-2: 0 1px 3px rgba(0, 0, 0, .5);
+    --w-shadow-3: 0 4px 12px -2px rgba(0, 0, 0, .55);
+    --w-shadow-4: 0 16px 40px -12px rgba(0, 0, 0, .7);
+  }
+}
+
+/* ==========================================================================
+   Dark — explicit visitor choice. Repeated rather than shared with the media
+   query so the toggle wins on a light OS too.
+   ========================================================================== */
+
+:root[data-theme="dark"] {
+  --w-bg:            #0B0E17;
+  --w-surface:       #141826;
+  --w-surface-2:     #1C2133;
+  --w-border:        #262C40;
+
+  --w-text:          #F4F5F8;
+  --w-text-2:        #A9AFC0;
+  --w-text-3:        #7B8296;
+
+  --w-primary:       #A33B3D;
+  --w-primary-hover: #BF6465;
+  --w-primary-soft:  #2A0607;
+  --w-on-primary:    #FFFFFF;
+
+  --w-ink:           #0B0E17;
+  --w-gold:          #E5C88A;
+  --w-gold-soft:     #2A2416;
+  --w-teal:          #4FB3A8;
+  --w-teal-soft:     #0F2F2B;
+
+  --w-focus:         #E5C88A;
+  --w-scrim:         rgba(11, 14, 23, .7);
+
+  --w-shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --w-shadow-2: 0 1px 3px rgba(0, 0, 0, .5);
+  --w-shadow-3: 0 4px 12px -2px rgba(0, 0, 0, .55);
+  --w-shadow-4: 0 16px 40px -12px rgba(0, 0, 0, .7);
+}

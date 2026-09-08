@@ -66,6 +66,15 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <?php endif; ?>
 
+    <!-- Redesign: typefaces from the design system (Inter for Latin, IBM Plex
+         Sans Arabic for Arabic). Tajawal above stays until the last legacy
+         stylesheet is gone. -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Redesign: design tokens. Custom properties only — declares no rules of
+         its own, so loading it first is safe on pages not yet rebuilt. -->
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/tokens.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/fontawesome.css">
