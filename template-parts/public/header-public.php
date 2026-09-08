@@ -75,6 +75,10 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
          its own, so loading it first is safe on pages not yet rebuilt. -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/tokens.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
 
+    <!-- Redesign: component library. Every class is namespaced `.w-`, so it
+         cannot reach an element the legacy stylesheets or Bootstrap own. -->
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/components.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/fontawesome.css">

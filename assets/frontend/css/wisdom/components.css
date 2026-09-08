@@ -1,0 +1,394 @@
+/**
+ * Wisdom components
+ *
+ * Everything is namespaced `.w-` so it cannot collide with Bootstrap or with
+ * the legacy stylesheets, which stay loaded until the last page is rebuilt.
+ * Colours come from tokens.css only — that is what makes dark mode free.
+ *
+ * Requires: wisdom/tokens.css
+ *
+ * @package sc_events
+ */
+
+/* ==========================================================================
+   Button
+   Sizes:    .w-btn (44px default) · .w-btn--lg (48) · .w-btn--sm (36)
+   Variants: --primary (default) · --outline · --soft · --ghost · --success
+   ========================================================================== */
+
+.w-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--w-space-2);
+  height: 44px;
+  padding: 0 var(--w-space-5);
+  border: 1px solid transparent;
+  border-radius: var(--w-radius-md);
+  background: var(--w-primary);
+  color: var(--w-on-primary);
+  font-family: var(--w-font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--w-duration) var(--w-ease),
+              border-color var(--w-duration) var(--w-ease),
+              color var(--w-duration) var(--w-ease);
+}
+
+.w-btn:hover { background: var(--w-primary-hover); color: var(--w-on-primary); }
+
+.w-btn:focus-visible {
+  outline: 2px solid var(--w-focus);
+  outline-offset: 2px;
+  box-shadow: var(--w-focus-ring);
+}
+
+.w-btn:active { transform: translateY(1px); }
+
+.w-btn[disabled],
+.w-btn[aria-disabled="true"] {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.w-btn--lg { height: 48px; padding: 0 var(--w-space-6); font-size: 0.9375rem; }
+.w-btn--sm { height: 36px; padding: 0 var(--w-space-3); font-size: 0.8125rem; }
+
+.w-btn--outline {
+  background: transparent;
+  border-color: var(--w-grey-300);
+  color: var(--w-text);
+}
+.w-btn--outline:hover {
+  background: var(--w-surface-2);
+  border-color: var(--w-grey-400);
+  color: var(--w-text);
+}
+
+.w-btn--soft {
+  background: var(--w-primary-soft);
+  color: var(--w-primary);
+}
+.w-btn--soft:hover { background: var(--w-burgundy-200); color: var(--w-primary); }
+
+.w-btn--ghost {
+  background: transparent;
+  padding: 0 var(--w-space-3);
+  color: var(--w-primary);
+}
+.w-btn--ghost:hover { background: var(--w-primary-soft); color: var(--w-primary); }
+
+.w-btn--success { background: var(--w-teal); }
+.w-btn--success:hover { background: var(--w-teal-700); }
+
+.w-btn--gold {
+  background: transparent;
+  border-color: var(--w-gold);
+  color: var(--w-gold);
+}
+.w-btn--gold:hover { background: var(--w-gold-soft); }
+
+/* Outline and ghost need a lifted border on ink surfaces, where --w-border
+   is too close to the background to read as an edge. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .w-btn--outline { border-color: var(--w-ink-600); }
+}
+:root[data-theme="dark"] .w-btn--outline { border-color: var(--w-ink-600); }
+
+/* Loading — the label stays in place so the button does not resize. */
+.w-btn[data-loading="true"] { position: relative; color: transparent; pointer-events: none; }
+.w-btn[data-loading="true"]::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  color: var(--w-on-primary);
+  animation: w-spin .8s linear infinite;
+}
+.w-btn--outline[data-loading="true"]::after,
+.w-btn--ghost[data-loading="true"]::after,
+.w-btn--soft[data-loading="true"]::after { color: var(--w-primary); }
+
+@keyframes w-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-btn { transition: none; }
+  .w-btn:active { transform: none; }
+  .w-btn[data-loading="true"]::after { animation-duration: 2s; }
+}
+
+/* ==========================================================================
+   Form controls
+   ========================================================================== */
+
+.w-field { display: flex; flex-direction: column; gap: var(--w-space-2); }
+
+.w-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--w-text);
+}
+
+.w-input,
+.w-select,
+.w-textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--w-space-3) var(--w-space-4);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface);
+  color: var(--w-text);
+  font-family: var(--w-font);
+  font-size: var(--w-body-size);
+  line-height: var(--w-body-lh);
+  transition: border-color var(--w-duration) var(--w-ease),
+              box-shadow var(--w-duration) var(--w-ease);
+}
+
+.w-textarea { min-height: 120px; resize: vertical; }
+
+.w-input::placeholder,
+.w-textarea::placeholder { color: var(--w-text-3); }
+
+.w-input:focus,
+.w-select:focus,
+.w-textarea:focus {
+  outline: none;
+  border-color: var(--w-primary);
+  box-shadow: var(--w-focus-ring);
+}
+
+.w-input[disabled],
+.w-select[disabled],
+.w-textarea[disabled] {
+  background: var(--w-surface-2);
+  color: var(--w-text-3);
+  cursor: not-allowed;
+}
+
+.w-input[aria-invalid="true"],
+.w-select[aria-invalid="true"],
+.w-textarea[aria-invalid="true"] { border-color: var(--w-burgundy-600); }
+
+/* The arrow is drawn with a gradient so no image request is needed, and it
+   flips side automatically in RTL. */
+.w-select {
+  appearance: none;
+  padding-inline-end: var(--w-space-10);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    right calc(var(--w-space-5) + 4px) center,
+    right var(--w-space-5) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+[dir="rtl"] .w-select {
+  background-position:
+    left var(--w-space-5) center,
+    left calc(var(--w-space-5) + 4px) center;
+}
+
+.w-hint { font-size: 0.75rem; color: var(--w-text-3); }
+.w-error { font-size: 0.75rem; color: var(--w-burgundy-600); }
+
+/* ==========================================================================
+   Tag · Pill · Badge
+   ========================================================================== */
+
+.w-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  height: 28px;
+  padding: 0 var(--w-space-3);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface-2);
+  color: var(--w-text-2);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.w-tag--primary { background: var(--w-primary-soft); border-color: transparent; color: var(--w-primary); }
+.w-tag--teal    { background: var(--w-teal-soft);    border-color: transparent; color: var(--w-teal); }
+.w-tag--gold    { background: var(--w-gold-soft);    border-color: var(--w-gold); color: var(--w-gold-700); }
+
+/* Status dot — pair with .w-tag--teal for "Registration open",
+   .w-tag--primary for "Live now". */
+.w-tag__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* Tier badge — uppercase label, gold hairline. */
+.w-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--w-space-2);
+  border: 1px solid var(--w-gold);
+  border-radius: var(--w-radius-xs);
+  color: var(--w-gold-700);
+  font-size: var(--w-caption-size);
+  font-weight: var(--w-caption-weight);
+  letter-spacing: var(--w-caption-ls);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .w-badge,
+  :root:not([data-theme="light"]) .w-tag--gold { color: var(--w-gold); }
+}
+:root[data-theme="dark"] .w-badge,
+:root[data-theme="dark"] .w-tag--gold { color: var(--w-gold); }
+
+/* ==========================================================================
+   Card — the same shell whether or not it carries an image.
+   ========================================================================== */
+
+.w-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  box-shadow: var(--w-shadow-2);
+  overflow: hidden;
+  transition: box-shadow var(--w-duration) var(--w-ease),
+              border-color var(--w-duration) var(--w-ease);
+}
+
+.w-card--interactive:hover {
+  box-shadow: var(--w-shadow-3);
+  border-color: var(--w-grey-300);
+}
+
+.w-card__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--w-ink);
+  overflow: hidden;
+}
+
+.w-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Designed fallback for an empty slot: ink panel with a burgundy tint, so a
+   missing image still reads as deliberate rather than broken. */
+.w-card__media--empty {
+  background:
+    linear-gradient(0deg, var(--w-burgundy-950) 0%, transparent 100%),
+    var(--w-ink);
+  display: grid;
+  place-items: center;
+}
+
+.w-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-3);
+  padding: var(--w-space-6);
+}
+
+.w-card__title {
+  font-size: var(--w-h3-size);
+  line-height: var(--w-h3-lh);
+  font-weight: var(--w-h3-weight);
+  letter-spacing: var(--w-h3-ls);
+  color: var(--w-text);
+  margin: 0;
+}
+
+.w-card__meta {
+  font-size: var(--w-small-size);
+  line-height: var(--w-small-lh);
+  font-weight: var(--w-small-weight);
+  color: var(--w-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.w-card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  padding: var(--w-space-4) var(--w-space-6);
+  border-top: 1px solid var(--w-border);
+  margin-top: auto;
+}
+
+/* ==========================================================================
+   Empty state
+   ========================================================================== */
+
+.w-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--w-space-3);
+  padding: var(--w-space-16) var(--w-space-6);
+  border: 1px dashed var(--w-border);
+  border-radius: var(--w-radius-lg);
+  text-align: center;
+  color: var(--w-text-2);
+}
+
+.w-empty__title {
+  font-size: var(--w-h4-size);
+  font-weight: var(--w-h4-weight);
+  color: var(--w-text);
+}
+
+/* ==========================================================================
+   Skeleton — for content that is still loading.
+   ========================================================================== */
+
+.w-skeleton {
+  border-radius: var(--w-radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--w-surface-2) 25%,
+    var(--w-border) 37%,
+    var(--w-surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: w-shimmer 1.4s ease infinite;
+}
+
+.w-skeleton--text { height: 1em; margin-block: .3em; }
+.w-skeleton--title { height: 1.4em; width: 60%; }
+
+@keyframes w-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-skeleton { animation: none; }
+}
+
+/* ==========================================================================
+   RTL — the design uses logical properties throughout, so only genuinely
+   directional graphics need flipping.
+   ========================================================================== */
+
+[dir="rtl"] .w-arrow { transform: scaleX(-1); }
