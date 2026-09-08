@@ -264,3 +264,133 @@
 }
 
 .w-section__link:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   Speaker rail
+
+   Portraits are 3:4 and cropped to the face-safe area the design specifies
+   (focal 50% / 30%), never circles cut out of a poster. The name is revealed
+   on hover and on focus, so a tap on touch reveals it too — no script.
+   ========================================================================== */
+
+.w-rail {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 4px 4px 8px;
+  margin-inline: -4px;
+  scrollbar-width: thin;
+}
+
+.w-rail::-webkit-scrollbar { height: 6px; }
+.w-rail::-webkit-scrollbar-thumb { background: var(--w-border); border-radius: 999px; }
+
+.w-rail__nav { display: flex; gap: var(--w-space-2); }
+
+.w-rail__btn {
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--w-grey-300);
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface);
+  color: var(--w-text);
+  cursor: pointer;
+  transition: border-color var(--w-duration) var(--w-ease);
+}
+
+.w-rail__btn:hover { border-color: var(--w-primary); color: var(--w-primary); }
+.w-rail__btn:focus-visible { outline: 2px solid var(--w-focus); outline-offset: 2px; }
+
+@media (max-width: 640px) { .w-rail__nav { display: none; } }
+
+/* --- speaker card ------------------------------------------------------- */
+
+.w-speaker {
+  flex: 0 0 clamp(180px, 22vw, 240px);
+  scroll-snap-align: start;
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border: 0;
+  padding: 0;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--w-surface-2);
+  color: inherit;
+  text-align: start;
+  text-decoration: none;
+  display: block;
+  cursor: pointer;
+}
+
+.w-speaker img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  transition: transform 320ms var(--w-ease);
+}
+
+.w-speaker:hover img,
+.w-speaker:focus-visible img { transform: scale(1.04); }
+
+/* Fallback: initials on the lightest burgundy, per the slot inventory. */
+.w-speaker__initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--w-burgundy-100);
+  color: var(--w-burgundy-700);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.w-speaker__reveal {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: var(--w-space-6) var(--w-space-4) var(--w-space-4);
+  background: linear-gradient(to top, rgba(11, 14, 23, .92) 0%, rgba(11, 14, 23, .7) 55%, transparent 100%);
+  color: #fff;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--w-duration) var(--w-ease),
+              transform var(--w-duration) var(--w-ease);
+}
+
+.w-speaker:hover .w-speaker__reveal,
+.w-speaker:focus-visible .w-speaker__reveal,
+.w-speaker:focus-within .w-speaker__reveal { opacity: 1; transform: none; }
+
+.w-speaker__name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.w-speaker__topic {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, .78);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-rail { scroll-behavior: auto; }
+  .w-speaker img,
+  .w-speaker__reveal { transition: none; }
+}

@@ -523,131 +523,84 @@ $w_stats = array_filter([
 </section>
 <?php endif; ?>
 
-<!--===== SECTION 5: SPEAKERS SPOTLIGHT (Tabbed by Event) =======-->
 <?php
-// Build event → speakers map
-$events_with_speakers = array();
-if (class_exists('SC_Event') && class_exists('SC_Speaker')) {
-    global $wpdb;
-    $sc_prefix = $wpdb->prefix . 'sc_';
-    $events_data = $wpdb->get_results(
-        "SELECT e.id, e.title, e.slug, COUNT(es.speaker_id) as speaker_count
-         FROM {$sc_prefix}events e
-         INNER JOIN {$sc_prefix}event_speakers es ON e.id = es.event_id
-         WHERE e.status IN ('publish','completed')
-         GROUP BY e.id
-         HAVING speaker_count > 0
-         ORDER BY e.start_date DESC"
-    );
-    foreach ($events_data as $ev) {
-        $event_speakers_list = SC_Speaker::get_by_event($ev->id);
-        if (!empty($event_speakers_list)) {
-            $events_with_speakers[] = (object) array(
-                'id' => $ev->id,
-                'title' => $ev->title,
-                'slug' => $ev->slug,
-                'speakers' => array_slice($event_speakers_list, 0, 12),
-            );
-        }
-    }
+/*
+ * Redesign speaker rail.
+ *
+ * The home leads with the next event, so the rail shows that event's line-up.
+ * If the event has no speakers attached yet it falls back to the platform's
+ * most-booked speakers rather than rendering an empty section.
+ */
+$w_speakers = [];
+if ($next_event && class_exists('SC_Speaker')) {
+    $w_speakers = SC_Speaker::get_by_event($next_event->id) ?: [];
+}
+if (!$w_speakers) {
+    $w_speakers = $top_speakers ?: [];
 }
 ?>
-<?php if (!empty($events_with_speakers)): ?>
-<section class="sc-section sc-section-alt" id="speakers">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.featured_speakers', 'Featured Speakers')); ?></h2>
-            <p><?php echo esc_html(sc_t('frontend.learn_from_experts', 'Learn from world-class experts and industry leaders')); ?></p>
-        </div>
-
-        <!-- Event Tabs -->
-        <div class="sc-speaker-tabs" data-aos="fade-up">
-            <?php foreach ($events_with_speakers as $idx => $ev): ?>
-            <button class="sc-speaker-tab <?php echo $idx === 0 ? 'active' : ''; ?>" data-target="sc-speakers-event-<?php echo (int) $ev->id; ?>">
-                <?php echo esc_html($ev->title); ?>
+<?php if ($w_speakers): ?>
+<section class="w-section">
+    <div class="w-section__head">
+        <h2 class="w-section__title"><?php echo esc_html(sc_t('frontend.whos_speaking', "Who's speaking")); ?></h2>
+        <div class="w-rail__nav">
+            <button type="button" class="w-rail__btn" data-rail="prev" aria-label="<?php esc_attr_e('Previous', 'sc_events'); ?>">
+                <i class="fa-solid fa-chevron-left w-arrow" aria-hidden="true"></i>
             </button>
-            <?php endforeach; ?>
+            <button type="button" class="w-rail__btn" data-rail="next" aria-label="<?php esc_attr_e('Next', 'sc_events'); ?>">
+                <i class="fa-solid fa-chevron-right w-arrow" aria-hidden="true"></i>
+            </button>
         </div>
+    </div>
 
-        <!-- Tab Panels -->
-        <?php foreach ($events_with_speakers as $idx => $ev): ?>
-        <div class="sc-speaker-tab-panel <?php echo $idx === 0 ? 'active' : ''; ?>" id="sc-speakers-event-<?php echo (int) $ev->id; ?>">
-            <div class="row g-4">
-                <?php $delay = 0; foreach ($ev->speakers as $speaker):
-                    $photo_url = '';
-                    if (!empty($speaker->photo)) {
-                        $photo_url = is_numeric($speaker->photo) ? wp_get_attachment_url($speaker->photo) : $speaker->photo;
-                    }
-                    $social = !empty($speaker->social_links) ? (is_array($speaker->social_links) ? $speaker->social_links : json_decode($speaker->social_links, true)) : array();
-                ?>
-                <div class="col-lg-3 col-md-4 col-6" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
-                    <div class="sc-speaker-card text-center">
-                        <div class="sc-speaker-photo">
-                            <?php if ($photo_url): ?>
-                            <img src="<?php echo esc_url($photo_url); ?>" alt="<?php echo esc_attr($speaker->name); ?>">
-                            <?php else: ?>
-                            <div class="sc-speaker-placeholder">
-                                <i class="fa-solid fa-user"></i>
-                            </div>
-                            <?php endif; ?>
-                            <div class="sc-speaker-overlay">
-                                <?php if (!empty($social)): ?>
-                                <div class="sc-social-links" style="justify-content: center;">
-                                    <?php if (!empty($social['facebook'])): ?>
-                                    <a href="<?php echo esc_url($social['facebook']); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-facebook-f"></i></a>
-                                    <?php endif; ?>
-                                    <?php if (!empty($social['twitter'])): ?>
-                                    <a href="<?php echo esc_url($social['twitter']); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-twitter"></i></a>
-                                    <?php endif; ?>
-                                    <?php if (!empty($social['linkedin'])): ?>
-                                    <a href="<?php echo esc_url($social['linkedin']); ?>" target="_blank" class="sc-social-link"><i class="fa-brands fa-linkedin-in"></i></a>
-                                    <?php endif; ?>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <h6 class="sc-speaker-name"><?php echo esc_html($speaker->name); ?></h6>
-                        <span class="sc-speaker-title"><?php echo esc_html($speaker->title ?? ''); ?></span>
-                    </div>
-                </div>
-                <?php $delay += 80; endforeach; ?>
-            </div>
-
-            <div class="text-center" style="margin-top: var(--sc-space-8);">
-                <a href="<?php echo esc_url(home_url('/event/' . $ev->slug . '/#speakers')); ?>" class="sc-btn sc-btn-outline sc-btn-lg">
-                    <?php echo esc_html(sc_t('frontend.view_all_speakers', 'View All Speakers')); ?> <i class="fa-solid fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
+    <div class="w-rail" id="w-speaker-rail">
+        <?php foreach ($w_speakers as $w_sp):
+            $w_photo = '';
+            if (!empty($w_sp->photo)) {
+                $w_photo = is_numeric($w_sp->photo) ? wp_get_attachment_url($w_sp->photo) : $w_sp->photo;
+            }
+            // Initials for the designed fallback: first letter of the first two
+            // words, skipping honorifics so "Dr Mohamed Elzohairy" reads "ME".
+            $w_words = preg_split('/\s+/', trim(preg_replace('/^(dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\s+/i', '', $w_sp->name)));
+            $w_initials = mb_strtoupper(mb_substr($w_words[0] ?? '', 0, 1) . mb_substr($w_words[1] ?? '', 0, 1));
+        ?>
+        <a class="w-speaker" href="<?php echo esc_url(home_url('/event/' . $next_event->slug . '#speakers')); ?>">
+            <?php if ($w_photo): ?>
+                <img src="<?php echo esc_url($w_photo); ?>" alt="<?php echo esc_attr($w_sp->name); ?>" loading="lazy" decoding="async">
+            <?php else: ?>
+                <span class="w-speaker__initials" aria-hidden="true"><?php echo esc_html($w_initials); ?></span>
+            <?php endif; ?>
+            <span class="w-speaker__reveal">
+                <span class="w-speaker__name"><?php echo esc_html($w_sp->name); ?></span>
+                <?php if (!empty($w_sp->title)): ?>
+                    <span class="w-speaker__topic"><?php echo esc_html($w_sp->title); ?></span>
+                <?php endif; ?>
+            </span>
+        </a>
         <?php endforeach; ?>
     </div>
 </section>
 
-<style>
-.sc-speaker-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 32px; }
-.sc-speaker-tab { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--sc-text-primary, inherit); padding: 10px 20px; border-radius: 999px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
-.sc-speaker-tab:hover { background: rgba(255,255,255,0.05); }
-.sc-speaker-tab.active { background: var(--sc-primary, #7c1314); color: #fff; border-color: var(--sc-primary, #7c1314); }
-.sc-speaker-tab-panel { display: none; }
-.sc-speaker-tab-panel.active { display: block; }
-</style>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.sc-speaker-tab').forEach(function(tab) {
-        tab.addEventListener('click', function() {
-            var target = this.getAttribute('data-target');
-            document.querySelectorAll('.sc-speaker-tab').forEach(function(t) { t.classList.remove('active'); });
-            document.querySelectorAll('.sc-speaker-tab-panel').forEach(function(p) { p.classList.remove('active'); });
-            this.classList.add('active');
-            var panel = document.getElementById(target);
-            if (panel) panel.classList.add('active');
+// Rail arrows scroll by one card width plus its gap.
+(function () {
+    var rail = document.getElementById('w-speaker-rail');
+    if (!rail) { return; }
+    var head = rail.previousElementSibling;
+    head.querySelectorAll('[data-rail]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var card = rail.firstElementChild;
+            if (!card) { return; }
+            var step = card.getBoundingClientRect().width + 14;
+            var dir = btn.dataset.rail === 'next' ? 1 : -1;
+            // Right-to-left pages scroll in the opposite direction.
+            if (getComputedStyle(rail).direction === 'rtl') { dir *= -1; }
+            rail.scrollBy({ left: step * dir, behavior: 'smooth' });
         });
     });
-});
+})();
 </script>
 <?php endif; ?>
-
 <!--===== SECTION 6: ORGANIZATIONS (Sponsors carousel) =======-->
 <?php if (!empty($all_sponsors)): ?>
 <section class="sc-section" id="sponsors">
