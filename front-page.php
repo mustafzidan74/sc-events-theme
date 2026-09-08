@@ -601,6 +601,122 @@ if (!$w_speakers) {
 })();
 </script>
 <?php endif; ?>
+<?php
+/*
+ * Redesign workshops and ticket picker.
+ *
+ * Both read from the event the home leads with, and each section disappears
+ * entirely when that event has nothing to show, rather than rendering an
+ * empty shell.
+ */
+$w_workshops = [];
+$w_tickets = [];
+if ($next_event) {
+    global $wpdb;
+    $w_p = $wpdb->prefix . 'sc_';
+    $w_workshops = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM {$w_p}workshops WHERE event_id = %d AND status = 'publish' ORDER BY start_date ASC, start_time ASC",
+        $next_event->id
+    ));
+    if (class_exists('SC_Ticket')) {
+        $w_tickets = SC_Ticket::get_by_event($next_event->id) ?: [];
+    }
+}
+?>
+
+<?php if ($w_workshops): ?>
+<!--===== WORKSHOPS =======-->
+<section class="w-section">
+    <div class="w-section__head">
+        <div>
+            <h2 class="w-section__title"><?php echo esc_html(sc_t('frontend.hands_on_workshops', 'Hands-on workshops')); ?></h2>
+            <p style="margin:8px 0 0;font-size:1.0625rem;color:var(--w-text-2)">
+                <?php echo esc_html(sc_t('frontend.workshops_lede', 'Limited seats, taught at the bench.')); ?>
+            </p>
+        </div>
+        <a class="w-section__link" href="<?php echo esc_url(home_url('/workshops/')); ?>">
+            <?php echo esc_html(sc_t('frontend.see_all', 'See all')); ?>
+        </a>
+    </div>
+
+    <div class="w-rail">
+        <?php foreach ($w_workshops as $w_ws):
+            $w_ws_img = !empty($w_ws->featured_image)
+                ? (is_numeric($w_ws->featured_image) ? wp_get_attachment_url($w_ws->featured_image) : $w_ws->featured_image)
+                : '';
+            $w_left = max(0, (int) $w_ws->total_capacity - (int) $w_ws->total_sold);
+        ?>
+        <a class="w-workshop" href="<?php echo esc_url(home_url('/workshop/' . $w_ws->slug)); ?>">
+            <span class="w-workshop__thumb">
+                <?php if ($w_ws_img): ?>
+                    <img src="<?php echo esc_url($w_ws_img); ?>" alt="" loading="lazy" decoding="async">
+                <?php endif; ?>
+            </span>
+            <span class="w-workshop__body">
+                <span class="w-workshop__title"><?php echo esc_html($w_ws->title); ?></span>
+                <span class="w-workshop__meta"><?php echo esc_html(date_i18n('j M', strtotime($w_ws->start_date))); ?><?php
+                    if (!empty($w_ws->start_time)) { echo ' · ' . esc_html(date_i18n('H:i', strtotime($w_ws->start_time))); }
+                ?></span>
+                <span class="w-workshop__foot">
+                    <?php if ($w_left > 0): ?>
+                        <span class="w-tag w-tag--teal"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%d seats left'), $w_left)); ?></span>
+                    <?php else: ?>
+                        <span class="w-tag"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
+                    <?php endif; ?>
+                </span>
+            </span>
+        </a>
+        <?php endforeach; ?>
+    </div>
+</section>
+<?php endif; ?>
+
+<?php if ($w_tickets): ?>
+<!--===== TICKET PICKER =======-->
+<section class="w-section">
+    <div class="w-tickets">
+        <div class="w-tickets__copy">
+            <h2 class="w-tickets__title"><?php echo esc_html(sc_t('frontend.pick_your_ticket', "Pick your ticket. That's it.")); ?></h2>
+            <p class="w-tickets__lede"><?php echo esc_html($next_event->title); ?></p>
+            <div class="w-tickets__facts">
+                <span><?php echo esc_html(date_i18n('j M Y', strtotime($next_event->start_date))); ?></span>
+                <?php if (!empty($next_event->venue_name)): ?>
+                    <span>· <?php echo esc_html($next_event->venue_name); ?></span>
+                <?php endif; ?>
+            </div>
+            <a class="w-tickets__cta" href="<?php echo esc_url(home_url('/event/' . $next_event->slug)); ?>">
+                <?php echo esc_html(sc_t('frontend.register', 'Register')); ?>
+            </a>
+        </div>
+
+        <div class="w-tickets__list">
+            <?php foreach ($w_tickets as $w_tk):
+                $w_qty = (int) $w_tk->quantity;
+                $w_sold = (int) $w_tk->sold;
+                $w_left = $w_qty > 0 ? max(0, $w_qty - $w_sold) : null;
+                $w_out = $w_left === 0;
+                $w_price = (float) $w_tk->price;
+            ?>
+            <a class="w-ticket<?php echo $w_out ? ' w-ticket--soldout' : ''; ?>"
+               href="<?php echo esc_url(home_url('/event/' . $next_event->slug . '#tickets')); ?>">
+                <span>
+                    <span class="w-ticket__name"><?php echo esc_html($w_tk->name); ?></span>
+                    <?php if ($w_out): ?>
+                        <span class="w-ticket__note"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
+                    <?php elseif ($w_left !== null): ?>
+                        <span class="w-ticket__note"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%d seats left'), $w_left)); ?></span>
+                    <?php endif; ?>
+                </span>
+                <span class="w-ticket__price">
+                    <?php echo $w_price > 0 ? esc_html(sc_currency($w_price)) : esc_html(sc_t('frontend.free', 'Free')); ?>
+                </span>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
 <!--===== SECTION 6: ORGANIZATIONS (Sponsors carousel) =======-->
 <?php if (!empty($all_sponsors)): ?>
 <section class="sc-section" id="sponsors">
