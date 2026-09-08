@@ -705,93 +705,74 @@ if ($next_event) {
 </section>
 <?php endif; ?>
 
-<!--===== SECTION 6: ORGANIZATIONS (Sponsors carousel) =======-->
-<?php if (!empty($all_sponsors)): ?>
-<section class="sc-section" id="sponsors">
-    <div class="container">
-        <div class="sc-section-header" data-aos="fade-up">
-            <h2><?php echo esc_html(sc_t('frontend.our_organizations', 'Our Organizations')); ?></h2>
-            <p><?php echo esc_html(sc_t('frontend.organizations_subtitle', 'Meet the organizations powering our events')); ?></p>
-        </div>
+<?php
+/*
+ * Redesign sponsor wall.
+ *
+ * Tier rows, top tier wider with a gold ring. Tiers are read from the data and
+ * ordered, so re-tiering a sponsor in the dashboard is enough — no template
+ * change. The first tier present is treated as the top one, whether that is
+ * diamond or platinum.
+ */
+$w_tier_order = ['diamond', 'platinum', 'gold', 'silver', 'bronze'];
+$w_tier_names = [
+    'diamond'  => sc_t('frontend.tier_diamond', 'Diamond'),
+    'platinum' => sc_t('frontend.tier_platinum', 'Platinum'),
+    'gold'     => sc_t('frontend.tier_gold', 'Gold'),
+    'silver'   => sc_t('frontend.tier_silver', 'Silver'),
+    'bronze'   => sc_t('frontend.tier_bronze', 'Bronze'),
+];
 
-        <div class="sc-organizations-wrapper" data-aos="fade-up">
-            <div class="swiper sc-organizations-swiper">
-                <div class="swiper-wrapper">
-                    <?php foreach ($all_sponsors as $sponsor):
-                        $logo_url = '';
-                        if (!empty($sponsor->logo)) {
-                            $logo_url = is_numeric($sponsor->logo) ? wp_get_attachment_url($sponsor->logo) : $sponsor->logo;
-                        }
-                        $website = !empty($sponsor->website) ? $sponsor->website : '#';
-                        $sponsor_title = !empty($sponsor->title) ? $sponsor->title : '';
-                    ?>
-                    <div class="swiper-slide">
-                        <a href="<?php echo esc_url($website); ?>" <?php echo $website !== '#' ? 'target="_blank" rel="noopener"' : ''; ?> class="sc-org-card">
-                            <div class="sc-org-photo">
-                                <?php if ($logo_url): ?>
-                                <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr($sponsor->name); ?>">
-                                <?php else: ?>
-                                <div class="sc-org-placeholder"><i class="fa-solid fa-building"></i></div>
-                                <?php endif; ?>
-                            </div>
-                            <h6 class="sc-org-name"><?php echo esc_html($sponsor->name); ?></h6>
-                            <?php if ($sponsor_title): ?>
-                            <span class="sc-org-title"><?php echo esc_html($sponsor_title); ?></span>
-                            <?php endif; ?>
-                        </a>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <div class="swiper-button-next"></div>
-                <div class="swiper-button-prev"></div>
-                <div class="swiper-pagination"></div>
+$w_by_tier = [];
+foreach (($all_sponsors ?: []) as $w_sponsor) {
+    $w_by_tier[strtolower((string) $w_sponsor->tier)][] = $w_sponsor;
+}
+$w_by_tier = array_filter(array_merge(array_fill_keys($w_tier_order, []), $w_by_tier));
+$w_is_top = true;
+?>
+<?php if ($w_by_tier): ?>
+<!--===== SPONSORS =======-->
+<section class="w-section" id="sponsors">
+    <div class="w-section__head">
+        <h2 class="w-section__title"><?php echo esc_html(sc_t('frontend.our_sponsors', 'Our sponsors')); ?></h2>
+    </div>
+
+    <div class="w-sponsors">
+        <?php foreach ($w_by_tier as $w_tier_key => $w_tier_sponsors): ?>
+        <div class="w-tier<?php echo $w_is_top ? ' w-tier--top' : ''; ?>">
+            <div class="w-tier__head">
+                <span class="w-tier__badge"><?php echo esc_html($w_tier_names[$w_tier_key] ?? ucfirst($w_tier_key)); ?></span>
+                <?php if ($w_is_top): ?>
+                    <span class="w-tier__note"><?php echo esc_html(sc_t('frontend.title_sponsor', 'Title sponsor')); ?></span>
+                <?php endif; ?>
+            </div>
+            <div class="w-tier__logos">
+                <?php foreach ($w_tier_sponsors as $w_sp):
+                    $w_sp_logo = '';
+                    if (!empty($w_sp->logo)) {
+                        $w_sp_logo = is_numeric($w_sp->logo) ? wp_get_attachment_url($w_sp->logo) : $w_sp->logo;
+                    }
+                    $w_sp_href = !empty($w_sp->website) ? $w_sp->website : '';
+                    $w_sp_tag = $w_sp_href ? 'a' : 'span';
+                ?>
+                <<?php echo $w_sp_tag; ?> class="w-logo"<?php
+                    if ($w_sp_href) {
+                        echo ' href="' . esc_url($w_sp_href) . '" target="_blank" rel="noopener noreferrer"';
+                    }
+                ?>>
+                    <?php if ($w_sp_logo): ?>
+                        <img src="<?php echo esc_url($w_sp_logo); ?>" alt="<?php echo esc_attr($w_sp->name); ?>" loading="lazy" decoding="async">
+                    <?php else: ?>
+                        <?php echo esc_html($w_sp->name); ?>
+                    <?php endif; ?>
+                </<?php echo $w_sp_tag; ?>>
+                <?php endforeach; ?>
             </div>
         </div>
+        <?php $w_is_top = false; ?>
+        <?php endforeach; ?>
     </div>
 </section>
-
-<style>
-.sc-organizations-wrapper { position: relative; padding: 0 40px; }
-.sc-organizations-swiper { padding: 20px 0 50px; }
-.sc-org-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px; text-decoration: none; transition: transform 0.3s; }
-.sc-org-card:hover { transform: translateY(-4px); text-decoration: none; }
-.sc-org-photo { width: 160px; height: 160px; border-radius: 50%; overflow: hidden; background: #f5f5f5; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.1); margin-bottom: 16px; border: 4px solid #fff; }
-.sc-org-photo img { width: 100%; height: 100%; object-fit: cover; }
-.sc-org-placeholder { font-size: 3rem; color: #ccc; }
-.sc-org-name { font-size: 1.05rem; font-weight: 700; color: var(--sc-text-primary, #1a1a2e); margin: 0 0 4px; }
-.sc-org-title { font-size: 0.85rem; color: var(--sc-text-muted, #666); }
-.sc-organizations-wrapper .swiper-button-next,
-.sc-organizations-wrapper .swiper-button-prev { color: var(--sc-primary, #7c1314); background: #fff; width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-.sc-organizations-wrapper .swiper-button-next::after,
-.sc-organizations-wrapper .swiper-button-prev::after { font-size: 16px; font-weight: 700; }
-.sc-organizations-wrapper .swiper-pagination-bullet-active { background: var(--sc-primary, #7c1314); }
-@media (max-width: 640px) { .sc-org-photo { width: 130px; height: 130px; } }
-</style>
-
-<!-- Swiper assets (loaded once) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var orgEl = document.querySelector('.sc-organizations-swiper');
-    if (orgEl && typeof Swiper !== 'undefined') {
-        new Swiper(orgEl, {
-            slidesPerView: 2,
-            spaceBetween: 24,
-            loop: true,
-            autoplay: { delay: 2500, disableOnInteraction: false },
-            pagination: { el: orgEl.querySelector('.swiper-pagination'), clickable: true },
-            navigation: { nextEl: orgEl.parentElement.querySelector('.swiper-button-next'), prevEl: orgEl.parentElement.querySelector('.swiper-button-prev') },
-            breakpoints: {
-                480: { slidesPerView: 3 },
-                768: { slidesPerView: 4 },
-                1024: { slidesPerView: 5 },
-                1280: { slidesPerView: 6 }
-            }
-        });
-    }
-});
-</script>
 <?php endif; ?>
 
 <!--===== SECTION 7: CONTACT =======-->
