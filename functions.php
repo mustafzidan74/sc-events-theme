@@ -13,9 +13,28 @@ if ( ! defined( '_S_VERSION' ) ) {
 }
 
 if ( ! defined( 'SC_ASSET_VERSION' ) ) {
-	// Single cache-busting version for every dashboard asset. The header and the
-	// footer both read this, so their script tags can no longer drift apart.
-	define( 'SC_ASSET_VERSION', '4.0.0' );
+	/*
+	 * Single cache-busting version for every asset. The header and the footer
+	 * both read this, so their script tags cannot drift apart.
+	 *
+	 * It is derived from the files rather than typed, because a hand-maintained
+	 * number only works if someone remembers to raise it — and twice during the
+	 * redesign nobody did, leaving visitors with new markup and the previous
+	 * stylesheet. Suffixing the release with the newest asset timestamp means a
+	 * deploy busts the cache whether or not anyone thought about it.
+	 */
+	$sc_asset_release = '4.0.0';
+	$sc_asset_stamp   = 0;
+
+	foreach ( array( '/assets/frontend/css/wisdom', '/assets/frontend/js' ) as $sc_asset_dir ) {
+		foreach ( (array) glob( get_template_directory() . $sc_asset_dir . '/*.{css,js}', GLOB_BRACE ) as $sc_asset_file ) {
+			$sc_asset_stamp = max( $sc_asset_stamp, (int) filemtime( $sc_asset_file ) );
+		}
+	}
+
+	define( 'SC_ASSET_VERSION', $sc_asset_stamp ? $sc_asset_release . '.' . $sc_asset_stamp : $sc_asset_release );
+
+	unset( $sc_asset_release, $sc_asset_stamp, $sc_asset_dir, $sc_asset_file );
 }
 
 /**
