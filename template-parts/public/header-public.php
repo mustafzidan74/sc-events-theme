@@ -106,7 +106,7 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
 
     <?php // Events routed from the custom table never become a queried post,
           // so is_singular() cannot see them — the router's query var can.
-    if (is_singular('sc_event') || get_query_var('sc_event_slug')): ?>
+    if (is_singular(['sc_event', 'sc_workshop']) || get_query_var('sc_event_slug') || get_query_var('sc_workshop')): ?>
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/event.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-event.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
     <?php endif; ?>
