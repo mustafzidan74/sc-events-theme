@@ -289,12 +289,12 @@ if (!$is_past && $has_tickets && !$is_registered):
 <div class="w-ev__sticky">
     <span class="w-ev__sticky-text">
         <strong><?php echo esc_html($event->title); ?></strong>
-        <span><?php echo $is_free
-            ? esc_html(sc_t('frontend.free', 'Free'))
-            : esc_html(sprintf(
-                sc_t('frontend.from_price', 'From %s'),
-                sc_currency($min_price)
-              )); ?></span>
+        <?php if (!$is_free): ?>
+        <span><?php echo esc_html(sprintf(
+            sc_t('frontend.from_price', 'From %s'),
+            sc_currency($min_price)
+        )); ?></span>
+        <?php endif; ?>
     </span>
     <a class="w-btn" href="#tickets"><?php echo esc_html(sc_t('frontend.get_ticket', 'Get ticket')); ?></a>
 </div>

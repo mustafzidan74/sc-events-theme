@@ -5386,6 +5386,7 @@ return [
         'search_workshops' => 'ابحث في الورش…',
         'seats_left' => '%s مقعد متبقٍ',
         'n_days_left' => 'باقي %s يوم',
+        'book_now' => 'احجز مكانك',
         'n_seats_left' => 'باقي %s مقعد',
         'n_seats_left_of' => 'باقي %s مقعد من %s.',
 

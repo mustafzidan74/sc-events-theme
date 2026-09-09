@@ -153,13 +153,6 @@
   display: block;
 }
 
-/* A missing cover still reads as deliberate: ink panel, burgundy tint. */
-.w-hero__media--empty {
-  background:
-    radial-gradient(120% 90% at 50% 100%, var(--w-burgundy-900) 0%, transparent 65%),
-    var(--w-ink);
-}
-
 @media (min-width: 992px) {
   .w-hero__media { aspect-ratio: 5 / 4; }
 }

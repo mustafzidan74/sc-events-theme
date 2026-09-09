@@ -280,9 +280,11 @@ if ($next_event):
         );
         if ($w_prices) {
             $w_min = min($w_prices);
+            // 0 means unpriced, not free — say nothing rather than promise
+            // something the organiser has not set.
             $w_price_label = $w_min > 0
                 ? sprintf(sc_t('frontend.from_price', 'from %s'), sc_currency($w_min))
-                : sc_t('frontend.free', 'Free');
+                : '';
         }
     }
 
@@ -334,13 +336,13 @@ if ($next_event):
             <?php endif; ?>
         </div>
 
-        <div class="w-hero__media<?php echo $w_img ? '' : ' w-hero__media--empty'; ?>">
-            <?php if ($w_img): ?>
-                <img src="<?php echo esc_url($w_img); ?>"
-                     alt="<?php echo esc_attr($next_event->title); ?>"
-                     fetchpriority="high" decoding="async">
-            <?php endif; ?>
+        <?php if ($w_img): ?>
+        <div class="w-hero__media">
+            <img src="<?php echo esc_url($w_img); ?>"
+                 alt="<?php echo esc_attr($next_event->title); ?>"
+                 fetchpriority="high" decoding="async">
         </div>
+        <?php endif; ?>
     </section>
 </main>
 
@@ -695,9 +697,9 @@ if ($next_event) {
                         <span class="w-ticket__note"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%s seats left'), number_format_i18n($w_left))); ?></span>
                     <?php endif; ?>
                 </span>
-                <span class="w-ticket__price">
-                    <?php echo $w_price > 0 ? esc_html(sc_currency($w_price)) : esc_html(sc_t('frontend.free', 'Free')); ?>
-                </span>
+                <?php if ($w_price > 0): ?>
+                <span class="w-ticket__price"><?php echo esc_html(sc_currency($w_price)); ?></span>
+                <?php endif; ?>
             </a>
             <?php endforeach; ?>
         </div>

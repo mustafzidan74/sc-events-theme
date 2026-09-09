@@ -68,8 +68,9 @@ if ($start_time) {
     $where[] = $clock;
 }
 
+// 0 means unpriced, not free.
 $price_label = $is_free
-    ? sc_t('frontend.free', 'Free')
+    ? ''
     : sprintf(
         sc_t('frontend.from_price', 'From %s'),
         sc_currency($min_price)
@@ -105,7 +106,7 @@ if ($has_tickets && !$is_past) {
         'href'  => '#tickets',
         'icon'  => 'fa-solid fa-ticket',
         'label' => sc_t('frontend.tickets', 'Tickets'),
-        'sub'   => $price_label,
+        'sub'   => $price_label ?: sc_t('frontend.book_now', 'Book your place'),
         'buy'   => true,
     ];
 }

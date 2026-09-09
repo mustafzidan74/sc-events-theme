@@ -96,11 +96,11 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                 <?php endif; ?>
             </div>
 
-            <span class="w-tk__price<?php echo $price == 0 ? ' w-tk__price--free' : ''; ?>">
-                <?php echo $price == 0
-                    ? esc_html(sc_t('frontend.free', 'Free'))
-                    : esc_html(number_format_i18n($price) . ' ' . $currency); ?>
+            <?php if ($price > 0): ?>
+            <span class="w-tk__price">
+                <?php echo esc_html(number_format_i18n($price) . ' ' . $currency); ?>
             </span>
+            <?php endif; ?>
 
             <div class="w-tk__act">
                 <?php if ($soldout): ?>
@@ -119,7 +119,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                             data-event-id="<?php echo esc_attr($event_id); ?>"
                             data-ticket-id="<?php echo esc_attr($ticket->id); ?>"
                             data-ticket-name="<?php echo esc_attr($ticket->name); ?>">
-                        <?php echo esc_html(sc_t('frontend.register_free', 'Register free')); ?>
+                        <?php echo esc_html(sc_t('frontend.register', 'Register')); ?>
                     </button>
                 <?php else: ?>
                     <button type="button" class="w-btn btn-buy-ticket"

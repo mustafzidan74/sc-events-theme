@@ -234,7 +234,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                 <span class="w-ev__tile-text">
                     <span class="w-ev__tile-label"><?php echo esc_html(sc_t('frontend.tickets', 'Seats')); ?></span>
                     <span class="w-ev__tile-sub"><?php echo $is_free
-                        ? esc_html(sc_t('frontend.free', 'Free'))
+                        ? esc_html(sc_t('frontend.book_now', 'Book your place'))
                         : esc_html(sprintf(sc_t('frontend.from_price', 'From %s'), sc_currency($min_price))); ?></span>
                 </span>
             </a>
@@ -339,11 +339,11 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                     <?php endif; ?>
                 </div>
 
-                <span class="w-tk__price<?php echo $tprice == 0 ? ' w-tk__price--free' : ''; ?>">
-                    <?php echo $tprice == 0
-                        ? esc_html(sc_t('frontend.free', 'Free'))
-                        : esc_html(number_format_i18n($tprice) . ' ' . $currency); ?>
+                <?php if ($tprice > 0): ?>
+                <span class="w-tk__price">
+                    <?php echo esc_html(number_format_i18n($tprice) . ' ' . $currency); ?>
                 </span>
+                <?php endif; ?>
 
                 <div class="w-tk__act">
                     <?php if ($soldout): ?>
@@ -364,7 +364,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                                 data-event-id="<?php echo (int) $workshop->event_id; ?>"
                                 data-ticket-id="<?php echo (int) $ticket->id; ?>"
                                 data-ticket-name="<?php echo esc_attr($ticket->name); ?>">
-                            <?php echo esc_html(sc_t('frontend.register_free', 'Register free')); ?>
+                            <?php echo esc_html(sc_t('frontend.register', 'Register')); ?>
                         </button>
                     <?php else: ?>
                         <button type="button" class="w-btn btn-buy-ticket"
@@ -421,9 +421,9 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
 <div class="w-ev__sticky">
     <span class="w-ev__sticky-text">
         <strong><?php echo esc_html($workshop->title); ?></strong>
-        <span><?php echo $is_free
-            ? esc_html(sc_t('frontend.free', 'Free'))
-            : esc_html(sprintf(sc_t('frontend.from_price', 'From %s'), sc_currency($min_price))); ?></span>
+        <?php if (!$is_free): ?>
+        <span><?php echo esc_html(sprintf(sc_t('frontend.from_price', 'From %s'), sc_currency($min_price))); ?></span>
+        <?php endif; ?>
     </span>
     <a class="w-btn" href="#tickets"><?php echo esc_html(sc_t('frontend.get_ticket', 'Take a seat')); ?></a>
 </div>
