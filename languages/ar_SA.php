@@ -1088,6 +1088,8 @@ return [
     // Settings / الإعدادات
     // ============================================
     'settings' => [
+        'current_password' => 'كلمة المرور الحالية',
+        'enter_current_password' => 'مطلوبة لتغيير كلمة المرور',
         'title' => 'الإعدادات',
         'general_settings' => 'الإعدادات العامة',
         'event_settings' => 'إعدادات الفعالية',

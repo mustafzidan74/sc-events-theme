@@ -26,7 +26,15 @@ if ( ! defined( 'SC_ASSET_VERSION' ) ) {
 	$sc_asset_release = '4.0.0';
 	$sc_asset_stamp   = 0;
 
-	foreach ( array( '/assets/frontend/css/wisdom', '/assets/frontend/js' ) as $sc_asset_dir ) {
+	$sc_asset_dirs = array(
+		'/assets/frontend/css/wisdom',
+		'/assets/frontend/js',
+		'/assets/admin-dashboard/css',
+		'/assets/admin-dashboard/js',
+		'/assets/admin-dashboard/bundles',
+	);
+
+	foreach ( $sc_asset_dirs as $sc_asset_dir ) {
 		foreach ( (array) glob( get_template_directory() . $sc_asset_dir . '/*.{css,js}', GLOB_BRACE ) as $sc_asset_file ) {
 			$sc_asset_stamp = max( $sc_asset_stamp, (int) filemtime( $sc_asset_file ) );
 		}
@@ -34,7 +42,7 @@ if ( ! defined( 'SC_ASSET_VERSION' ) ) {
 
 	define( 'SC_ASSET_VERSION', $sc_asset_stamp ? $sc_asset_release . '.' . $sc_asset_stamp : $sc_asset_release );
 
-	unset( $sc_asset_release, $sc_asset_stamp, $sc_asset_dir, $sc_asset_file );
+	unset( $sc_asset_release, $sc_asset_stamp, $sc_asset_dirs, $sc_asset_dir, $sc_asset_file );
 }
 
 /**

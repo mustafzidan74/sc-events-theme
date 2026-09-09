@@ -176,9 +176,26 @@ function sc_ajax_update_account_settings() {
         }
     }
 
+    // The current password is required first: without it, anyone who reaches an
+    // open session — a borrowed laptop, a stolen cookie — can take the account
+    // over silently. The public account page already asks; this one did not.
     if (!empty($new_password)) {
+        $current_password = isset($_POST['current_password']) ? $_POST['current_password'] : '';
+        $user = get_user_by('ID', $current_user_id);
+
+        if (empty($current_password) || !$user || !wp_check_password($current_password, $user->user_pass, $current_user_id)) {
+            wp_send_json_error(array('message' => __('Current password is incorrect.', 'sc_events')));
+        }
+
+        if (strlen($new_password) < 6) {
+            wp_send_json_error(array('message' => __('New password must be at least 6 characters.', 'sc_events')));
+        }
+
         wp_set_password($new_password, $current_user_id);
-        wp_set_auth_cookie($current_user_id);
+
+        // wp_set_password logs every session out, this one included.
+        wp_set_current_user($current_user_id);
+        wp_set_auth_cookie($current_user_id, true, is_ssl());
     }
 
     wp_send_json_success(array('message' => __('Account settings updated successfully!', 'sc_events')));

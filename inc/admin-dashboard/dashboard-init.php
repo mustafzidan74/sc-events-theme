@@ -164,6 +164,17 @@ class SC_Event_Manager_Dashboard {
         }
 
         if ($dashboard_page) {
+            // WordPress has already decided this request is a 404 — the rewrite
+            // maps to a query var rather than to any post — so every dashboard
+            // page was rendering fine while answering 404. That confuses page
+            // caches, uptime monitors and anything reading the status line.
+            global $wp_query;
+            if (isset($wp_query)) {
+                $wp_query->is_404 = false;
+            }
+            status_header(200);
+            nocache_headers();
+
             // Features page is public (for client presentations)
             if ($dashboard_page === 'features') {
                 $this->load_dashboard_template('features');

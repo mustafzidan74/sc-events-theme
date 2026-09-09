@@ -130,7 +130,7 @@ $t = array(
     </div>
 
     <!-- jQuery -->
-    <script src="<?php echo $assets_url; ?>vendor/jquery.min.js"></script>
+    <script src="<?php echo esc_url($assets_url . 'vendor/jquery/jquery.min.js'); ?>"></script>
     <!-- Bootstrap -->
     <script src="<?php echo $assets_url; ?>vendor/bootstrap/js/bootstrap.min.js"></script>
 

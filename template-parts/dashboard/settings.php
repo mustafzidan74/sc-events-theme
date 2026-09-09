@@ -797,6 +797,11 @@ $site_tagline = get_option('blogdescription');
                                     <p class="text-muted"><?php echo esc_html(sc_t('settings.password_hint', "Leave blank if you don't want to change your password")); ?></p>
 
                                     <div class="form-group">
+                                        <label for="current-password"><?php echo esc_html(sc_t('settings.current_password', 'Current Password')); ?></label>
+                                        <input type="password" class="form-control" id="current-password" name="current_password" autocomplete="current-password" placeholder="<?php echo esc_attr(sc_t('settings.enter_current_password', 'Required to change your password')); ?>">
+                                    </div>
+
+                                    <div class="form-group">
                                         <label for="new-password"><?php echo esc_html(sc_t('settings.new_password', 'New Password')); ?></label>
                                         <input type="password" class="form-control" id="new-password" name="new_password" placeholder="<?php echo esc_attr(sc_t('settings.enter_new_password', 'Enter new password')); ?>">
                                     </div>
@@ -1506,7 +1511,7 @@ jQuery(document).ready(function($) {
                     showAlert(response.data.message || 'Account settings updated successfully!', 'success');
 
                     // Clear password fields
-                    $('#new-password, #confirm-password').val('');
+                    $('#current-password, #new-password, #confirm-password').val('');
 
                     // Reload after 2 seconds if email changed
                     if ($('#email').val() !== '<?php echo esc_js($current_user->user_email); ?>') {
