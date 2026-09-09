@@ -97,3 +97,84 @@
   .w-tile-sm { transition: none; }
   .w-tile-sm:hover { transform: none; }
 }
+
+/* ---- contact ----
+   The form is the page; the ways to reach a human sit beside it, because
+   someone with an urgent ticket question wants the WhatsApp number and not a
+   form. */
+
+.w-contact {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 var(--w-space-6) var(--w-space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-6);
+}
+
+.w-contact__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--w-space-5);
+  align-items: start;
+}
+
+.w-contact__form {
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-xl);
+  background: var(--w-surface);
+  padding: clamp(24px, 3vw, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-5);
+}
+
+.w-contact__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--w-space-4);
+}
+
+.w-contact__area { min-height: 140px; height: auto; padding: var(--w-space-3) var(--w-space-4); resize: vertical; }
+
+.w-contact__side { display: flex; flex-direction: column; gap: var(--w-space-3); }
+
+.w-contact__way {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-4);
+  padding: var(--w-space-4);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  color: var(--w-text);
+  text-decoration: none;
+  transition: border-color var(--w-duration) var(--w-ease);
+}
+
+a.w-contact__way:hover { border-color: var(--w-primary); color: var(--w-text); }
+
+.w-contact__icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--w-radius);
+  background: var(--w-bg);
+  color: var(--w-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.w-contact__way-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.w-contact__way-label { font-size: 0.75rem; color: var(--w-text-3); }
+.w-contact__way-value { font-weight: 600; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+
+@media (max-width: 860px) {
+  .w-contact__grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .w-contact { padding-inline: var(--w-space-4); }
+  .w-contact__pair { grid-template-columns: 1fr; }
+}

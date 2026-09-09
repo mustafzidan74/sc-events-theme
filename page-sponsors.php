@@ -74,7 +74,7 @@ get_template_part('template-parts/public/header', 'public');
     <p><?php echo esc_html(sc_t('frontend.sponsors_lede', 'Every decision-maker in Egyptian dentistry, in one foyer.')); ?></p>
 
     <div class="w-hero__actions" style="margin-top:var(--w-space-6)">
-        <a class="w-hero__cta" href="<?php echo esc_url(home_url('/contact/')); ?>">
+        <a class="w-hero__cta" href="<?php echo esc_url(add_query_arg('subject', rawurlencode(sc_t('frontend.book_a_booth', 'Book a booth')), home_url('/contact/'))); ?>">
             <?php echo esc_html(sc_t('frontend.book_a_booth', 'Book a booth')); ?>
         </a>
     </div>
