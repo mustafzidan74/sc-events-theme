@@ -395,17 +395,17 @@ $w_ev_url = $next_event ? home_url('/event/' . $next_event->slug) : home_url('/e
 $w_tiles = [];
 if ($w_counts['programme']) {
     $w_tiles[] = ['icon' => 'clock', 'label' => sc_t('frontend.programme', 'Programme'),
-        'sub' => sprintf(sc_t('frontend.n_sessions', '%d sessions'), $w_counts['programme']),
+        'sub' => sprintf(sc_t('frontend.n_sessions', '%s sessions'), number_format_i18n($w_counts['programme'])),
         'href' => $w_ev_url . '#schedule'];
 }
 if ($w_counts['speakers']) {
     $w_tiles[] = ['icon' => 'user-group', 'label' => sc_t('frontend.speakers', 'Speakers'),
-        'sub' => sprintf(sc_t('frontend.n_faculty', '%d faculty'), $w_counts['speakers']),
+        'sub' => sprintf(sc_t('frontend.n_faculty', '%s faculty'), number_format_i18n($w_counts['speakers'])),
         'href' => $w_ev_url . '#speakers'];
 }
 if ($w_counts['workshops']) {
     $w_tiles[] = ['icon' => 'wrench', 'label' => sc_t('frontend.workshops', 'Workshops'),
-        'sub' => sprintf(sc_t('frontend.n_hands_on', '%d hands-on'), $w_counts['workshops']),
+        'sub' => sprintf(sc_t('frontend.n_hands_on', '%s hands-on'), number_format_i18n($w_counts['workshops'])),
         'href' => home_url('/workshops/')];
 }
 $w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.my_ticket', 'My ticket'),
@@ -647,7 +647,7 @@ if ($next_event) {
                 ?></span>
                 <span class="w-workshop__foot">
                     <?php if ($w_left > 0): ?>
-                        <span class="w-tag w-tag--teal"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%d seats left'), $w_left)); ?></span>
+                        <span class="w-tag w-tag--teal"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%s seats left'), number_format_i18n($w_left))); ?></span>
                     <?php else: ?>
                         <span class="w-tag"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
                     <?php endif; ?>
@@ -692,7 +692,7 @@ if ($next_event) {
                     <?php if ($w_out): ?>
                         <span class="w-ticket__note"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
                     <?php elseif ($w_left !== null): ?>
-                        <span class="w-ticket__note"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%d seats left'), $w_left)); ?></span>
+                        <span class="w-ticket__note"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%s seats left'), number_format_i18n($w_left))); ?></span>
                     <?php endif; ?>
                 </span>
                 <span class="w-ticket__price">

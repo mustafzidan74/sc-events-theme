@@ -180,7 +180,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                     <span class="w-ev__badge">
                         <span class="w-ev__pulse" aria-hidden="true"></span>
                         <?php printf(
-                            esc_html(_n('%s seat left', '%s seats left', $remaining, 'sc_events')),
+                            esc_html(sc_t('frontend.n_seats_left', '%s seats left')),
                             esc_html(number_format_i18n($remaining))
                         ); ?>
                     </span>
@@ -193,7 +193,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
 
                 <?php if (!$is_past && $days_left > 0): ?>
                     <span class="w-ev__badge"><?php printf(
-                        esc_html(_n('%s day left', '%s days left', $days_left, 'sc_events')),
+                        esc_html(sc_t('frontend.n_days_left', '%s days left')),
                         esc_html(number_format_i18n($days_left))
                     ); ?></span>
                 <?php endif; ?>
@@ -235,7 +235,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
                     <span class="w-ev__tile-label"><?php echo esc_html(sc_t('frontend.tickets', 'Seats')); ?></span>
                     <span class="w-ev__tile-sub"><?php echo $is_free
                         ? esc_html(sc_t('frontend.free', 'Free'))
-                        : esc_html(sprintf(sc_t('frontend.from_price', 'From %s %s'), number_format_i18n($min_price), $currency)); ?></span>
+                        : esc_html(sprintf(sc_t('frontend.from_price', 'From %s'), sc_currency($min_price))); ?></span>
                 </span>
             </a>
             <?php endif; ?>
@@ -304,7 +304,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
             <?php if ($remaining !== null): ?>
             <p class="w-ev__lead" style="font-size:1rem">
                 <?php printf(
-                    esc_html(_n('%s seat left of %s.', '%s seats left of %s.', $remaining, 'sc_events')),
+                    esc_html(sc_t('frontend.n_seats_left_of', '%s seats left of %s.')),
                     esc_html(number_format_i18n($remaining)),
                     esc_html(number_format_i18n($capacity))
                 ); ?>
@@ -423,7 +423,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
         <strong><?php echo esc_html($workshop->title); ?></strong>
         <span><?php echo $is_free
             ? esc_html(sc_t('frontend.free', 'Free'))
-            : esc_html(sprintf(sc_t('frontend.from_price', 'From %s %s'), number_format_i18n($min_price), $currency)); ?></span>
+            : esc_html(sprintf(sc_t('frontend.from_price', 'From %s'), sc_currency($min_price))); ?></span>
     </span>
     <a class="w-btn" href="#tickets"><?php echo esc_html(sc_t('frontend.get_ticket', 'Take a seat')); ?></a>
 </div>

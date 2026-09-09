@@ -71,9 +71,8 @@ if ($start_time) {
 $price_label = $is_free
     ? sc_t('frontend.free', 'Free')
     : sprintf(
-        sc_t('frontend.from_price', 'From %s %s'),
-        number_format_i18n($min_price),
-        sc_t('general.currency_symbol', 'EGP')
+        sc_t('frontend.from_price', 'From %s'),
+        sc_currency($min_price)
     );
 
 $tiles = [];
@@ -148,7 +147,7 @@ if ($has_tickets && !$is_past) {
 
             <?php if (!$is_past && $days_left > 0): ?>
                 <span class="w-ev__badge"><?php printf(
-                    esc_html(_n('%s day left', '%s days left', $days_left, 'sc_events')),
+                    esc_html(sc_t('frontend.n_days_left', '%s days left')),
                     esc_html(number_format_i18n($days_left))
                 ); ?></span>
             <?php endif; ?>

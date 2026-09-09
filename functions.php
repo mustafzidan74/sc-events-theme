@@ -15,7 +15,7 @@ if ( ! defined( '_S_VERSION' ) ) {
 if ( ! defined( 'SC_ASSET_VERSION' ) ) {
 	// Single cache-busting version for every dashboard asset. The header and the
 	// footer both read this, so their script tags can no longer drift apart.
-	define( 'SC_ASSET_VERSION', '3.4.2' );
+	define( 'SC_ASSET_VERSION', '4.0.0' );
 }
 
 /**

@@ -294,7 +294,7 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
         </a>
         <?php endif; ?>
 
-        <button class="w-header__icon" id="sc-theme-toggle" title="<?php esc_attr_e('Toggle theme', 'sc_events'); ?>" aria-label="<?php esc_attr_e('Toggle light/dark theme', 'sc_events'); ?>">
+        <button class="w-header__icon sc-theme-toggle" id="sc-theme-toggle" title="<?php esc_attr_e('Toggle theme', 'sc_events'); ?>" aria-label="<?php esc_attr_e('Toggle light/dark theme', 'sc_events'); ?>">
             <i class="fa-solid fa-sun sc-theme-icon-light" aria-hidden="true"></i>
             <i class="fa-solid fa-moon sc-theme-icon-dark" aria-hidden="true"></i>
         </button>

@@ -123,7 +123,7 @@ $w_base = home_url('/workshops/');
                 <?php endif; ?>
                 <span class="w-workshop__foot">
                     <?php if ($w_left > 0): ?>
-                        <span class="w-tag w-tag--teal"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%d seats left'), $w_left)); ?></span>
+                        <span class="w-tag w-tag--teal"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%s seats left'), number_format_i18n($w_left))); ?></span>
                     <?php else: ?>
                         <span class="w-tag"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
                     <?php endif; ?>

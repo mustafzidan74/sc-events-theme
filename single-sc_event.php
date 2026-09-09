@@ -292,9 +292,8 @@ if (!$is_past && $has_tickets && !$is_registered):
         <span><?php echo $is_free
             ? esc_html(sc_t('frontend.free', 'Free'))
             : esc_html(sprintf(
-                sc_t('frontend.from_price', 'From %s %s'),
-                number_format_i18n($min_price),
-                sc_t('general.currency_symbol', 'EGP')
+                sc_t('frontend.from_price', 'From %s'),
+                sc_currency($min_price)
               )); ?></span>
     </span>
     <a class="w-btn" href="#tickets"><?php echo esc_html(sc_t('frontend.get_ticket', 'Get ticket')); ?></a>

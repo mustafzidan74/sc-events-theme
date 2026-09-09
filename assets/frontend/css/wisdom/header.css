@@ -355,3 +355,18 @@
 @media (prefers-reduced-motion: reduce) {
   .w-footer__links a { transition: none; }
 }
+
+/* When only one logo is configured there is nothing to swap to, and a dark
+   wordmark disappears against a dark header. :only-child is exact: the filter
+   applies solely when no light variant was uploaded. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .w-header__brand .w-logo-dark:only-child,
+  :root:not([data-theme="light"]) .w-footer__brand .w-logo-dark:only-child {
+    filter: brightness(0) invert(1);
+  }
+}
+
+:root[data-theme="dark"] .w-header__brand .w-logo-dark:only-child,
+:root[data-theme="dark"] .w-footer__brand .w-logo-dark:only-child {
+  filter: brightness(0) invert(1);
+}

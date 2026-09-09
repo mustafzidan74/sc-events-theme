@@ -285,17 +285,22 @@ var scPublic = {
     (function() {
         var defaultTheme = (typeof scPublic !== 'undefined' && scPublic.defaultTheme) ? scPublic.defaultTheme : 'dark';
 
+        // Two theming systems are live at once. The legacy stylesheets key off
+        // .sc-dark-theme / .sc-light-theme; the redesign's tokens key off
+        // [data-theme]. Both are set, or the toggle appears to do nothing on
+        // whichever half of the site you happen to be on.
         function applyTheme(theme) {
             $('body').removeClass('sc-dark-theme sc-light-theme').addClass('sc-' + theme + '-theme');
             $('html').removeClass('sc-dark-theme sc-light-theme').addClass('sc-' + theme + '-theme');
+            document.documentElement.setAttribute('data-theme', theme);
         }
 
-        // Apply saved theme on DOM ready
+        // Apply on load, not only when a choice has been saved: the site has a
+        // configured default, and leaving data-theme unset would let the two
+        // halves of the site disagree.
         var saved = null;
         try { saved = localStorage.getItem('sc_theme'); } catch(e) {}
-        if (saved) {
-            applyTheme(saved);
-        }
+        applyTheme(saved || defaultTheme);
 
         // Toggle click handler (desktop + mobile)
         $(document).on('click', '.sc-theme-toggle', function() {

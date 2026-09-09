@@ -461,3 +461,37 @@
    Sponsors page
    ========================================================================== */
 
+
+/* ---- numbers and dates under RTL ----
+   Arabic reverses the visual order of a run like "7–9", so the congress dates
+   rendered as "9–7" — wrong information, not just wrong looks. These elements
+   hold numerals, times and codes, which read left-to-right in every language.
+   `isolate` keeps them positioned correctly in the RTL flow while laying their
+   own contents out LTR. */
+
+[dir="rtl"] .w-hero__date,
+[dir="rtl"] .w-ev__date,
+[dir="rtl"] .w-countdown__value,
+[dir="rtl"] .w-stat__value,
+[dir="rtl"] .w-slot__time,
+[dir="rtl"] .w-pass__code,
+[dir="rtl"] .w-tk__price,
+[dir="rtl"] .w-event__date,
+[dir="rtl"] .w-404__code,
+[dir="rtl"] .w-otp {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Mixed "25 faculty" runs flip their number to the wrong end. Isolating each
+   run keeps the number attached to the word it belongs to, whichever language
+   the label is in. */
+[dir="rtl"] .w-ev__tile-sub,
+[dir="rtl"] .w-tile__sub,
+[dir="rtl"] .w-tk__left,
+[dir="rtl"] .w-face__role,
+[dir="rtl"] .w-venue__hall,
+[dir="rtl"] .w-ev__badge,
+[dir="rtl"] .w-count {
+  unicode-bidi: isolate;
+}
