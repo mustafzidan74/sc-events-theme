@@ -93,8 +93,13 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/home.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <?php endif; ?>
 
-    <?php // utility.css also carries the contact page.
-    if (is_404() || is_page('contact')): ?>
+    <?php /*
+     * utility.css carries the dead ends and the plain-WordPress templates:
+     * the 404, contact, and anything falling through to page.php, single.php
+     * or index.php (privacy, terms, search, archives).
+     */
+    if (is_404() || is_page('contact') || is_singular('post') || is_home()
+        || is_search() || is_archive() || is_page(['privacy-policy', 'terms-and-conditions'])): ?>
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/utility.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
     <?php endif; ?>
 

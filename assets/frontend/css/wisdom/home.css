@@ -797,30 +797,6 @@
    per the slot inventory.
    ========================================================================== */
 
-.w-page-head {
-  max-width: 1360px;
-  margin-inline: auto;
-  padding: clamp(28px, 4vw, 56px) clamp(20px, 3vw, 40px) 0;
-  font-family: var(--w-font);
-  color: var(--w-text);
-}
-
-.w-page-head h1 {
-  margin: 0;
-  font-size: var(--w-h1-size);
-  line-height: var(--w-h1-lh);
-  font-weight: var(--w-h1-weight);
-  letter-spacing: var(--w-h1-ls);
-}
-
-.w-page-head p {
-  margin: var(--w-space-3) 0 0;
-  font-size: var(--w-body-lg-size);
-  line-height: var(--w-body-lg-lh);
-  color: var(--w-text-2);
-  max-width: 60ch;
-}
-
 .w-toolbar {
   display: flex;
   align-items: center;
@@ -858,37 +834,6 @@
 
 .w-count { font-size: var(--w-small-size); color: var(--w-text-2); }
 
-.w-pagination {
-  display: flex;
-  justify-content: center;
-  gap: var(--w-space-2);
-  flex-wrap: wrap;
-  margin-top: clamp(28px, 4vw, 48px);
-}
-
-.w-pagination a,
-.w-pagination span {
-  min-width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding-inline: var(--w-space-3);
-  border: 1px solid var(--w-border);
-  border-radius: var(--w-radius-pill);
-  background: var(--w-surface);
-  color: var(--w-text-2);
-  font-size: var(--w-body-size);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-}
-
-.w-pagination a:hover { border-color: var(--w-primary); color: var(--w-primary); }
-.w-pagination .current { background: var(--w-primary); border-color: var(--w-primary); color: var(--w-on-primary); }
-
-/* On the listing the workshop cards become a grid; on the home they are a rail,
-   so the card itself carries no width of its own here. */
 .w-workshops {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
@@ -976,14 +921,6 @@
 }
 
 .w-profile__links { display: flex; gap: var(--w-space-2); flex-wrap: wrap; }
-
-.w-prose { color: var(--w-text-2); font-size: var(--w-body-size); line-height: 1.75; max-width: 68ch; }
-.w-prose p { margin: 0 0 var(--w-space-4); }
-.w-prose p:last-child { margin-bottom: 0; }
-
-/* ==========================================================================
-   Sponsors page
-   ========================================================================== */
 
 .w-eyebrow {
   margin: 0 0 var(--w-space-3);

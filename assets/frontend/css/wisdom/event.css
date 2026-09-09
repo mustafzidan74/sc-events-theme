@@ -246,14 +246,6 @@
   max-width: 60ch;
 }
 
-.w-prose { color: var(--w-text-2); line-height: 1.7; max-width: 72ch; }
-.w-prose > :first-child { margin-top: 0; }
-.w-prose > :last-child { margin-bottom: 0; }
-.w-prose img { border-radius: var(--w-radius); height: auto; }
-.w-prose a { color: var(--w-primary); }
-
-/* Long descriptions are clamped until asked for — the page has more below it
-   that people should still be able to reach. */
 .w-prose--clamped {
   max-height: 22em;
   overflow: hidden;

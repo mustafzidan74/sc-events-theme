@@ -178,3 +178,53 @@ a.w-contact__way:hover { border-color: var(--w-primary); color: var(--w-text); }
   .w-contact { padding-inline: var(--w-space-4); }
   .w-contact__pair { grid-template-columns: 1fr; }
 }
+
+/* ---- plain WordPress content ----
+   Privacy, Terms and anything else that falls through to the default
+   templates. Narrow measure, because these are read rather than scanned. */
+
+.w-doc {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0 var(--w-space-6) var(--w-space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-5);
+}
+
+.w-doc__meta { font-size: 0.8125rem; color: var(--w-text-3); }
+
+.w-doc .w-prose h2,
+.w-doc .w-prose h3 { color: var(--w-text); letter-spacing: -0.02em; margin-top: 2em; }
+.w-doc .w-prose ul,
+.w-doc .w-prose ol { padding-inline-start: 1.4em; }
+.w-doc .w-prose li { margin-bottom: .4em; }
+.w-doc .w-prose blockquote {
+  margin: 1.5em 0;
+  padding-inline-start: var(--w-space-5);
+  border-inline-start: 3px solid var(--w-border);
+  color: var(--w-text-3);
+}
+
+.w-list { display: flex; flex-direction: column; gap: var(--w-space-3); }
+
+.w-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--w-space-2);
+  padding: var(--w-space-5);
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--w-duration) var(--w-ease);
+}
+
+.w-list__item:hover { border-color: var(--w-primary); color: inherit; }
+.w-list__title { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; }
+.w-list__excerpt { margin: 0; color: var(--w-text-2); font-size: 0.9375rem; }
+
+@media (max-width: 560px) {
+  .w-doc { padding-inline: var(--w-space-4); }
+}
