@@ -12,6 +12,14 @@
     // session keeps firing a request every 5 seconds for the life of the tab.
     const MAX_CONSECUTIVE_FAILURES = 3;
 
+    // A badge count does not need answering every five seconds all day. Poll
+    // quickly while something is actually happening, then ease off — an idle
+    // open tab drops from about 720 requests an hour to 120, and every one of
+    // those is a full WordPress boot.
+    const POLL_FAST = 5000;
+    const POLL_SLOW = 30000;
+    const QUIET_CHECKS_BEFORE_BACKOFF = 6;
+
     class SCAdminChatNotifications {
         constructor() {
             this.ajaxUrl = scAdminChatConfig.ajaxUrl;
@@ -21,6 +29,8 @@
             this.pollingInterval = null;
             this.consecutiveFailures = 0;
             this.pollingDisabled = false;
+            this.quietChecks = 0;
+            this.pollDelay = POLL_FAST;
             this.isOnChatPage = window.location.pathname.endsWith('/chat') || window.location.pathname.endsWith('/chat/') || window.location.href.includes('page=chat');
             this.notificationPermissionRequested = false;
 
@@ -40,6 +50,8 @@
                 }
 
                 if (document.visibilityState === 'visible') {
+                    this.quietChecks = 0;
+                    this.pollDelay = POLL_FAST;
                     this.checkUnreadCount();
                     this.startPolling();
                 } else {
@@ -232,6 +244,13 @@
                     if (newCount > this.lastUnreadCount && this.lastUnreadCount !== 0) {
                         // New message arrived!
                         this.onNewMessage(newCount - this.lastUnreadCount);
+                    }
+
+                    if (newCount !== this.lastUnreadCount) {
+                        this.quietChecks = 0;
+                        this.setPollDelay(POLL_FAST);
+                    } else if (++this.quietChecks >= QUIET_CHECKS_BEFORE_BACKOFF) {
+                        this.setPollDelay(POLL_SLOW);
                     }
 
                     this.lastUnreadCount = newCount;
@@ -459,10 +478,23 @@
                 return;
             }
 
-            // Poll every 5 seconds
             this.pollingInterval = setInterval(() => {
                 this.checkUnreadCount();
-            }, 5000);
+            }, this.pollDelay);
+        }
+
+        setPollDelay(delay) {
+            if (this.pollDelay === delay) {
+                return;
+            }
+
+            this.pollDelay = delay;
+
+            // setInterval keeps its original period, so it has to be rebuilt.
+            if (this.pollingInterval) {
+                this.stopPolling();
+                this.startPolling();
+            }
         }
 
         stopPolling() {
