@@ -120,12 +120,13 @@ class SC_Speaker {
         $table = self::get_table();
 
         $defaults = array(
-            'status'  => 'active',
-            'search'  => null,
-            'orderby' => 'name',
-            'order'   => 'ASC',
-            'limit'   => 50,
-            'offset'  => 0,
+            'is_active' => 1,
+            'status'    => null,
+            'search'    => null,
+            'orderby'   => 'name',
+            'order'     => 'ASC',
+            'limit'     => 50,
+            'offset'    => 0,
         );
 
         $args = wp_parse_args($args, $defaults);
@@ -133,9 +134,18 @@ class SC_Speaker {
         $where = array('1=1');
         $values = array();
 
-        if ($args['status']) {
-            $where[] = 'status = %s';
-            $values[] = $args['status'];
+        // The table has is_active, not status — filtering on status matched no
+        // column, so this method returned nothing at all. Callers written
+        // against the old name still work: 'active' and 'inactive' map across.
+        // Pass is_active => null to include everyone.
+        $is_active = $args['is_active'];
+        if ($args['status'] !== null) {
+            $is_active = $args['status'] === 'active' ? 1 : 0;
+        }
+
+        if ($is_active !== null) {
+            $where[] = 'is_active = %d';
+            $values[] = (int) $is_active;
         }
 
         if ($args['search']) {
@@ -148,7 +158,7 @@ class SC_Speaker {
 
         $where_clause = implode(' AND ', $where);
 
-        $allowed_orderby = array('id', 'name', 'company', 'created_at');
+        $allowed_orderby = array('id', 'name', 'company', 'created_at', 'display_order');
         $orderby = in_array($args['orderby'], $allowed_orderby) ? $args['orderby'] : 'name';
 
         $order = strtoupper($args['order']) === 'DESC' ? 'DESC' : 'ASC';

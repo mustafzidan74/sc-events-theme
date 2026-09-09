@@ -240,7 +240,7 @@ function sc_get_dashboard_stats() {
     // Get stats from custom tables
     $total_events = class_exists('SC_Event') ? SC_Event::count() : 0;
     $total_attendees = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}sc_attendees WHERE status = 'active'");
-    $total_speakers = class_exists('SC_Speaker') ? count(SC_Speaker::get_all(array('status' => null, 'limit' => 100000))) : 0;
+    $total_speakers = class_exists('SC_Speaker') ? count(SC_Speaker::get_all(array('is_active' => null, 'limit' => 100000))) : 0;
 
     // Revenue
     $total_revenue = $wpdb->get_var("
