@@ -374,6 +374,16 @@
   filter: brightness(0) invert(1);
 }
 
+/* The WhatsApp button is pinned with a physical `left`, which does not flip,
+   while the chat launcher moves to the left under RTL — so in Arabic the two
+   sat on top of each other. Mirror WhatsApp to the right there, which is where
+   the chat launcher sits in English, keeping them on opposite sides either
+   way. */
+[dir="rtl"] .whatsapp-float {
+  left: auto !important;
+  right: 25px !important;
+}
+
 /* On a narrow phone the header ran out of room: the Get tickets pill and the
    burger behind it were pushed past the right edge, which left no way to open
    the menu at all. The pill is the one that can go — it points at Events,
