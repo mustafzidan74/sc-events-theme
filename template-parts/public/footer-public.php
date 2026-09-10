@@ -345,9 +345,20 @@ var scPublic = {
         // Apply on load, not only when a choice has been saved: the site has a
         // configured default, and leaving data-theme unset would let the two
         // halves of the site disagree.
+        //
+        // A stored choice only counts while a switcher is on the page. With the
+        // switcher held back, anyone who had once picked dark would otherwise
+        // be stuck in it with no way out, so the stored value is dropped and
+        // the configured default wins.
+        var hasToggle = !!document.querySelector('.sc-theme-toggle');
         var saved = null;
-        try { saved = localStorage.getItem('sc_theme'); } catch(e) {}
-        applyTheme(saved || defaultTheme);
+
+        try {
+            saved = localStorage.getItem('sc_theme');
+            if (!hasToggle && saved) { localStorage.removeItem('sc_theme'); saved = null; }
+        } catch(e) {}
+
+        applyTheme((hasToggle && saved) || defaultTheme);
 
         // Toggle click handler (desktop + mobile)
         $(document).on('click', '.sc-theme-toggle', function() {

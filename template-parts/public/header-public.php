@@ -297,10 +297,20 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
         </a>
         <?php endif; ?>
 
+        <?php
+        /*
+         * The theme switcher is held back for now, the same way the language
+         * one is: the site runs on whichever theme sc_default_theme names.
+         * Set sc_show_theme_toggle to 1 to bring it back — the dark palette is
+         * still there and still maintained, it just is not offered.
+         */
+        if (get_option('sc_show_theme_toggle', '')):
+        ?>
         <button class="w-header__icon sc-theme-toggle" id="sc-theme-toggle" title="<?php esc_attr_e('Toggle theme', 'sc_events'); ?>" aria-label="<?php esc_attr_e('Toggle light/dark theme', 'sc_events'); ?>">
             <i class="fa-solid fa-sun sc-theme-icon-light" aria-hidden="true"></i>
             <i class="fa-solid fa-moon sc-theme-icon-dark" aria-hidden="true"></i>
         </button>
+        <?php endif; ?>
 
         <?php
         /*
@@ -368,10 +378,12 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
             <span style="color: var(--sc-text-primary); font-weight: 700;"><?php echo esc_html($platform_name); ?></span>
         <?php endif; ?>
         <div style="display:flex; align-items:center; gap:8px;">
+            <?php if (get_option('sc_show_theme_toggle', '')): ?>
             <button class="sc-theme-toggle sc-theme-toggle-mobile" title="<?php esc_attr_e('Toggle theme', 'sc_events'); ?>" aria-label="<?php esc_attr_e('Toggle light/dark theme', 'sc_events'); ?>">
                 <i class="fa-solid fa-sun sc-theme-icon-light"></i>
                 <i class="fa-solid fa-moon sc-theme-icon-dark"></i>
             </button>
+            <?php endif; ?>
             <button class="sc-mobile-close" id="sc-mobile-close">
                 <i class="fa-solid fa-xmark"></i>
             </button>
