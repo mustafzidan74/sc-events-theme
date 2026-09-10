@@ -373,3 +373,85 @@
 :root[data-theme="dark"] .w-footer__brand img {
   filter: brightness(0) invert(1);
 }
+
+/* On a narrow phone the header ran out of room: the Get tickets pill and the
+   burger behind it were pushed past the right edge, which left no way to open
+   the menu at all. The pill is the one that can go — it points at Events,
+   which the tab bar now carries — and losing it brings the burger back on
+   screen. */
+@media (max-width: 560px) {
+  .w-header__cta { display: none; }
+}
+
+/* ---- mobile tab bar ----
+   Below 992px the header trades its nav for a burger, so the three main
+   destinations plus the pass sit here instead, within thumb reach.
+
+   --w-tabbar-total is the bar's real occupied height, safe area included, and
+   everything else pinned to the bottom of the viewport is offset by it: the
+   WhatsApp button, back-to-top, the event page's buy bar and the page itself.
+   Stating the height once is the point — the first attempt used content-box,
+   so the bar rendered 99px while the offsets still assumed 76 and all three
+   overlapped it. On desktop the variable is 0 and nothing moves. */
+
+:root {
+  --w-tabbar-h: 0px;
+  --w-tabbar-total: 0px;
+}
+
+.w-tabbar { display: none; }
+
+@media (max-width: 991px) {
+  :root {
+    --w-tabbar-h: 76px;
+    --w-tabbar-total: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .w-tabbar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    box-sizing: border-box;
+    height: var(--w-tabbar-total);
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--w-surface) 94%, transparent);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--w-border);
+  }
+
+  .w-tabbar__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 14px;
+    text-decoration: none;
+    color: var(--w-text-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .w-tabbar__item i { font-size: 1.25rem; }
+  .w-tabbar__item[aria-current="page"] { color: var(--w-primary); }
+  .w-tabbar__item:hover { color: var(--w-primary); }
+
+  body { padding-bottom: var(--w-tabbar-total); }
+
+  /* The floating buttons clear the bar. On an event or workshop page the buy
+     bar stacks in between, so they clear that too — otherwise the WhatsApp
+     button lands on top of the event title. */
+  .whatsapp-float  { bottom: calc(var(--w-bottom-stack) + 20px) !important; }
+  #back-to-top     { bottom: calc(var(--w-bottom-stack) + 24px) !important; }
+  #sc-chat-toggle  { bottom: calc(var(--w-bottom-stack) + 16px) !important; }
+
+  :root { --w-bottom-stack: var(--w-tabbar-total); }
+
+  body:has(.w-ev__sticky) {
+    --w-bottom-stack: calc(var(--w-tabbar-total) + 69px);
+  }
+}

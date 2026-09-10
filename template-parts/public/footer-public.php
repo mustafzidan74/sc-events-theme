@@ -104,6 +104,53 @@ $w_social = array_filter([
 </div>
 <?php endif; ?>
 
+<?php
+/*
+ * Mobile tab bar. The header hides its nav below 992px and offers a burger
+ * instead; this puts the same three destinations one thumb-reach away, plus
+ * the pass, which is what people actually open once they are at the venue.
+ *
+ * The design's fourth slot is Register. Here it is My ticket, because the
+ * header keeps its Get tickets button visible on phones — a second one would
+ * be the redundant thing, and nothing else surfaces the QR in one tap.
+ */
+$sc_tabbar = [
+    [
+        'href'  => home_url('/'),
+        'icon'  => 'fa-solid fa-house',
+        'label' => sc_t('frontend.home', 'Home'),
+        'on'    => is_front_page(),
+    ],
+    [
+        'href'  => home_url('/events/'),
+        'icon'  => 'fa-regular fa-calendar',
+        'label' => sc_t('frontend.events', 'Events'),
+        'on'    => is_page('events') || is_post_type_archive('sc_event') || (bool) get_query_var('sc_event_slug'),
+    ],
+    [
+        'href'  => home_url('/speakers/'),
+        'icon'  => 'fa-regular fa-user',
+        'label' => sc_t('frontend.speakers', 'Speakers'),
+        'on'    => is_page('speakers') || (bool) get_query_var('sc_speaker_slug'),
+    ],
+    [
+        'href'  => is_user_logged_in() ? home_url('/my-account/') : home_url('/login/'),
+        'icon'  => 'fa-solid fa-ticket',
+        'label' => sc_t('frontend.my_ticket', 'My ticket'),
+        'on'    => is_page(['my-account', 'login']),
+    ],
+];
+?>
+<nav class="w-tabbar" aria-label="<?php echo esc_attr(sc_t('frontend.primary', 'Primary')); ?>">
+    <?php foreach ($sc_tabbar as $sc_tab): ?>
+    <a class="w-tabbar__item" href="<?php echo esc_url($sc_tab['href']); ?>"
+       <?php echo $sc_tab['on'] ? 'aria-current="page"' : ''; ?>>
+        <i class="<?php echo esc_attr($sc_tab['icon']); ?>" aria-hidden="true"></i>
+        <span><?php echo esc_html($sc_tab['label']); ?></span>
+    </a>
+    <?php endforeach; ?>
+</nav>
+
 <!--===== BACK TO TOP =======-->
 <div id="back-to-top" title="Back to top">
     <a href="#" aria-label="Back to top"><i class="fa-solid fa-arrow-up"></i></a>
