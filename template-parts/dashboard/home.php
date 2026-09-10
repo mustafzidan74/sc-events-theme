@@ -276,19 +276,19 @@ $top_events = $wpdb->get_results(
                         <div class="row">
                             <div class="col-md-3 col-6 text-center border-right">
                                 <h5 class="mb-0 text-success"><?php echo $today_attendees; ?></h5>
-                                <small class="text-muted"><?php echo sc_t('dashboard_pages.today_registrations', "Today's Registrations"); ?></small>
+                                <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.today_registrations', "Today's Registrations"); ?></small>
                             </div>
                             <div class="col-md-3 col-6 text-center border-right">
                                 <h5 class="mb-0 text-primary"><?php echo $currency_symbol . number_format($today_revenue, 0); ?></h5>
-                                <small class="text-muted"><?php echo sc_t('dashboard_pages.today_revenue', "Today's Revenue"); ?></small>
+                                <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.today_revenue', "Today's Revenue"); ?></small>
                             </div>
                             <div class="col-md-3 col-6 text-center border-right">
                                 <h5 class="mb-0 text-info"><?php echo $today_checkins; ?></h5>
-                                <small class="text-muted"><?php echo sc_t('dashboard_pages.today_checkins', "Today's Check-ins"); ?></small>
+                                <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.today_checkins', "Today's Check-ins"); ?></small>
                             </div>
                             <div class="col-md-3 col-6 text-center">
                                 <h5 class="mb-0 text-warning"><?php echo $upcoming_events_count; ?></h5>
-                                <small class="text-muted"><?php echo $t['upcoming_events']; ?></small>
+                                <small class="text-muted sc-stat-caption"><?php echo $t['upcoming_events']; ?></small>
                             </div>
                         </div>
                     </div>
@@ -366,7 +366,7 @@ $top_events = $wpdb->get_results(
                             <div>
                                 <span class="text-uppercase text-muted"><?php echo sc_t('nav.certificates', 'Certificates'); ?></span>
                                 <h3 class="mb-0 mt-2"><?php echo $total_certificates; ?></h3>
-                                <small class="text-muted"><i class="fa fa-certificate"></i> <?php echo sc_t('dashboard_pages.issued', 'Issued'); ?></small>
+                                <small class="text-muted sc-stat-caption"><i class="fa fa-certificate"></i> <?php echo sc_t('dashboard_pages.issued', 'Issued'); ?></small>
                             </div>
                             <div class="icon-in-bg bg-info text-white rounded">
                                 <i class="fa fa-certificate fa-2x"></i>
@@ -387,8 +387,8 @@ $top_events = $wpdb->get_results(
                 <div class="card text-center">
                     <div class="body">
                         <i class="fa fa-microphone fa-2x text-primary mb-2"></i>
-                        <h4 class="mb-0"><?php echo $total_speakers; ?></h4>
-                        <small class="text-muted"><?php echo sc_t('nav.speakers', 'Speakers'); ?></small>
+                        <h4 class="mb-0 sc-stat-figure"><?php echo esc_html(number_format_i18n((int) $total_speakers)); ?></h4>
+                        <small class="text-muted sc-stat-caption"><?php echo sc_t('nav.speakers', 'Speakers'); ?></small>
                     </div>
                 </div>
             </div>
@@ -396,8 +396,8 @@ $top_events = $wpdb->get_results(
                 <div class="card text-center">
                     <div class="body">
                         <i class="fa fa-building fa-2x text-success mb-2"></i>
-                        <h4 class="mb-0"><?php echo $total_organizers; ?></h4>
-                        <small class="text-muted"><?php echo sc_t('dashboard_pages.organizers', 'Organizers'); ?></small>
+                        <h4 class="mb-0 sc-stat-figure"><?php echo esc_html(number_format_i18n((int) $total_organizers)); ?></h4>
+                        <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.organizers', 'Organizers'); ?></small>
                     </div>
                 </div>
             </div>
@@ -406,8 +406,8 @@ $top_events = $wpdb->get_results(
                 <div class="card text-center">
                     <div class="body">
                         <i class="fa fa-ticket fa-2x text-warning mb-2"></i>
-                        <h4 class="mb-0"><?php echo $total_coupons; ?></h4>
-                        <small class="text-muted"><?php echo sc_t('dashboard_pages.active_coupons', 'Active Coupons'); ?></small>
+                        <h4 class="mb-0 sc-stat-figure"><?php echo esc_html(number_format_i18n((int) $total_coupons)); ?></h4>
+                        <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.active_coupons', 'Active Coupons'); ?></small>
                     </div>
                 </div>
             </div>
@@ -416,8 +416,8 @@ $top_events = $wpdb->get_results(
                 <div class="card text-center">
                     <div class="body">
                         <i class="fa fa-calendar-check-o fa-2x text-info mb-2"></i>
-                        <h4 class="mb-0"><?php echo $upcoming_events_count; ?></h4>
-                        <small class="text-muted"><?php echo sc_t('dashboard_pages.upcoming', 'Upcoming'); ?></small>
+                        <h4 class="mb-0 sc-stat-figure"><?php echo esc_html(number_format_i18n((int) $upcoming_events_count)); ?></h4>
+                        <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.upcoming', 'Upcoming'); ?></small>
                     </div>
                 </div>
             </div>
@@ -425,8 +425,8 @@ $top_events = $wpdb->get_results(
                 <div class="card text-center">
                     <div class="body">
                         <i class="fa fa-history fa-2x text-secondary mb-2"></i>
-                        <h4 class="mb-0"><?php echo $past_events_count; ?></h4>
-                        <small class="text-muted"><?php echo sc_t('dashboard_pages.past_events', 'Past Events'); ?></small>
+                        <h4 class="mb-0 sc-stat-figure"><?php echo esc_html(number_format_i18n((int) $past_events_count)); ?></h4>
+                        <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.past_events', 'Past Events'); ?></small>
                     </div>
                 </div>
             </div>
@@ -434,8 +434,8 @@ $top_events = $wpdb->get_results(
                 <div class="card text-center">
                     <div class="body">
                         <i class="fa fa-qrcode fa-2x text-dark mb-2"></i>
-                        <h4 class="mb-0"><?php echo $checked_in_count; ?></h4>
-                        <small class="text-muted"><?php echo sc_t('dashboard_pages.checkins', 'Check-ins'); ?></small>
+                        <h4 class="mb-0 sc-stat-figure"><?php echo esc_html(number_format_i18n((int) $checked_in_count)); ?></h4>
+                        <small class="text-muted sc-stat-caption"><?php echo sc_t('dashboard_pages.checkins', 'Check-ins'); ?></small>
                     </div>
                 </div>
             </div>
@@ -471,7 +471,7 @@ $top_events = $wpdb->get_results(
                                                 <div class="font-weight-bold text-truncate" style="max-width: 200px;">
                                                     <?php echo esc_html($event->title); ?>
                                                 </div>
-                                                <small class="text-muted">
+                                                <small class="text-muted sc-stat-caption">
                                                     <?php echo (int)$event->attendee_count; ?> <?php echo ((int)$event->attendee_count === 1) ? sc_t('dashboard_pages.attendee', 'attendee') : sc_t('dashboard_pages.attendees', 'attendees'); ?> |
                                                     <?php echo $currency_symbol . number_format((float)$event->revenue, 0); ?>
                                                 </small>
@@ -509,7 +509,7 @@ $top_events = $wpdb->get_results(
                                             <tr>
                                                 <td>
                                                     <strong><?php echo esc_html($event->title); ?></strong><br>
-                                                    <small class="text-muted">
+                                                    <small class="text-muted sc-stat-caption">
                                                         <i class="fa fa-clock-o"></i> <?php echo date('M j, Y', strtotime($event->start_date)); ?>
                                                         <?php if ($event->start_time): ?>
                                                             <?php echo sc_t('dashboard_pages.at', 'at'); ?> <?php echo date('g:i A', strtotime($event->start_time)); ?>
@@ -574,7 +574,7 @@ $top_events = $wpdb->get_results(
                                                         </div>
                                                         <div>
                                                             <strong><?php echo esc_html($attendee->name); ?></strong><br>
-                                                            <small class="text-muted"><?php echo esc_html($attendee->event_title); ?></small>
+                                                            <small class="text-muted sc-stat-caption"><?php echo esc_html($attendee->event_title); ?></small>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -586,7 +586,7 @@ $top_events = $wpdb->get_results(
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="text-right">
-                                                    <small class="text-muted"><?php echo sc_time_ago($attendee->created_at); ?></small>
+                                                    <small class="text-muted sc-stat-caption"><?php echo sc_time_ago($attendee->created_at); ?></small>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>

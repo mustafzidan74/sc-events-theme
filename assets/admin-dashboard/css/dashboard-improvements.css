@@ -537,3 +537,26 @@ table .btn-group button {
     align-items: center;
     justify-content: center;
 }
+/* ---- summary tiles ----
+   These sit six to a row in col-lg-2, which leaves very little width once the
+   sidebar is open. A figure split across lines ("259" / "91") reads as two
+   numbers, and a caption broken as "Speaker" / "s" reads as a typo, so neither
+   is allowed to break inside a word. The figure may shrink instead. */
+
+.sc-stat-figure {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.05rem, 1.6vw, 1.5rem);
+}
+
+/* No display change here: four of these captions sit inside table cells, and
+   the figure above is already a block, so the caption starts its own line
+   without help. These rules only stop mid-word breaks. */
+.sc-stat-caption {
+  overflow-wrap: break-word;
+  word-break: keep-all;
+  hyphens: none;
+  line-height: 1.3;
+}
