@@ -538,25 +538,23 @@ table .btn-group button {
     justify-content: center;
 }
 /* ---- summary tiles ----
-   These sit six to a row in col-lg-2, which leaves very little width once the
-   sidebar is open. A figure split across lines ("259" / "91") reads as two
-   numbers, and a caption broken as "Speaker" / "s" reads as a typo, so neither
-   is allowed to break inside a word. The figure may shrink instead. */
+   Bootstrap sets word-wrap: break-word on .card, and these tiles sit six to a
+   row in col-lg-2, so with the sidebar open a word wider than the column gets
+   split mid-way: "259" over "91" reads as two numbers, and a caption broken as
+   "Speaker" over "s" reads as a typo. Both opt back out — the figure by never
+   wrapping at all and shrinking instead, the caption by keeping whole words
+   and wrapping between them. */
 
-.sc-stat-figure {
+.card .body .sc-stat-figure {
   white-space: nowrap;
   overflow-wrap: normal;
-  word-break: keep-all;
   font-variant-numeric: tabular-nums;
   font-size: clamp(1.05rem, 1.6vw, 1.5rem);
 }
 
-/* No display change here: four of these captions sit inside table cells, and
-   the figure above is already a block, so the caption starts its own line
-   without help. These rules only stop mid-word breaks. */
-.sc-stat-caption {
-  overflow-wrap: break-word;
-  word-break: keep-all;
+.card .body .sc-stat-caption {
+  overflow-wrap: normal;
+  word-break: normal;
   hyphens: none;
   line-height: 1.3;
 }
