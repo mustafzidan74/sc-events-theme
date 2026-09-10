@@ -1004,8 +1004,18 @@ function sc_ajax_switch_language() {
     }
 
     if (sc_set_lang($lang)) {
-        // Also update site-wide language setting
-        update_option('sc_site_language', $lang);
+        /*
+         * sc_set_lang stores the choice against this visitor — a cookie, plus
+         * user meta when signed in. It used to also write sc_site_language,
+         * which is the site-wide setting and outranks every per-visitor
+         * source: one person clicking the button in the header switched the
+         * language of the whole site for everybody. Only someone who can
+         * manage options gets to do that.
+         */
+        if (current_user_can('manage_options')) {
+            update_option('sc_site_language', $lang);
+        }
+
         wp_send_json_success(['language' => $lang, 'message' => 'Language switched successfully']);
     } else {
         wp_send_json_error(['message' => 'Invalid language code']);

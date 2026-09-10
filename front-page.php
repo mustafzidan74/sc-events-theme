@@ -572,23 +572,8 @@ if (!$w_speakers) {
 </section>
 
 <script>
-// Rail arrows scroll by one card width plus its gap.
-(function () {
-    var rail = document.getElementById('w-speaker-rail');
-    if (!rail) { return; }
-    var head = rail.previousElementSibling;
-    head.querySelectorAll('[data-rail]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var card = rail.firstElementChild;
-            if (!card) { return; }
-            var step = card.getBoundingClientRect().width + 14;
-            var dir = btn.dataset.rail === 'next' ? 1 : -1;
-            // Right-to-left pages scroll in the opposite direction.
-            if (getComputedStyle(rail).direction === 'rtl') { dir *= -1; }
-            rail.scrollBy({ left: step * dir, behavior: 'smooth' });
-        });
-    });
-})();
+// Rail behaviour now lives in wisdom-rail.js, which drives every rail on the
+// site rather than this one.
 </script>
 <?php endif; ?>
 <?php

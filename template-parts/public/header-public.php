@@ -82,6 +82,9 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <!-- Redesign: header and footer shell. -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/wisdom/header.css?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>">
 
+    <?php // Card rails behave as sliders: arrows, drag, end states. ?>
+    <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-rail.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
+
     <?php
     /*
      * Page-specific — the legacy stylesheets load on every page regardless;
@@ -299,13 +302,23 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
             <i class="fa-solid fa-moon sc-theme-icon-dark" aria-hidden="true"></i>
         </button>
 
-        <?php $w_next_lang = sc_get_lang() === 'ar' ? 'en' : 'ar'; ?>
+        <?php
+        /*
+         * The switcher only appears when the site is not pinned to one
+         * language. Setting sc_site_language overrides every other source, so
+         * offering a toggle that the next page load would undo would just be
+         * confusing. Clear that option and the button comes back.
+         */
+        if (!get_option('sc_site_language', '')):
+            $w_next_lang = sc_get_lang() === 'ar' ? 'en' : 'ar';
+        ?>
         <button type="button" class="w-header__icon" id="w-lang-toggle"
                 data-lang="<?php echo esc_attr($w_next_lang); ?>"
                 data-nonce="<?php echo esc_attr(wp_create_nonce('sc_language_switch')); ?>"
                 title="<?php esc_attr_e('Switch language', 'sc_events'); ?>">
             <?php echo esc_html($w_next_lang === 'en' ? 'EN' : 'ع'); ?>
         </button>
+        <?php endif; ?>
 
         <a href="<?php echo esc_url(home_url('/events/')); ?>" class="w-header__cta">
             <?php echo esc_html(sc_t('frontend.get_tickets', 'Get tickets')); ?>

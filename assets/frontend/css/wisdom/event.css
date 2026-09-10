@@ -351,8 +351,11 @@
   background: var(--w-surface);
   border: 1px solid var(--w-border);
   overflow-x: auto;
+  scrollbar-width: none;
   max-width: 100%;
 }
+
+.w-days::-webkit-scrollbar { display: none; }
 
 .w-days button {
   height: 40px;
@@ -400,6 +403,9 @@
 }
 
 .w-slot__list::-webkit-scrollbar { display: none; }
+
+.w-slot__list.is-dragging { cursor: grabbing; scroll-behavior: auto; scroll-snap-type: none; }
+.w-slot__list.is-dragging * { pointer-events: none; }
 
 .w-ses {
   flex: 0 0 min(100%, 380px);

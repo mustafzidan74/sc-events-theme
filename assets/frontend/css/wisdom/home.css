@@ -274,11 +274,16 @@
   scroll-behavior: smooth;
   padding: 4px 4px 8px;
   margin-inline: -4px;
-  scrollbar-width: thin;
+  /* Driven by arrows and dragging now, so the scrollbar is just noise across
+     the middle of the page. Touch still scrolls it natively. */
+  scrollbar-width: none;
+  cursor: grab;
 }
 
-.w-rail::-webkit-scrollbar { height: 6px; }
-.w-rail::-webkit-scrollbar-thumb { background: var(--w-border); border-radius: 999px; }
+.w-rail::-webkit-scrollbar { display: none; }
+
+.w-rail.is-dragging { cursor: grabbing; scroll-behavior: auto; scroll-snap-type: none; }
+.w-rail.is-dragging * { pointer-events: none; }
 
 .w-rail__nav { display: flex; gap: var(--w-space-2); }
 
@@ -298,6 +303,10 @@
 
 .w-rail__btn:hover { border-color: var(--w-primary); color: var(--w-primary); }
 .w-rail__btn:focus-visible { outline: 2px solid var(--w-focus); outline-offset: 2px; }
+
+/* An arrow with nowhere left to go says so rather than doing nothing. */
+.w-rail__btn[disabled] { opacity: .35; cursor: default; }
+.w-rail__btn[disabled]:hover { border-color: var(--w-border); color: var(--w-text-2); }
 
 @media (max-width: 640px) { .w-rail__nav { display: none; } }
 
