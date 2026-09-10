@@ -304,6 +304,7 @@ require get_template_directory() . '/inc/public-frontend/certificate-public.php'
  * Speaker URLs — speakers live in the custom table, so WordPress cannot route
  * to them without help.
  */
+require get_template_directory() . '/inc/public-frontend/view-helpers.php';
 require get_template_directory() . '/inc/public-frontend/speaker-routing.php';
 
 /**

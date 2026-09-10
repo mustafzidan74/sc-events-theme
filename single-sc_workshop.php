@@ -71,18 +71,10 @@ $banner_url   = $workshop->banner_image ? wp_get_attachment_image_url($workshop-
 $featured_url = $workshop->featured_image ? wp_get_attachment_url($workshop->featured_image) : '';
 $hero_bg      = $banner_url ?: $featured_url;
 
-$has_tickets = false;
-$min_price   = 0;
-$is_free     = true;
-foreach ($tickets as $t) {
-    if (!$t->is_active) { continue; }
-    $has_tickets = true;
-    $p = (float) $t->price;
-    if ($p > 0) {
-        $is_free = false;
-        if ($min_price == 0 || $p < $min_price) { $min_price = $p; }
-    }
-}
+$pricing     = sc_ticket_pricing($tickets);
+$has_tickets = $pricing['has_tickets'];
+$is_free     = $pricing['is_free'];
+$min_price   = $pricing['min_price'];
 
 $end_dt = $workshop->end_date ?: $workshop->start_date;
 if ($workshop->end_time) { $end_dt .= ' ' . $workshop->end_time; }
@@ -103,15 +95,7 @@ $capacity  = (int) $workshop->total_capacity;
 $sold      = (int) $workshop->total_sold;
 $remaining = $capacity > 0 ? max(0, $capacity - $sold) : null;
 
-$s = strtotime($workshop->start_date);
-$e = $workshop->end_date ? strtotime($workshop->end_date) : $s;
-if ($s === $e) {
-    $big_date = date_i18n('j M', $s);
-} elseif (date('Y-m', $s) === date('Y-m', $e)) {
-    $big_date = date_i18n('j', $s) . '–' . date_i18n('j M', $e);
-} else {
-    $big_date = date_i18n('j M', $s) . ' – ' . date_i18n('j M', $e);
-}
+$big_date = sc_date_range($workshop->start_date, $workshop->end_date);
 
 $start_ts  = strtotime($workshop->start_date . ' ' . ($workshop->start_time ?: '00:00:00'));
 $days_left = (int) ceil(($start_ts - current_time('timestamp')) / DAY_IN_SECONDS);
@@ -130,20 +114,7 @@ if ($workshop->start_time) {
 
 $currency = sc_t('general.currency_symbol', 'EGP');
 
-$gateway_names = [
-    'paymob'     => sc_t('frontend.gateway_paymob', 'Cards & wallets'),
-    'stripe'     => sc_t('frontend.gateway_stripe', 'Cards'),
-    'kashier'    => sc_t('frontend.gateway_kashier', 'Kashier'),
-    'myfatoorah' => sc_t('frontend.gateway_myfatoorah', 'MyFatoorah'),
-];
-$live_gateways = [];
-foreach ($gateway_names as $key => $label) {
-    $settings = get_option('sc_gateway_' . $key);
-    if (is_array($settings) && !empty($settings['enabled'])) {
-        $live_gateways[] = $label;
-    }
-}
-$live_gateways = array_values(array_unique($live_gateways));
+$live_gateways = sc_live_gateways();
 
 $show_buy = $has_tickets && !$is_past && !$is_registered;
 ?>
@@ -320,76 +291,14 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
         <?php endif; ?>
 
         <div class="w-ev__tickets">
-            <?php foreach ($tickets as $ticket):
-                if (empty($ticket->is_active) || empty($ticket->name)) { continue; }
-
-                $tprice  = (float) $ticket->price;
-                $tcap    = (int) $ticket->quantity;
-                $tsold   = (int) $ticket->sold;
-                $tleft   = $tcap > 0 ? max(0, $tcap - $tsold) : -1;
-                $soldout = $tcap > 0 && $tleft === 0;
-                $coupons = !empty($ticket->enable_coupons);
-                $taken   = $tcap > 0 ? min(100, ($tsold / $tcap) * 100) : 0;
-            ?>
-            <div class="w-tk<?php echo $soldout ? ' w-tk--gone' : ''; ?>">
-                <div class="w-tk__text">
-                    <span class="w-tk__name"><?php echo esc_html($ticket->name); ?></span>
-                    <?php if (!empty($ticket->description)): ?>
-                        <p class="w-tk__desc"><?php echo esc_html($ticket->description); ?></p>
-                    <?php endif; ?>
-                </div>
-
-                <?php if ($tprice > 0): ?>
-                <span class="w-tk__price">
-                    <?php echo esc_html(number_format_i18n($tprice) . ' ' . $currency); ?>
-                </span>
-                <?php endif; ?>
-
-                <div class="w-tk__act">
-                    <?php if ($soldout): ?>
-                        <span class="w-btn w-btn--outline" aria-disabled="true">
-                            <?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?>
-                        </span>
-                    <?php elseif ($tprice == 0 && $coupons): ?>
-                        <button type="button" class="w-btn btn-register-coupon"
-                                data-workshop-id="<?php echo (int) $workshop_id; ?>"
-                                data-event-id="<?php echo (int) $workshop->event_id; ?>"
-                                data-ticket-id="<?php echo (int) $ticket->id; ?>"
-                                data-ticket-name="<?php echo esc_attr($ticket->name); ?>">
-                            <?php echo esc_html(sc_t('frontend.register_with_coupon', 'Register with coupon')); ?>
-                        </button>
-                    <?php elseif ($tprice == 0): ?>
-                        <button type="button" class="w-btn btn-register-free"
-                                data-workshop-id="<?php echo (int) $workshop_id; ?>"
-                                data-event-id="<?php echo (int) $workshop->event_id; ?>"
-                                data-ticket-id="<?php echo (int) $ticket->id; ?>"
-                                data-ticket-name="<?php echo esc_attr($ticket->name); ?>">
-                            <?php echo esc_html(sc_t('frontend.register', 'Register')); ?>
-                        </button>
-                    <?php else: ?>
-                        <button type="button" class="w-btn btn-buy-ticket"
-                                data-workshop-id="<?php echo (int) $workshop_id; ?>"
-                                data-event-id="<?php echo (int) $workshop->event_id; ?>"
-                                data-ticket-id="<?php echo (int) $ticket->id; ?>"
-                                data-ticket-name="<?php echo esc_attr($ticket->name); ?>"
-                                data-ticket-price="<?php echo esc_attr($tprice); ?>"
-                                data-min-qty="<?php echo (int) ($ticket->min_per_order ?? 1); ?>"
-                                data-max-qty="<?php echo (int) ($ticket->max_per_order ?? 10); ?>">
-                            <?php echo esc_html(sc_t('frontend.get_ticket', 'Take a seat')); ?>
-                        </button>
-                    <?php endif; ?>
-                </div>
-
-                <?php if ($tcap > 0 && !$soldout): ?>
-                <div class="w-tk__stock">
-                    <div class="w-tk__bar" role="presentation"><span style="width:<?php echo esc_attr(round($taken)); ?>%"></span></div>
-                    <span class="w-tk__left"><?php printf(
-                        esc_html(sc_t('frontend.d_available', '%s left')),
-                        esc_html(number_format_i18n($tleft))
-                    ); ?></span>
-                </div>
-                <?php endif; ?>
-            </div>
+            <?php foreach ($tickets as $ticket): ?>
+                <?php get_template_part('template-parts/public/ticket-row', null, [
+                    'ticket'      => $ticket,
+                    'event_id'    => $workshop->event_id,
+                    'workshop_id' => $workshop_id,
+                    'currency'    => $currency,
+                    'buy_label'   => sc_t('frontend.get_ticket', 'Take a seat'),
+                ]); ?>
             <?php endforeach; ?>
         </div>
 

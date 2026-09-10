@@ -25,22 +25,7 @@ if (!$event) return;
 
 $currency = sc_t('general.currency_symbol', 'EGP');
 
-// Name the gateways that are actually switched on rather than promising
-// methods this install cannot take.
-$gateway_names = [
-    'paymob'     => sc_t('frontend.gateway_paymob', 'Cards & wallets'),
-    'stripe'     => sc_t('frontend.gateway_stripe', 'Cards'),
-    'kashier'    => sc_t('frontend.gateway_kashier', 'Kashier'),
-    'myfatoorah' => sc_t('frontend.gateway_myfatoorah', 'MyFatoorah'),
-];
-$live_gateways = [];
-foreach ($gateway_names as $key => $label) {
-    $settings = get_option('sc_gateway_' . $key);
-    if (is_array($settings) && !empty($settings['enabled'])) {
-        $live_gateways[] = $label;
-    }
-}
-$live_gateways = array_values(array_unique($live_gateways));
+$live_gateways = sc_live_gateways();
 
 $show_buy = $has_tickets && !$is_past && !$is_registered;
 ?>
@@ -77,73 +62,13 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
     <?php endif; ?>
 
     <div class="w-ev__tickets">
-        <?php foreach ($tickets as $ticket):
-            if (empty($ticket->is_active) || empty($ticket->name)) { continue; }
-
-            $price   = (float) $ticket->price;
-            $cap     = (int) $ticket->quantity;
-            $sold    = (int) $ticket->sold;
-            $left    = $cap > 0 ? max(0, $cap - $sold) : -1;
-            $soldout = $cap > 0 && $left === 0;
-            $coupons = !empty($ticket->enable_coupons);
-            $taken   = $cap > 0 ? min(100, ($sold / $cap) * 100) : 0;
-        ?>
-        <div class="w-tk<?php echo $soldout ? ' w-tk--gone' : ''; ?>">
-            <div class="w-tk__text">
-                <span class="w-tk__name"><?php echo esc_html($ticket->name); ?></span>
-                <?php if (!empty($ticket->description)): ?>
-                    <p class="w-tk__desc"><?php echo esc_html($ticket->description); ?></p>
-                <?php endif; ?>
-            </div>
-
-            <?php if ($price > 0): ?>
-            <span class="w-tk__price">
-                <?php echo esc_html(number_format_i18n($price) . ' ' . $currency); ?>
-            </span>
-            <?php endif; ?>
-
-            <div class="w-tk__act">
-                <?php if ($soldout): ?>
-                    <span class="w-btn w-btn--outline" aria-disabled="true">
-                        <?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?>
-                    </span>
-                <?php elseif ($price == 0 && $coupons): ?>
-                    <button type="button" class="w-btn btn-register-coupon"
-                            data-event-id="<?php echo esc_attr($event_id); ?>"
-                            data-ticket-id="<?php echo esc_attr($ticket->id); ?>"
-                            data-ticket-name="<?php echo esc_attr($ticket->name); ?>">
-                        <?php echo esc_html(sc_t('frontend.register_with_coupon', 'Register with coupon')); ?>
-                    </button>
-                <?php elseif ($price == 0): ?>
-                    <button type="button" class="w-btn btn-register-free"
-                            data-event-id="<?php echo esc_attr($event_id); ?>"
-                            data-ticket-id="<?php echo esc_attr($ticket->id); ?>"
-                            data-ticket-name="<?php echo esc_attr($ticket->name); ?>">
-                        <?php echo esc_html(sc_t('frontend.register', 'Register')); ?>
-                    </button>
-                <?php else: ?>
-                    <button type="button" class="w-btn btn-buy-ticket"
-                            data-event-id="<?php echo esc_attr($event_id); ?>"
-                            data-ticket-id="<?php echo esc_attr($ticket->id); ?>"
-                            data-ticket-name="<?php echo esc_attr($ticket->name); ?>"
-                            data-ticket-price="<?php echo esc_attr($price); ?>"
-                            data-min-qty="<?php echo esc_attr($ticket->min_per_order ?? 1); ?>"
-                            data-max-qty="<?php echo esc_attr($ticket->max_per_order ?? 10); ?>">
-                        <?php echo esc_html(sc_t('frontend.get_ticket', 'Get ticket')); ?>
-                    </button>
-                <?php endif; ?>
-            </div>
-
-            <?php if ($cap > 0 && !$soldout): ?>
-            <div class="w-tk__stock">
-                <div class="w-tk__bar" role="presentation"><span style="width:<?php echo esc_attr(round($taken)); ?>%"></span></div>
-                <span class="w-tk__left"><?php printf(
-                    esc_html(sc_t('frontend.d_available', '%s left')),
-                    esc_html(number_format_i18n($left))
-                ); ?></span>
-            </div>
-            <?php endif; ?>
-        </div>
+        <?php foreach ($tickets as $ticket): ?>
+            <?php get_template_part('template-parts/public/ticket-row', null, [
+                'ticket'    => $ticket,
+                'event_id'  => $event_id,
+                'currency'  => $currency,
+                'buy_label' => sc_t('frontend.get_ticket', 'Get ticket'),
+            ]); ?>
         <?php endforeach; ?>
     </div>
 

@@ -20,10 +20,9 @@ $assets_url = get_template_directory_uri() . '/assets/frontend/';
 
 $photo = '';
 if (!empty($speaker->photo)) {
-    $photo = is_numeric($speaker->photo) ? wp_get_attachment_url($speaker->photo) : $speaker->photo;
+    $photo = sc_image_src($speaker->photo);
 }
-$words = preg_split('/\s+/', trim(preg_replace('/^(dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\s+/i', '', $speaker->name)));
-$initials = mb_strtoupper(mb_substr($words[0] ?? '', 0, 1) . mb_substr($words[1] ?? '', 0, 1));
+$initials = sc_initials($speaker->name);
 
 // social_links is JSON in the column but SC_Speaker hands it back already
 // decoded, so accept either shape rather than assuming one.

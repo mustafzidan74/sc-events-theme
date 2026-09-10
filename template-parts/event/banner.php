@@ -40,17 +40,7 @@ if (!$banner_url && $event_logo) {
     $banner_url = $event_logo;
 }
 
-// "7-9 Oct" when the run stays inside one month, otherwise both months.
-$s = strtotime($start_date);
-$e = $end_date ? strtotime($end_date) : $s;
-$same_month = date('Y-m', $s) === date('Y-m', $e);
-if ($s === $e) {
-    $big_date = date_i18n('j M', $s);
-} elseif ($same_month) {
-    $big_date = date_i18n('j', $s) . '–' . date_i18n('j M', $e);
-} else {
-    $big_date = date_i18n('j M', $s) . ' – ' . date_i18n('j M', $e);
-}
+$big_date = sc_date_range($start_date, $end_date);
 
 $start_ts  = strtotime($start_date . ' ' . ($start_time ?: '00:00:00'));
 $days_left = (int) ceil(($start_ts - current_time('timestamp')) / DAY_IN_SECONDS);

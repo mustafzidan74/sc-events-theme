@@ -101,7 +101,7 @@ $w_base = home_url('/workshops/');
     <div class="w-workshops">
         <?php foreach ($workshops as $w_ws):
             $w_img = !empty($w_ws->featured_image)
-                ? (is_numeric($w_ws->featured_image) ? wp_get_attachment_url($w_ws->featured_image) : $w_ws->featured_image)
+                ? sc_image_src($w_ws->featured_image)
                 : '';
             $w_left = max(0, (int) $w_ws->total_capacity - (int) $w_ws->total_sold);
         ?>

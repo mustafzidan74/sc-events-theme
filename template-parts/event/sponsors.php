@@ -47,7 +47,7 @@ $is_top = true;
                 <?php foreach ($tier_sponsors as $sp):
                     $logo = '';
                     if (!empty($sp->logo)) {
-                        $logo = is_numeric($sp->logo) ? wp_get_attachment_url($sp->logo) : $sp->logo;
+                        $logo = sc_image_src($sp->logo);
                     }
                     $href = $sp->website ?? '';
                     $tag  = $href ? 'a' : 'span';

@@ -37,11 +37,10 @@ $hidden = count($event_speakers) - count($shown);
         <?php foreach ($shown as $speaker):
             $photo = $speaker->photo_url ?? '';
             if (!$photo && !empty($speaker->photo)) {
-                $photo = is_numeric($speaker->photo) ? wp_get_attachment_url($speaker->photo) : $speaker->photo;
+                $photo = sc_image_src($speaker->photo);
             }
 
-            $words = preg_split('/\s+/', trim(preg_replace('/^(dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\s+/i', '', $speaker->name)));
-            $initials = mb_strtoupper(mb_substr($words[0] ?? '', 0, 1) . mb_substr($words[1] ?? '', 0, 1));
+            $initials = sc_initials($speaker->name);
 
             $role = trim(implode(' · ', array_filter([
                 $speaker->job_title ?? ($speaker->title ?? ''),

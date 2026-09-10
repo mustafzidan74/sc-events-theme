@@ -547,7 +547,7 @@ if (!$w_speakers) {
         <?php foreach ($w_speakers as $w_sp):
             $w_photo = '';
             if (!empty($w_sp->photo)) {
-                $w_photo = is_numeric($w_sp->photo) ? wp_get_attachment_url($w_sp->photo) : $w_sp->photo;
+                $w_photo = sc_image_src($w_sp->photo);
             }
             // Initials for the designed fallback: first letter of the first two
             // words, skipping honorifics so "Dr Mohamed Elzohairy" reads "ME".
@@ -617,7 +617,7 @@ if ($next_event) {
     <div class="w-rail">
         <?php foreach ($w_workshops as $w_ws):
             $w_ws_img = !empty($w_ws->featured_image)
-                ? (is_numeric($w_ws->featured_image) ? wp_get_attachment_url($w_ws->featured_image) : $w_ws->featured_image)
+                ? sc_image_src($w_ws->featured_image)
                 : '';
             $w_left = max(0, (int) $w_ws->total_capacity - (int) $w_ws->total_sold);
         ?>
@@ -737,7 +737,7 @@ $w_is_top = true;
                 <?php foreach ($w_tier_sponsors as $w_sp):
                     $w_sp_logo = '';
                     if (!empty($w_sp->logo)) {
-                        $w_sp_logo = is_numeric($w_sp->logo) ? wp_get_attachment_url($w_sp->logo) : $w_sp->logo;
+                        $w_sp_logo = sc_image_src($w_sp->logo);
                     }
                     $w_sp_href = !empty($w_sp->website) ? $w_sp->website : '';
                     $w_sp_tag = $w_sp_href ? 'a' : 'span';

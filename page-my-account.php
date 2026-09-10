@@ -203,11 +203,10 @@ get_template_part('template-parts/public/header', 'public');
                     }
                 }
 
-                $s = strtotime($event->start_date);
-                $e = strtotime($event->end_date ?: $event->start_date);
-                $dates = date('Y-m', $s) === date('Y-m', $e) && $s !== $e
-                    ? date_i18n('j', $s) . '–' . date_i18n('j M Y', $e)
-                    : date_i18n('j M Y', $s);
+                // Shared formatter. It also states both ends of a run that
+                // crosses a month, which this had been dropping — a congress
+                // from 28 Sep to 2 Oct used to read simply "28 September".
+                $dates = sc_date_range($event->start_date, $event->end_date, true);
 
                 $view_url = home_url('/ticket-view/?attendee_id=' . $attendee->id . '&ticket_code=' . $attendee->ticket_code);
             ?>

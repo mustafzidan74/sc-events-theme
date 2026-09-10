@@ -112,7 +112,7 @@ get_template_part('template-parts/public/header', 'public');
                 <?php foreach ($tier_sponsors as $sp):
                     $logo = '';
                     if (!empty($sp->logo)) {
-                        $logo = is_numeric($sp->logo) ? wp_get_attachment_url($sp->logo) : $sp->logo;
+                        $logo = sc_image_src($sp->logo);
                     }
                     $href = !empty($sp->website) ? $sp->website : '';
                     $tag = $href ? 'a' : 'span';
@@ -144,7 +144,7 @@ get_template_part('template-parts/public/header', 'public');
         <?php foreach ($partners as $pt):
             $logo = '';
             if (!empty($pt->logo)) {
-                $logo = is_numeric($pt->logo) ? wp_get_attachment_url($pt->logo) : $pt->logo;
+                $logo = sc_image_src($pt->logo);
             }
             $href = !empty($pt->website) ? $pt->website : '';
             $tag = $href ? 'a' : 'span';

@@ -88,10 +88,9 @@ get_template_part('template-parts/public/header', 'public');
         <?php foreach ($speakers as $sp):
             $photo = '';
             if (!empty($sp->photo)) {
-                $photo = is_numeric($sp->photo) ? wp_get_attachment_url($sp->photo) : $sp->photo;
+                $photo = sc_image_src($sp->photo);
             }
-            $words = preg_split('/\s+/', trim(preg_replace('/^(dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\s+/i', '', $sp->name)));
-            $initials = mb_strtoupper(mb_substr($words[0] ?? '', 0, 1) . mb_substr($words[1] ?? '', 0, 1));
+            $initials = sc_initials($sp->name);
         ?>
         <a class="w-speaker" href="<?php echo esc_url(sc_speaker_permalink($sp)); ?>">
             <?php if ($photo): ?>
