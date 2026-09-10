@@ -18,17 +18,6 @@ $other_sections = $args['other_sections'] ?? [];
 
 if (empty($gallery_images) && empty($other_sections)) return;
 
-/**
- * Resolve an image reference, which may be an attachment id or a bare URL.
- */
-if (!function_exists('sc_event_image_src')) {
-    function sc_event_image_src($ref, $size = 'large') {
-        if (empty($ref)) { return ''; }
-        if (is_array($ref)) { $ref = $ref['id'] ?? ($ref['url'] ?? ''); }
-        return is_numeric($ref) ? (wp_get_attachment_image_url($ref, $size) ?: '') : (string) $ref;
-    }
-}
-
 $sections = $other_sections;
 if ($gallery_images) {
     array_unshift($sections, ['type' => 'image_grid', 'images' => $gallery_images]);
@@ -42,7 +31,7 @@ if ($gallery_images) {
     $cards   = array_filter((array) ($section['cards'] ?? []));
     $cta_url = trim((string) ($section['button_url'] ?? ''));
     $cta_txt = trim((string) ($section['button_text'] ?? ''));
-    $hero    = sc_event_image_src($section['main_image'] ?? '');
+    $hero    = sc_image_src($section['main_image'] ?? '', 'large');
 
     if (!$heading && !$content && !$images && !$cards && !$hero) { continue; }
 ?>
@@ -64,7 +53,7 @@ if ($gallery_images) {
     <?php if ($images): ?>
     <div class="w-gallery">
         <?php foreach ($images as $img):
-            $src = sc_event_image_src($img);
+            $src = sc_image_src($img, 'large');
             if (!$src) { continue; }
         ?>
         <div class="w-gallery__shot">
@@ -77,7 +66,7 @@ if ($gallery_images) {
     <?php if ($cards): ?>
     <div class="w-ev__faculty">
         <?php foreach ($cards as $card):
-            $src = sc_event_image_src($card['image'] ?? '', 'medium_large');
+            $src = sc_image_src($card['image'] ?? '', 'medium_large');
             $title = $card['title'] ?? '';
             $text  = $card['content'] ?? ($card['description'] ?? '');
         ?>
