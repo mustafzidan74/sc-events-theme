@@ -563,6 +563,13 @@ function sc_scan_and_checkin() {
     ));
 
     if ($sc_attendee) {
+        if (!sc_scanner_can_access_event($sc_attendee->event_id)) {
+            wp_send_json_error(array(
+                'message' => __('You are not assigned to scan tickets for this event.', 'sc_events'),
+                'title'   => 'Not Allowed',
+            ));
+        }
+
         // Validate active status
         if ($sc_attendee->status !== 'active') {
             wp_send_json_error(array(
@@ -745,6 +752,13 @@ function sc_scan_and_checkin() {
 
     // Get attendee's event
     $event_id = get_post_meta($attendee_id, 'sc_event_id', true);
+
+    if (!sc_scanner_can_access_event($event_id)) {
+        wp_send_json_error(array(
+            'message' => __('You are not assigned to scan tickets for this event.', 'sc_events'),
+            'title' => 'Not Allowed'
+        ));
+    }
 
     // If filtering by event, check if ticket belongs to that event
     if ($filter_event_id && $event_id != $filter_event_id) {

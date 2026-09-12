@@ -141,13 +141,17 @@ function sc_sessions_get_by_event() {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+    // Scanners need this too: the scanner page offers session mode from it.
+    if (!SC_Event_Manager_Dashboard::is_event_manager() && !SC_Event_Manager_Dashboard::is_event_scanner()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
     $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
     if (!$event_id) {
         wp_send_json_error(array('message' => __('Event ID is required.', 'sc_events')));
+    }
+    if (!sc_scanner_can_access_event($event_id)) {
+        wp_send_json_success(array('sessions' => array()));
     }
 
     global $wpdb;
@@ -169,6 +173,9 @@ function sc_sessions_get_by_event() {
 
     $data = array();
     foreach ($sessions as $s) {
+        if (!sc_scanner_can_access_session($s->id, $event_id)) {
+            continue;
+        }
         $data[] = array(
             'id' => (int) $s->id,
             'title' => $s->title,
@@ -591,7 +598,7 @@ function sc_session_checkin() {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+    if (!SC_Event_Manager_Dashboard::is_event_manager() && !SC_Event_Manager_Dashboard::is_event_scanner()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
@@ -605,6 +612,18 @@ function sc_session_checkin() {
     $registration_code = sanitize_text_field($_POST['registration_code'] ?? '');
     $attendee_id = intval($_POST['attendee_id'] ?? 0);
     $scan_method = sanitize_text_field($_POST['scan_method'] ?? 'qr');
+
+    // The scanner page sends the attendee's ticket code from the QR.
+    $ticket_code = sanitize_text_field($_POST['ticket_id'] ?? '');
+    if (!$attendee_id && $ticket_code) {
+        $attendee_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $attendees_table WHERE ticket_code = %s LIMIT 1",
+            $ticket_code
+        ));
+        if (!$attendee_id) {
+            wp_send_json_error(array('message' => __('Ticket not found in the system.', 'sc_events'), 'title' => 'Invalid Ticket'));
+        }
+    }
 
     // Find the registration
     $registration = null;
@@ -634,8 +653,12 @@ function sc_session_checkin() {
         wp_send_json_error(array('message' => __('Session not found.', 'sc_events')));
     }
 
+    if (!sc_scanner_can_access_session($session_id, $event_id)) {
+        wp_send_json_error(array('message' => __('You are not assigned to scan this session.', 'sc_events'), 'title' => 'Not Allowed'));
+    }
+
     // Get attendee info
-    $attendee = $wpdb->get_row($wpdb->prepare("SELECT name, email FROM $attendees_table WHERE id = %d", $attendee_id));
+    $attendee = $wpdb->get_row($wpdb->prepare("SELECT name, email, phone, ticket_name FROM $attendees_table WHERE id = %d", $attendee_id));
 
     // Check if already checked in
     $existing = $wpdb->get_row($wpdb->prepare(
@@ -648,6 +671,8 @@ function sc_session_checkin() {
             'already_checked_in' => true,
             'attendee_name' => $attendee ? $attendee->name : '',
             'attendee_email' => $attendee ? $attendee->email : '',
+            'attendee_phone' => $attendee ? $attendee->phone : '',
+            'ticket_name' => $attendee ? $attendee->ticket_name : '',
             'session_title' => $session->title,
             'check_in_time' => $existing->check_in_time,
             'message' => __('Already checked in to this session.', 'sc_events'),
@@ -690,6 +715,8 @@ function sc_session_checkin() {
         'already_checked_in' => false,
         'attendee_name' => $attendee ? $attendee->name : '',
         'attendee_email' => $attendee ? $attendee->email : '',
+        'attendee_phone' => $attendee ? $attendee->phone : '',
+        'ticket_name' => $attendee ? $attendee->ticket_name : '',
         'session_title' => $session->title,
         'check_in_time' => $now,
         'message' => sprintf(__('%s checked in to %s', 'sc_events'), $attendee ? $attendee->name : '', $session->title),

@@ -980,9 +980,10 @@ jQuery(document).ready(function($) {
         }
 
         // Add session_id if selected (for session-specific check-in)
-        if (selectedSessionId) {
+        const sessionMode = !!selectedSessionId;
+        if (sessionMode) {
             requestData.session_id = selectedSessionId;
-            requestData.action = 'sc_session_check_in'; // Use session-specific action
+            requestData.action = 'sc_session_checkin';
         }
 
         $.ajax({
@@ -993,7 +994,7 @@ jQuery(document).ready(function($) {
             showProcessing(false);
 
             if (response.success) {
-                showResult(response.data);
+                showResult(sessionMode ? sessionCheckinToResult(response.data) : response.data);
                 playSound('success');
             } else {
                 showError(response.data.message || 'Invalid ticket', response.data.title || 'Error');
@@ -1009,6 +1010,26 @@ jQuery(document).ready(function($) {
     // ===============================
     // Show Result
     // ===============================
+    // sc_session_checkin answers in its own shape; map it onto the gate result.
+    function sessionCheckinToResult(d) {
+        const when = new Date(String(d.check_in_time).replace(' ', 'T'));
+        return {
+            action_type: 'check_in',
+            already_checked_in: !!d.already_checked_in,
+            scan_time: when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            scan_date: when.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+            tracking_enabled: false,
+            attendee: {
+                name: d.attendee_name,
+                email: d.attendee_email,
+                phone: d.attendee_phone,
+                ticket_type: d.ticket_name,
+                event_name: d.session_title
+            },
+            extra_fields: {}
+        };
+    }
+
     function showResult(data) {
         // Hide scanner, show result
         $('#scanner-mode').hide();
@@ -1016,7 +1037,11 @@ jQuery(document).ready(function($) {
         $('#result-mode').removeAttr('hidden').attr('aria-hidden', 'false').fadeIn();
 
         // Header styling based on action
-        if (data.action_type === 'check_out') {
+        if (data.already_checked_in) {
+            $('#result-header-bg').css('background', 'linear-gradient(135deg, #ffc107, #ff9800)');
+            $('#result-icon').html('<i class="fa fa-exclamation-circle"></i>');
+            $('#result-status-text').text('Already checked in to this session');
+        } else if (data.action_type === 'check_out') {
             $('#result-header-bg').css('background', 'linear-gradient(135deg, #ffc107, #ff9800)');
             $('#result-icon').html('<i class="fa fa-sign-out"></i>');
             $('#result-status-text').text('Check-out Successful!');

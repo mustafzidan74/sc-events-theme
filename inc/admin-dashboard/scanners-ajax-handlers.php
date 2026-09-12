@@ -19,6 +19,67 @@ function sc_scanner_perms_table_exists() {
     return $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
 }
 
+/**
+ * What the current user may scan, following the same rule as the scanner page:
+ * managers, and scanners with no rows or a single "full" row, may scan anything.
+ *
+ * @return array{full: bool, events: int[], event_wide: int[], sessions: int[]}
+ *               events = every event the user touches (event or session rows),
+ *               event_wide = events granted as a whole (every session inside them).
+ */
+function sc_get_scanner_scope() {
+    static $scope = null;
+    if ($scope !== null) {
+        return $scope;
+    }
+
+    $scope = array('full' => true, 'events' => array(), 'event_wide' => array(), 'sessions' => array());
+
+    if (!SC_Event_Manager_Dashboard::is_event_scanner() || !sc_scanner_perms_table_exists()) {
+        return $scope;
+    }
+
+    global $wpdb;
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT access_type, event_id, session_id FROM {$wpdb->prefix}sc_scanner_permissions WHERE user_id = %d",
+        get_current_user_id()
+    ));
+
+    if (empty($rows) || (count($rows) === 1 && $rows[0]->access_type === 'full')) {
+        return $scope;
+    }
+
+    $scope['full'] = false;
+    foreach ($rows as $row) {
+        if ($row->event_id) {
+            $scope['events'][] = (int) $row->event_id;
+            if ($row->access_type === 'event') {
+                $scope['event_wide'][] = (int) $row->event_id;
+            }
+        }
+        if ($row->session_id) {
+            $scope['sessions'][] = (int) $row->session_id;
+        }
+    }
+    $scope['events']     = array_values(array_unique($scope['events']));
+    $scope['event_wide'] = array_values(array_unique($scope['event_wide']));
+    $scope['sessions']   = array_values(array_unique($scope['sessions']));
+
+    return $scope;
+}
+
+function sc_scanner_can_access_event($event_id) {
+    $scope = sc_get_scanner_scope();
+    return $scope['full'] || in_array((int) $event_id, $scope['events'], true);
+}
+
+function sc_scanner_can_access_session($session_id, $event_id) {
+    $scope = sc_get_scanner_scope();
+    return $scope['full']
+        || in_array((int) $session_id, $scope['sessions'], true)
+        || in_array((int) $event_id, $scope['event_wide'], true);
+}
+
 // ==========================================
 // GET ALL SCANNERS
 // ==========================================

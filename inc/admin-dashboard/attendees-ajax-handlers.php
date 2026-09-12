@@ -2335,6 +2335,16 @@ function sc_search_attendee_by_phone() {
 		$values[] = $event_id;
 	}
 
+	// Scanners limited to some events must not look up other events' attendees.
+	$scope = sc_get_scanner_scope();
+	if (!$scope['full']) {
+		if (empty($scope['events'])) {
+			wp_send_json_success(array('attendees' => array()));
+		}
+		$sql .= ' AND event_id IN (' . implode(',', array_fill(0, count($scope['events']), '%d')) . ')';
+		$values = array_merge($values, $scope['events']);
+	}
+
 	$sql .= " LIMIT 20";
 
 	$sc_attendees = $wpdb->get_results($wpdb->prepare($sql, $values));
