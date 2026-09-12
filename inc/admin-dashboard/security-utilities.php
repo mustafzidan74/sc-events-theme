@@ -297,6 +297,13 @@ function sc_record_successful_login($ip = null) {
  * @param array $lockout_data Lockout information
  */
 function sc_notify_admin_of_lockout($lockout_data) {
+    // At most one alert every 6 hours: brute-force bursts from many IPs
+    // used to queue one email per lockout (1,300+ alerts in 6 weeks).
+    if (get_transient('sc_lockout_alert_sent')) {
+        return;
+    }
+    set_transient('sc_lockout_alert_sent', 1, 6 * HOUR_IN_SECONDS);
+
     $admin_email = get_option('admin_email');
     $site_name = get_bloginfo('name');
 
