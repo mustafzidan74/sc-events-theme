@@ -176,34 +176,36 @@ function sc_create_or_update_event() {
             wp_send_json_error(array('message' => __('Custom tables not available.', 'sc_events')));
         }
 
+    global $wpdb;
     $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $event_title = isset($_POST['event_title']) ? sanitize_text_field($_POST['event_title']) : '';
+    $event_title = isset($_POST['event_title']) ? sanitize_text_field(wp_unslash($_POST['event_title'])) : '';
 
     // Accept both 'slug' and 'event_slug' for permalink
-    $event_slug = isset($_POST['slug']) ? sanitize_title($_POST['slug']) : '';
+    $event_slug = isset($_POST['slug']) ? sanitize_title(wp_unslash($_POST['slug'])) : '';
     if (empty($event_slug) && isset($_POST['event_slug'])) {
-        $event_slug = sanitize_title($_POST['event_slug']);
+        $event_slug = sanitize_title(wp_unslash($_POST['event_slug']));
     }
 
     // Accept both 'description' (from wp_editor) and 'event_description'
-    $event_description = isset($_POST['description']) ? wp_kses_post($_POST['description']) : '';
+    $event_description = isset($_POST['description']) ? wp_kses_post(wp_unslash($_POST['description'])) : '';
     if (empty($event_description) && isset($_POST['event_description'])) {
-        $event_description = wp_kses_post($_POST['event_description']);
+        $event_description = wp_kses_post(wp_unslash($_POST['event_description']));
     }
 
-    $start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '';
-    $end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '';
-    $start_time = isset($_POST['start_time']) ? sanitize_text_field($_POST['start_time']) : '';
-    $end_time = isset($_POST['end_time']) ? sanitize_text_field($_POST['end_time']) : '';
+    $start_date = isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '';
+    $end_date = isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : '';
+    $start_time = isset($_POST['start_time']) ? sanitize_text_field(wp_unslash($_POST['start_time'])) : '';
+    $end_time = isset($_POST['end_time']) ? sanitize_text_field(wp_unslash($_POST['end_time'])) : '';
 
     // Accept 'venue_address', 'venue', or 'address' for venue location
-    $venue = isset($_POST['venue_address']) ? sanitize_text_field($_POST['venue_address']) : '';
+    $venue = isset($_POST['venue_address']) ? sanitize_text_field(wp_unslash($_POST['venue_address'])) : '';
     if (empty($venue) && isset($_POST['venue'])) {
-        $venue = sanitize_text_field($_POST['venue']);
+        $venue = sanitize_text_field(wp_unslash($_POST['venue']));
     }
     if (empty($venue) && isset($_POST['address'])) {
-        $venue = sanitize_text_field($_POST['address']);
+        $venue = sanitize_text_field(wp_unslash($_POST['address']));
     }
+    $venue_name = isset($_POST['venue_name']) ? sanitize_text_field(wp_unslash($_POST['venue_name'])) : $venue;
     $capacity = isset($_POST['capacity']) ? intval($_POST['capacity']) : 0;
     $status = isset($_POST['status']) ? sanitize_key(wp_unslash($_POST['status'])) : 'draft';
     if (!in_array($status, array('draft', 'publish', 'private', 'cancelled', 'completed', 'disabled'), true)) {
@@ -213,15 +215,15 @@ function sc_create_or_update_event() {
     // New fields
     $all_day_event = !empty($_POST['all_day_event']) ? 1 : 0;
     $default_timezone = get_option('timezone_string', 'UTC') ?: 'UTC';
-    $timezone = isset($_POST['timezone']) ? sanitize_text_field($_POST['timezone']) : $default_timezone;
+    $timezone = isset($_POST['timezone']) ? sanitize_text_field(wp_unslash($_POST['timezone'])) : $default_timezone;
 
     // Accept both 'location_type' and 'event_type' (from new form)
     // Database enum: 'offline', 'online', 'hybrid'
     if (isset($_POST['event_type'])) {
-        $event_type_val = sanitize_text_field($_POST['event_type']);
+        $event_type_val = sanitize_text_field(wp_unslash($_POST['event_type']));
         $location_type = ($event_type_val === 'online') ? 'online' : 'offline';
     } elseif (isset($_POST['location_type'])) {
-        $location_type_val = sanitize_text_field($_POST['location_type']);
+        $location_type_val = sanitize_text_field(wp_unslash($_POST['location_type']));
         // Accept 'physical' as alias for 'offline'
         if ($location_type_val === 'physical') {
             $location_type = 'offline';
@@ -234,16 +236,31 @@ function sc_create_or_update_event() {
         $location_type = 'offline';
     }
 
-    $city = isset($_POST['city']) ? sanitize_text_field($_POST['city']) : '';
-    $country = isset($_POST['country']) ? sanitize_text_field($_POST['country']) : '';
-    $meeting_link = isset($_POST['meeting_link']) ? esc_url_raw($_POST['meeting_link']) : '';
+    $city = isset($_POST['city']) ? sanitize_text_field(wp_unslash($_POST['city'])) : '';
+    $country = isset($_POST['country']) ? sanitize_text_field(wp_unslash($_POST['country'])) : '';
+    $meeting_link = isset($_POST['meeting_link']) ? esc_url_raw(wp_unslash($_POST['meeting_link'])) : '';
 
+    $field_errors = array();
     if (empty($event_title)) {
-        wp_send_json_error(array('message' => __('Event title is required.', 'sc_events')));
+        $field_errors['event_title'] = __('Event title is required.', 'sc_events');
     }
-
-    if (empty($start_date)) {
-        wp_send_json_error(array('message' => __('Event start date is required.', 'sc_events')));
+    if (empty($start_date) || !strtotime($start_date)) {
+        $field_errors['start_date'] = __('Event start date is required.', 'sc_events');
+    } elseif (!empty($end_date) && strtotime($end_date) && $end_date < $start_date) {
+        $field_errors['end_date'] = __('The event ends before it starts.', 'sc_events');
+    }
+    if ($event_slug !== '') {
+        $slug_owner = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}sc_events WHERE slug = %s AND id <> %d LIMIT 1",
+            $event_slug,
+            $event_id
+        ));
+        if ($slug_owner) {
+            $field_errors['slug'] = __('Another event already uses this web address.', 'sc_events');
+        }
+    }
+    if ($field_errors) {
+        wp_send_json_error(array('message' => reset($field_errors), 'errors' => $field_errors));
     }
 
     // SECURITY: If updating, verify user can access this event
@@ -269,6 +286,10 @@ function sc_create_or_update_event() {
         if (!is_wp_error($attachment_id)) {
             $featured_image_id = $attachment_id;
         }
+    }
+
+    if (!$featured_image_id && !empty($_POST['featured_image'])) {
+        $featured_image_id = absint($_POST['featured_image']);
     }
 
     // Handle brand logo upload (or use existing)
@@ -339,7 +360,7 @@ function sc_create_or_update_event() {
                      (isset($_POST['brand_secondary_color']) ? $_POST['brand_secondary_color'] : '#ffffff');
 
     // Get registration deadline
-    $registration_deadline = isset($_POST['registration_deadline']) ? sanitize_text_field($_POST['registration_deadline']) : $start_date;
+    $registration_deadline = isset($_POST['registration_deadline']) ? sanitize_text_field(wp_unslash($_POST['registration_deadline'])) : $start_date;
 
     // Get min/max tickets per order
     $min_ticket = isset($_POST['min_ticket']) ? intval($_POST['min_ticket']) : 1;
@@ -357,7 +378,7 @@ function sc_create_or_update_event() {
     $certificate_template_id = isset($_POST['certificate_template_id']) ? intval($_POST['certificate_template_id']) : 0;
 
     // Certificate issuance method: 'auto' or 'manual'
-    $certificate_issue_method = isset($_POST['certificate_issue_method']) ? sanitize_text_field($_POST['certificate_issue_method']) : 'auto';
+    $certificate_issue_method = isset($_POST['certificate_issue_method']) ? sanitize_text_field(wp_unslash($_POST['certificate_issue_method'])) : 'auto';
     $auto_issue_certificate = ($certificate_issue_method === 'auto') ? 1 : 0;
 
     // Certificate requirements
@@ -425,6 +446,7 @@ function sc_create_or_update_event() {
                     'cards' => isset($section['cards']) && is_array($section['cards']) ? array_map(function($card) {
                         return array(
                             'icon' => isset($card['icon']) ? sanitize_text_field($card['icon']) : '',
+                            'image' => isset($card['image']) ? absint($card['image']) : 0,
                             'title' => isset($card['title']) ? sanitize_text_field($card['title']) : '',
                             'description' => isset($card['description']) ? wp_kses_post($card['description']) : ''
                         );
@@ -463,22 +485,22 @@ function sc_create_or_update_event() {
 
     // Build organizing company JSON
     $organizing_company = array();
-    $oc_name = sanitize_text_field($_POST['oc_name'] ?? '');
+    $oc_name = sanitize_text_field(wp_unslash($_POST['oc_name'] ?? ''));
     if (!empty($oc_name)) {
         $organizing_company = array(
             'name'        => $oc_name,
             'logo'        => intval($_POST['oc_logo'] ?? 0) ?: null,
             'banner'      => intval($_POST['oc_banner'] ?? 0) ?: null,
-            'description' => wp_kses_post($_POST['oc_description'] ?? ''),
-            'website'     => esc_url_raw($_POST['oc_website'] ?? ''),
-            'phone'       => sanitize_text_field($_POST['oc_phone'] ?? ''),
-            'email'       => sanitize_email($_POST['oc_email'] ?? ''),
-            'whatsapp'    => sanitize_text_field($_POST['oc_whatsapp'] ?? ''),
+            'description' => wp_kses_post(wp_unslash($_POST['oc_description'] ?? '')),
+            'website'     => esc_url_raw(wp_unslash($_POST['oc_website'] ?? '')),
+            'phone'       => sanitize_text_field(wp_unslash($_POST['oc_phone'] ?? '')),
+            'email'       => sanitize_email(wp_unslash($_POST['oc_email'] ?? '')),
+            'whatsapp'    => sanitize_text_field(wp_unslash($_POST['oc_whatsapp'] ?? '')),
             'social'      => array(
-                'facebook'  => esc_url_raw($_POST['oc_facebook'] ?? ''),
-                'twitter'   => esc_url_raw($_POST['oc_twitter'] ?? ''),
-                'instagram' => esc_url_raw($_POST['oc_instagram'] ?? ''),
-                'linkedin'  => esc_url_raw($_POST['oc_linkedin'] ?? ''),
+                'facebook'  => esc_url_raw(wp_unslash($_POST['oc_facebook'] ?? '')),
+                'twitter'   => esc_url_raw(wp_unslash($_POST['oc_twitter'] ?? '')),
+                'instagram' => esc_url_raw(wp_unslash($_POST['oc_instagram'] ?? '')),
+                'linkedin'  => esc_url_raw(wp_unslash($_POST['oc_linkedin'] ?? '')),
             ),
         );
     }
@@ -494,12 +516,12 @@ function sc_create_or_update_event() {
         'end_time'               => $end_time,
         'timezone'               => $timezone,
         'location_type'          => $location_type,
-        'venue_name'             => $venue,
+        'venue_name'             => $venue_name,
         'venue_address'          => $venue,
         'venue_city'             => $city,
         'venue_country'          => $country,
         'meeting_link'           => $meeting_link,
-        'google_maps_url'        => isset($_POST['google_maps_url']) ? esc_url_raw(trim($_POST['google_maps_url'])) : '',
+        'google_maps_url'        => isset($_POST['google_maps_url']) ? esc_url_raw(trim(wp_unslash($_POST['google_maps_url']))) : '',
         'total_capacity'         => $capacity,
         'min_tickets_per_order'  => $min_ticket,
         'max_tickets_per_order'  => $max_ticket,
@@ -584,13 +606,46 @@ function sc_create_or_update_event() {
         $event_data['venue_image'] = $venue_image_id;
     }
 
+    if ($event_id > 0) {
+        // A media picker posts an empty value when its image was removed.
+        $pickers = array(
+            'featured_image' => array('featured_image', $featured_image_id),
+            'logo_image'     => array('existing_logo_image', $logo_image_id),
+            'banner_image'   => array('existing_banner_image', $banner_image_id),
+            'venue_image'    => array('venue_image', $venue_image_id),
+        );
+        foreach ($pickers as $column => $picker) {
+            if (isset($_POST[$picker[0]]) && !$picker[1] && absint($_POST[$picker[0]]) === 0) {
+                $event_data[$column] = 0;
+            }
+        }
+        if (isset($_POST['oc_name']) && $oc_name === '') {
+            $event_data['organizing_company'] = '';
+        }
+        if ($event_slug === '') {
+            unset($event_data['slug']);
+        }
+    }
+
+    // An empty value where the stored one is NULL is not a change; leave NULL alone
+    // so a save without edits writes nothing new.
+    if ($event_id > 0) {
+        $stored_row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}sc_events WHERE id = %d", $event_id), ARRAY_A);
+        foreach ($event_data as $column => $value) {
+            if ($stored_row && array_key_exists($column, $stored_row) && $stored_row[$column] === null
+                && ($value === '' || $value === 0 || $value === null || $value === array())) {
+                unset($event_data[$column]);
+            }
+        }
+    }
+
     // Add schedules file ID if uploaded
     if ($schedules_file_id > 0) {
         $event_data['schedules_file'] = $schedules_file_id;
     }
     // Remove schedules file if requested
-    if ($remove_schedules_file) {
-        $event_data['schedules_file'] = null;
+    if ($remove_schedules_file && !$schedules_file_id) {
+        $event_data['schedules_file'] = 0;
     }
 
     if ($event_id > 0) {
@@ -783,8 +838,11 @@ function sc_create_or_update_event() {
 
     // Sync sponsors (name="sponsors[]" sends array directly)
     $pivot_sponsors = $wpdb->prefix . 'sc_event_sponsors';
-    $wpdb->delete($pivot_sponsors, array('event_id' => $event_id), array('%d'));
-    if (!empty($_POST['sponsors']) && is_array($_POST['sponsors'])) {
+    $sync_sponsors = !function_exists('sc_is_module_enabled') || sc_is_module_enabled('sponsors') || isset($_POST['sponsors']);
+    if ($sync_sponsors) {
+        $wpdb->delete($pivot_sponsors, array('event_id' => $event_id), array('%d'));
+    }
+    if ($sync_sponsors && !empty($_POST['sponsors']) && is_array($_POST['sponsors'])) {
         foreach ($_POST['sponsors'] as $index => $sponsor_id) {
             $wpdb->insert($pivot_sponsors, array(
                 'event_id' => $event_id,
@@ -796,8 +854,11 @@ function sc_create_or_update_event() {
 
     // Sync partners (name="partners[]" sends array directly)
     $pivot_partners = $wpdb->prefix . 'sc_event_partners';
-    $wpdb->delete($pivot_partners, array('event_id' => $event_id), array('%d'));
-    if (!empty($_POST['partners']) && is_array($_POST['partners'])) {
+    $sync_partners = !function_exists('sc_is_module_enabled') || sc_is_module_enabled('partners') || isset($_POST['partners']);
+    if ($sync_partners) {
+        $wpdb->delete($pivot_partners, array('event_id' => $event_id), array('%d'));
+    }
+    if ($sync_partners && !empty($_POST['partners']) && is_array($_POST['partners'])) {
         foreach ($_POST['partners'] as $index => $partner_id) {
             $wpdb->insert($pivot_partners, array(
                 'event_id' => $event_id,
@@ -807,9 +868,12 @@ function sc_create_or_update_event() {
         }
     }
 
+    $saved_event = SC_Event::get($event_id);
     wp_send_json_success(array(
-        'message' => $message,
-        'event_id' => $event_id
+        'message'  => $message,
+        'event_id' => $event_id,
+        'slug'     => $saved_event ? $saved_event->slug : '',
+        'redirect' => home_url('/event-manager-dashboard/event-edit?id=' . $event_id . '&created=1'),
     ));
 
     } catch (Exception $e) {

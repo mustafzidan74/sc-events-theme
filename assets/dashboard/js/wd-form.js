@@ -102,6 +102,11 @@
         if (ed._wdHooked) { return; }
         ed._wdHooked = true;
         ed.on('change keyup undo redo SetContent', queueDirty);
+        // An editor created before this form but not yet initialised rewrites its
+        // markup on init (style="a" → style="a;"); re-take the baseline then.
+        if (!ed.initialized) {
+          ed.on('init', function () { clean = snapshot(); refreshDirty(); });
+        }
       });
     }
     if (window.tinymce) {
