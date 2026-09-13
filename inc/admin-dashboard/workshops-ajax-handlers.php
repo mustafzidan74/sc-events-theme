@@ -206,58 +206,142 @@ function sc_delete_workshop_handler() {
 }
 
 /**
- * Get paginated list of workshops
+ * Workshops list: one page of rows plus the per-status tab counts.
+ *
+ * Registered, checked-in and revenue figures are counted live from the
+ * attendees table; the cached totals on the workshop row drift after deletes.
  */
 add_action('wp_ajax_sc_get_workshops_paginated', 'sc_get_workshops_paginated_handler');
 function sc_get_workshops_paginated_handler() {
     sc_workshops_verify_request();
+    global $wpdb;
 
-    $page     = max(1, intval($_POST['page'] ?? 1));
-    $per_page = min(200, max(10, intval($_POST['per_page'] ?? 20)));
-    $search   = sanitize_text_field($_POST['search'] ?? '');
-    $event_id = intval($_POST['event_id'] ?? 0);
-    $status   = sanitize_text_field($_POST['status'] ?? '');
-    $offset   = ($page - 1) * $per_page;
+    $table     = $wpdb->prefix . 'sc_workshops';
+    $events    = $wpdb->prefix . 'sc_events';
+    $attendees = $wpdb->prefix . 'sc_attendees';
+    $tickets   = $wpdb->prefix . 'sc_tickets';
 
-    $args = array(
-        'limit'   => $per_page,
-        'offset'  => $offset,
-        'search'  => $search,
-        'orderby' => 'start_date',
-        'order'   => 'DESC',
-    );
-    if ($event_id) $args['event_id'] = $event_id;
-    if ($status) $args['status'] = $status;
+    $page     = max(1, absint(wp_unslash($_POST['page'] ?? 1)));
+    $per_page = min(200, max(10, absint(wp_unslash($_POST['per_page'] ?? 25))));
+    $search   = sanitize_text_field(wp_unslash($_POST['search'] ?? ''));
+    $event_id = absint(wp_unslash($_POST['event_id'] ?? 0));
+    $status   = sanitize_key(wp_unslash($_POST['status'] ?? ''));
 
-    $workshops = SC_Workshop::get_all($args);
-    $total     = SC_Workshop::count($args);
-    $pages     = $per_page > 0 ? (int) ceil($total / $per_page) : 1;
+    $hidden_statuses = array('private', 'cancelled', 'disabled');
 
-    // Enrich with event titles
+    // Filters shared by the rows and the tab counts; the status tab applies to rows only.
+    $where  = array('1=1');
+    $values = array();
+    if ($event_id) {
+        $where[]  = 'w.event_id = %d';
+        $values[] = $event_id;
+    }
+    if ($search !== '') {
+        $like     = '%' . $wpdb->esc_like($search) . '%';
+        $where[]  = '(w.title LIKE %s OR w.venue_name LIKE %s OR e.title LIKE %s)';
+        $values   = array_merge($values, array($like, $like, $like));
+    }
+    $base_where  = implode(' AND ', $where);
+    $base_values = $values;
+
+    if ($status === 'hidden') {
+        $where[] = "w.status IN ('" . implode("','", $hidden_statuses) . "')";
+    } elseif (in_array($status, array('publish', 'draft', 'completed', 'private', 'cancelled', 'disabled'), true)) {
+        $where[]  = 'w.status = %s';
+        $values[] = $status;
+    }
+    $where_sql = implode(' AND ', $where);
+
+    $sortable = array('title' => 'w.title', 'start_date' => 'w.start_date', 'created_at' => 'w.created_at');
+    $orderby  = sanitize_key(wp_unslash($_POST['orderby'] ?? 'start_date'));
+    $orderby  = isset($sortable[$orderby]) ? $orderby : 'start_date';
+    $order    = strtolower(sanitize_key(wp_unslash($_POST['order'] ?? 'desc'))) === 'asc' ? 'ASC' : 'DESC';
+    $order_sql = $sortable[$orderby] . ' ' . $order . ($orderby === 'start_date' ? ', w.start_time ' . $order : '') . ', w.id DESC';
+
+    $from = "FROM {$table} w LEFT JOIN {$events} e ON e.id = w.event_id";
+
+    $count_sql = "SELECT COUNT(*) {$from} WHERE {$where_sql}";
+    $total = (int) $wpdb->get_var($values ? $wpdb->prepare($count_sql, $values) : $count_sql);
+
+    $page_sql = "SELECT w.id, w.title, w.slug, w.event_id, w.start_date, w.end_date, w.start_time, w.end_time,
+                        w.location_type, w.venue_name, w.total_capacity, w.status, w.created_at,
+                        e.title AS event_title
+                 {$from} WHERE {$where_sql} ORDER BY {$order_sql} LIMIT %d OFFSET %d";
+    $workshops = $wpdb->get_results($wpdb->prepare($page_sql, array_merge($values, array($per_page, ($page - 1) * $per_page))));
+
+    $ids   = array_map('intval', wp_list_pluck($workshops, 'id'));
+    $stats = array();
+    $ticket_counts = array();
+    if ($ids) {
+        $in = implode(',', $ids);
+        foreach ($wpdb->get_results(
+            "SELECT workshop_id, COUNT(*) AS registered, SUM(checked_in = 1) AS checked_in, COALESCE(SUM(amount_paid), 0) AS revenue
+             FROM {$attendees}
+             WHERE workshop_id IN ({$in}) AND status = 'active' AND payment_status = 'success'
+             GROUP BY workshop_id"
+        ) as $s) {
+            $stats[(int) $s->workshop_id] = $s;
+        }
+        foreach ($wpdb->get_results("SELECT workshop_id, COUNT(*) AS n FROM {$tickets} WHERE workshop_id IN ({$in}) GROUP BY workshop_id") as $t) {
+            $ticket_counts[(int) $t->workshop_id] = (int) $t->n;
+        }
+    }
+
     $rows = array();
     foreach ($workshops as $w) {
+        $s = $stats[(int) $w->id] ?? null;
         $rows[] = array(
-            'id'              => (int) $w->id,
-            'title'           => $w->title,
-            'slug'            => $w->slug,
-            'event_id'        => (int) $w->event_id,
-            'event_title'     => SC_Workshop::get_event_title($w->event_id),
-            'start_date'      => $w->start_date,
-            'end_date'        => $w->end_date,
-            'status'          => $w->status,
-            'total_sold'      => (int) $w->total_sold,
-            'total_capacity'  => (int) $w->total_capacity,
-            'total_checked_in'=> (int) $w->total_checked_in,
+            'id'             => (int) $w->id,
+            'title'          => $w->title,
+            'slug'           => $w->slug,
+            'url'            => home_url('/workshop/' . $w->slug . '/'),
+            'event_id'       => (int) $w->event_id,
+            'event_title'    => $w->event_title,
+            'event_deleted'  => $w->event_title === null,
+            'start_date'     => $w->start_date,
+            'end_date'       => $w->end_date,
+            'start_time'     => $w->start_time,
+            'end_time'       => $w->end_time,
+            'location_type'  => $w->location_type,
+            'venue_name'     => $w->venue_name,
+            'status'         => $w->status,
+            'created_at'     => $w->created_at,
+            'total_capacity' => (int) $w->total_capacity,
+            'registered'     => $s ? (int) $s->registered : 0,
+            'checked_in'     => $s ? (int) $s->checked_in : 0,
+            'revenue'        => $s ? (float) $s->revenue : 0.0,
+            'tickets'        => $ticket_counts[(int) $w->id] ?? 0,
         );
     }
 
-    wp_send_json_success(array(
+    $response = array(
         'workshops'    => $rows,
         'total'        => $total,
-        'pages'        => $pages,
+        'pages'        => (int) ceil($total / $per_page),
         'current_page' => $page,
         'per_page'     => $per_page,
-    ));
+    );
+
+    if (!empty($_POST['with_counts'])) {
+        $counts_sql = "SELECT w.status, COUNT(*) AS n {$from} WHERE {$base_where} GROUP BY w.status";
+        $by_status  = array();
+        foreach ($wpdb->get_results($base_values ? $wpdb->prepare($counts_sql, $base_values) : $counts_sql) as $c) {
+            $by_status[$c->status] = (int) $c->n;
+        }
+        $hidden = 0;
+        foreach ($hidden_statuses as $h) {
+            $hidden += $by_status[$h] ?? 0;
+        }
+        $response['counts'] = array(
+            'all'       => array_sum($by_status),
+            'publish'   => $by_status['publish'] ?? 0,
+            'draft'     => $by_status['draft'] ?? 0,
+            'completed' => $by_status['completed'] ?? 0,
+            'hidden'    => $hidden,
+        );
+    }
+
+    wp_send_json_success($response);
 }
 
 /**

@@ -265,6 +265,7 @@
       if (els.scroll) { els.scroll.hidden = false; }
 
       var hasBulk = opts.bulkActions && opts.bulkActions.length;
+      els.table.classList.toggle('w-table--nocheck', !hasBulk);
       els.body.innerHTML = rows.map(function (row) {
         var id = row[opts.rowKey || 'id'];
         var html = '<tr data-id="' + esc(id) + '"' + (selected.has(String(id)) ? ' class="is-selected"' : '') + '>';

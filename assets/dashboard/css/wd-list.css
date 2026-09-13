@@ -387,6 +387,36 @@
 .w-ltr { direction: ltr; unicode-bidi: isolate; text-align: start; }
 .w-truncate { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 
+/* Multi-line cells: a value with a line under it */
+.w-stack { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.w-nowrap { white-space: nowrap; }
+.w-dash .w-row-title {
+  display: block;
+  max-width: 320px;
+  overflow: hidden;
+  color: var(--w-text);
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+}
+.w-dash .w-row-title:hover { color: var(--w-primary-text); text-decoration: underline; }
+
+/* Inline fill bar (seats taken, and similar) */
+.w-bar {
+  display: block;
+  width: 100%;
+  min-width: 96px;
+  max-width: 140px;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-surface-2);
+  overflow: hidden;
+}
+.w-bar__fill { display: block; height: 100%; border-radius: inherit; background: var(--w-teal); }
+.w-bar__fill.is-high { background: var(--w-gold); }
+.w-bar__fill.is-full { background: var(--w-danger); }
+
 .w-mono {
   font-family: var(--w-font-mono);
   font-size: 12.5px;
@@ -598,9 +628,16 @@
   .w-dash .w-table td.w-table__primary { grid-column: 2; grid-row: 1; padding-bottom: 6px; }
   .w-dash .w-table td.w-table__primary::before { content: none; }
   .w-dash .w-table td.w-table__hide-sm { display: none; }
+  /* Lists without selection drop the checkbox column */
+  .w-dash .w-table--nocheck tbody tr { grid-template-columns: minmax(0, 1fr) 36px; }
+  .w-dash .w-table--nocheck td { grid-column: 1; }
+  .w-dash .w-table--nocheck td.w-table__primary { grid-column: 1; }
+  .w-dash .w-table--nocheck td.w-table__menu { grid-column: 2; }
   .w-dash .w-table td.w-col-xl { display: flex; }
   .w-person__text { max-width: none; }
   .w-truncate { max-width: 60vw; }
+  .w-dash .w-table td[data-label] .w-stack { align-items: flex-end; text-align: end; }
+  .w-dash .w-row-title { max-width: none; white-space: normal; }
 
   .w-pager { justify-content: center; }
   .w-pager__info { width: 100%; justify-content: space-between; }
