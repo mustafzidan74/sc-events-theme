@@ -130,14 +130,14 @@ function sc_save_hall_handler() {
     $table = $wpdb->prefix . 'sc_halls';
 
     $hall_id     = isset($_POST['hall_id']) ? intval($_POST['hall_id']) : 0;
-    $name        = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
-    $description = isset($_POST['description']) ? wp_kses_post($_POST['description']) : '';
-    $capacity    = isset($_POST['capacity']) ? intval($_POST['capacity']) : null;
-    $location    = isset($_POST['location']) ? sanitize_text_field($_POST['location']) : '';
+    $name        = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+    $description = isset($_POST['description']) ? wp_kses_post(wp_unslash($_POST['description'])) : '';
+    $capacity    = isset($_POST['capacity']) && $_POST['capacity'] !== '' ? max(0, intval($_POST['capacity'])) : 0;
+    $location    = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
     $sort_order  = isset($_POST['sort_order']) ? intval($_POST['sort_order']) : 0;
 
     if (empty($name)) {
-        wp_send_json_error(array('message' => __('Hall name is required.', 'sc_events')));
+        wp_send_json_error(array('message' => __('Hall name is required.', 'sc_events'), 'errors' => array('name' => __('Hall name is required.', 'sc_events'))));
     }
 
     // Handle image - media library ID
@@ -167,13 +167,17 @@ function sc_save_hall_handler() {
         'capacity'    => $capacity,
         'location'    => $location,
         'sort_order'  => $sort_order,
-        'is_active'   => 1,
         'updated_at'  => current_time('mysql'),
     );
+    if (isset($_POST['is_active'])) {
+        $data['is_active'] = !empty($_POST['is_active']) ? 1 : 0;
+    } elseif ($hall_id <= 0) {
+        $data['is_active'] = 1;
+    }
 
     if ($has_image_id) {
         $data['image'] = intval($_POST['image']);
-    } elseif (isset($_POST['remove_image']) && $_POST['remove_image'] === '1') {
+    } elseif ((isset($_POST['remove_image']) && $_POST['remove_image'] === '1') || (isset($_POST['image']) && $_POST['image'] === '' && $hall_id > 0)) {
         $data['image'] = null;
     }
 
@@ -317,4 +321,37 @@ function sc_get_halls_paginated_handler() {
         'current_page' => $page,
         'per_page'     => $per_page,
     ));
+}
+
+// ==========================================
+// HALLS OVERVIEW (every hall with where it is used)
+// ==========================================
+add_action('wp_ajax_sc_get_halls_overview', 'sc_get_halls_overview_handler');
+function sc_get_halls_overview_handler() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    global $wpdb;
+    $p = $wpdb->prefix;
+    $halls = $wpdb->get_results(
+        "SELECT h.id, h.name, h.description, h.capacity, h.location, h.image, h.sort_order, h.is_active,
+                (SELECT COUNT(*) FROM {$p}sc_schedules s WHERE s.hall_id = h.id AND s.is_active = 1) AS items,
+                (SELECT GROUP_CONCAT(DISTINCT e.title ORDER BY e.start_date DESC SEPARATOR '|') FROM {$p}sc_schedules s JOIN {$p}sc_events e ON e.id = s.event_id WHERE s.hall_id = h.id AND s.is_active = 1) AS events
+         FROM {$p}sc_halls h ORDER BY h.is_active DESC, h.sort_order, h.name"
+    );
+    foreach ($halls as $h) {
+        $h->id = (int) $h->id;
+        $h->capacity = (int) $h->capacity;
+        $h->sort_order = (int) $h->sort_order;
+        $h->is_active = (bool) $h->is_active;
+        $h->items = (int) $h->items;
+        $h->events = $h->events ? explode('|', $h->events) : array();
+        $h->image_id = $h->image ? (int) $h->image : 0;
+        $h->image_url = $h->image ? (wp_get_attachment_image_url((int) $h->image, 'medium') ?: '') : '';
+        unset($h->image);
+    }
+    wp_send_json_success(array('halls' => $halls));
 }

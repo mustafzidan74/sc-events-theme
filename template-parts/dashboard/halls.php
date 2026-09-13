@@ -1,6 +1,6 @@
 <?php
 /**
- * Halls Management Page
+ * Halls — the rooms programme items take place in, edited in a dialog.
  *
  * @package sc_events
  */
@@ -9,285 +9,233 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = sc_t('dashboard_pages.halls_management', 'Halls Management');
+global $load_wd_overview;
+$load_wd_overview = true;
+$dashboard_url = home_url('/event-manager-dashboard/');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <div class="block-header">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <h2><?php echo esc_html(sc_t('dashboard_pages.halls_management', 'Halls Management')); ?></h2>
-                <ul class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                    <li class="breadcrumb-item active"><?php echo esc_html(sc_t('nav.halls', 'Halls')); ?></li>
-                </ul>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <div class="d-flex flex-row-reverse">
-                    <div class="page_action">
-                        <a href="<?php echo home_url('/event-manager-dashboard/hall-create'); ?>" class="btn btn-primary">
-                            <i class="fa fa-plus"></i> <?php echo esc_html(sc_t('dashboard_pages.add_hall', 'Add Hall')); ?>
-                        </a>
-                    </div>
-                </div>
-            </div>
+
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html(sc_t('nav.halls', 'Halls')); ?><span class="w-page-head__count" id="halls-count"></span></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('dashboard_pages.halls_subtitle', 'Rooms used in the programme. Their names and capacity appear on the event page.')); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-secondary" href="<?php echo esc_url($dashboard_url . 'schedules'); ?>"><i class="fa fa-clock-o" aria-hidden="true"></i> <?php echo esc_html(sc_t('nav.schedules', 'Schedules')); ?></a>
+            <button type="button" class="btn btn-primary" id="hall-add"><i class="fa fa-plus" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.add_hall', 'Add hall')); ?></button>
         </div>
     </div>
 
-    <!-- Search -->
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <div class="input-group">
-                <div class="input-group-prepend">
-                    <span class="input-group-text"><i class="fa fa-search"></i></span>
-                </div>
-                <input type="text" class="form-control" id="hall-search" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.search_halls', 'Search by name or location...')); ?>">
-            </div>
-        </div>
-    </div>
+    <div id="halls-body" class="w-hallgrid" aria-live="polite"></div>
+</div>
+</div>
 
-    <!-- Halls List -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="halls-table">
-                            <thead>
-                                <tr>
-                                    <th width="60"><?php echo esc_html(sc_t('dashboard_pages.image', 'Image')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.name', 'Name')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.capacity', 'Capacity')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.location', 'Location')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.schedules_count', 'Schedules')); ?></th>
-                                    <th width="150"><?php echo esc_html(sc_t('dashboard_pages.actions', 'Actions')); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <i class="fa fa-spinner fa-spin fa-3x text-muted"></i>
-                                        <p class="mt-3"><?php echo esc_html(sc_t('dashboard_pages.loading', 'Loading...')); ?></p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+<div class="modal fade" id="hallModal" tabindex="-1" role="dialog" aria-labelledby="hall-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="hall-form" novalidate>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="hall-title"><?php echo esc_html(sc_t('dashboard_pages.add_hall', 'Add hall')); ?></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
                 </div>
-                <div class="card-footer">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <div class="pagination-info">
-                                <span id="pagination-info-text"><?php echo esc_html(sc_t('dashboard_pages.loading', 'Loading...')); ?></span>
+                <div class="modal-body">
+                    <input type="hidden" name="hall_id" value="">
+                    <input type="hidden" name="image" value="">
+                    <div class="w-fields">
+                        <div class="w-field">
+                            <label for="h-name"><?php echo esc_html(sc_t('dashboard_pages.name', 'Name')); ?><span class="w-req" aria-hidden="true">*</span></label>
+                            <input type="text" class="form-control" id="h-name" name="name" maxlength="255" required>
+                        </div>
+                        <div class="w-fields w-fields--2">
+                            <div class="w-field">
+                                <label for="h-capacity"><?php echo esc_html(sc_t('dashboard_pages.capacity', 'Capacity')); ?></label>
+                                <input type="number" class="form-control" id="h-capacity" name="capacity" min="0" step="1" inputmode="numeric">
+                                <p class="w-field__help"><?php echo esc_html(sc_t('dashboard_pages.seats_in_room', 'Seats in the room; shown next to its name.')); ?></p>
+                            </div>
+                            <div class="w-field">
+                                <label for="h-order"><?php echo esc_html(sc_t('dashboard_pages.order', 'Order')); ?></label>
+                                <input type="number" class="form-control" id="h-order" name="sort_order" step="1" value="0" inputmode="numeric">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <nav>
-                                <ul class="pagination justify-content-end mb-0" id="halls-pagination"></ul>
-                            </nav>
+                        <div class="w-field">
+                            <label for="h-location"><?php echo esc_html(sc_t('dashboard_pages.location', 'Location')); ?></label>
+                            <input type="text" class="form-control" id="h-location" name="location" maxlength="255" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.location_placeholder', 'Building, floor…')); ?>">
                         </div>
+                        <div class="w-field">
+                            <label for="h-description"><?php echo esc_html(sc_t('dashboard_pages.description', 'Description')); ?></label>
+                            <textarea class="form-control" id="h-description" name="description" rows="2"></textarea>
+                        </div>
+                        <div class="w-field">
+                            <span class="w-field__label"><?php echo esc_html(sc_t('dashboard_pages.photo', 'Photo')); ?></span>
+                            <div class="w-hall-photo">
+                                <img id="h-photo" src="" alt="" hidden>
+                                <button type="button" class="btn btn-sm btn-secondary" id="h-photo-choose"><?php echo esc_html(sc_t('dashboard_pages.replace', 'Choose')); ?></button>
+                                <button type="button" class="btn btn-sm btn-secondary" id="h-photo-remove" hidden><?php echo esc_html(sc_t('dashboard_pages.remove', 'Remove')); ?></button>
+                            </div>
+                        </div>
+                        <input type="hidden" name="is_active" value="0">
+                        <label class="w-switch">
+                            <input type="checkbox" name="is_active" value="1" checked>
+                            <span class="w-switch__track" aria-hidden="true"></span>
+                            <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.in_use', 'In use')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.hall_active_help', 'Inactive halls are hidden from the event page and moved to the end of the hall list.')); ?></span></span>
+                        </label>
                     </div>
                 </div>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-link text-danger mr-auto" id="hall-delete" hidden><?php echo esc_html(sc_t('dashboard_pages.delete', 'Delete')); ?></button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
+                    <button type="submit" class="btn btn-primary" id="hall-save"><?php echo esc_html(sc_t('dashboard_pages.save', 'Save')); ?></button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-var hallsTranslations = {
-    loading: '<?php echo esc_js(sc_t('dashboard_pages.loading', 'Loading...')); ?>',
-    error_loading: '<?php echo esc_js(sc_t('dashboard_pages.error_loading_halls', 'Error loading halls')); ?>',
-    failed_load: '<?php echo esc_js(sc_t('dashboard_pages.failed_load_halls', 'Failed to load halls. Please try again.')); ?>',
-    no_halls_found: '<?php echo esc_js(sc_t('dashboard_pages.no_halls_found', 'No halls found. Click "Add Hall" to create one.')); ?>',
-    schedules_label: '<?php echo esc_js(sc_t('nav.schedules', 'schedules')); ?>',
-    showing: '<?php echo esc_js(sc_t('dashboard_pages.showing_to_of', 'Showing {start} to {end} of {total}')); ?>',
-    error_deleting: '<?php echo esc_js(sc_t('dashboard_pages.error_deleting_hall', 'Error deleting hall')); ?>'
-};
-
-jQuery(document).ready(function($) {
+jQuery(function ($) {
     'use strict';
 
-    let currentPage = 1;
-    let currentSearch = '';
-    let searchTimeout;
+    var L = <?php echo $js(array(
+        'add'       => sc_t('dashboard_pages.add_hall', 'Add hall'),
+        'edit'      => sc_t('dashboard_pages.edit_hall', 'Edit hall'),
+        'empty'     => sc_t('dashboard_pages.no_halls', 'No halls yet. Add the rooms your programme uses.'),
+        'seats'     => sc_t('dashboard_pages.n_seats', '%s seats'),
+        'items'     => sc_t('dashboard_pages.n_programme_items', '%d programme items'),
+        'unused'    => sc_t('dashboard_pages.not_used_yet', 'Not used yet'),
+        'inactive'  => sc_t('dashboard_pages.inactive', 'inactive'),
+        'errName'   => sc_t('dashboard_pages.err_hall_name', 'Give the hall a name.'),
+        'saved'     => sc_t('dashboard_pages.saved', 'Saved.'),
+        'confirmDelete' => sc_t('dashboard_pages.confirm_delete_hall', 'Delete “%1$s”? Its %2$d programme items stay, without a hall.'),
+        'failed'    => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+        'choose'    => sc_t('dashboard_pages.choose_image', 'Choose an image'),
+    )); ?>;
+    var esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]; }); };
+    var post = function (data) { return $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: $.extend({ nonce: scDashboard.nonce }, data) }); };
+    var halls = [];
+    var $body = $('#halls-body'), $modal = $('#hallModal'), form = document.getElementById('hall-form');
 
-    function escapeHtml(text) {
-        if (!text) return '';
-        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    function load() {
+        post({ action: 'sc_get_halls_overview' }).done(function (res) {
+            if (!res.success) { showError(res.data && res.data.message || L.failed); return; }
+            halls = res.data.halls;
+            render();
+            var editId = +(new URLSearchParams(location.search).get('edit') || 0);
+            var target = editId && halls.filter(function (x) { return x.id === editId; })[0];
+            if (target && !$modal.hasClass('show')) { open(target); history.replaceState(null, '', location.pathname); }
+        }).fail(function () { showError(L.failed); });
     }
 
-    function getImageHtml(hall) {
-        if (hall.image_url) {
-            return '<img src="' + escapeHtml(hall.image_url) + '" class="rounded" width="40" height="40" style="object-fit:cover;">';
-        }
-        var letter = hall.name ? hall.name.charAt(0).toUpperCase() : '?';
-        var colors = ['#8B5CF6', '#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#EC4899'];
-        var colorIndex = letter.charCodeAt(0) % colors.length;
-        return '<div style="width:40px;height:40px;border-radius:8px;background:' + colors[colorIndex] + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;">' + escapeHtml(letter) + '</div>';
-    }
-
-    function loadHallsPage(page) {
-        currentPage = page;
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_halls_paginated',
-                nonce: scDashboard.nonce,
-                page: page,
-                per_page: 50,
-                search: currentSearch
-            },
-            beforeSend: function() {
-                $('#halls-table tbody').html('<tr><td colspan="7" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-3x text-muted"></i><p class="mt-3">' + hallsTranslations.loading + '</p></td></tr>');
-            }
-        }).done(function(response) {
-            if (response.success) {
-                renderHallsTable(response.data.halls);
-                renderPagination(response.data.current_page, response.data.pages);
-                updatePaginationInfo(response.data.total, response.data.current_page, 50);
-            } else {
-                toastr.error(response.data.message || hallsTranslations.error_loading);
-            }
-        }).fail(function() {
-            toastr.error(hallsTranslations.failed_load);
-        });
-    }
-
-    function renderHallsTable(halls) {
-        const tbody = $('#halls-table tbody');
-        tbody.empty();
-
-        if (!halls || halls.length === 0) {
-            tbody.html('<tr><td colspan="7" class="text-center py-4">' + hallsTranslations.no_halls_found + '</td></tr>');
+    function render() {
+        $('#halls-count').text(halls.length || '');
+        if (!halls.length) {
+            $body.html('<div class="w-state"><p class="w-state__title">' + esc(L.empty) + '</p><div class="w-state__actions"><button type="button" class="btn btn-primary" data-add>' + esc(L.add) + '</button></div></div>');
             return;
         }
-
-        halls.forEach(function(hall) {
-            const row = `
-                <tr>
-                    <td>${getImageHtml(hall)}</td>
-                    <td><strong>${escapeHtml(hall.name)}</strong></td>
-                    <td>${(hall.capacity !== null && hall.capacity !== '') ? hall.capacity : '-'}</td>
-                    <td>${escapeHtml(hall.location || '-')}</td>
-                    <td><span class="badge badge-info">${hall.schedules_count || 0} ${hallsTranslations.schedules_label}</span></td>
-                    <td>
-                        <div class="btn-group">
-                            <a href="<?php echo home_url('/event-manager-dashboard/hall-edit'); ?>?id=${hall.id}" class="btn btn-sm btn-primary" title="<?php echo esc_attr(sc_t('dashboard_pages.edit', 'Edit')); ?>">
-                                <i class="fa fa-edit"></i>
-                            </a>
-                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="sr-only">Toggle Dropdown</span>
-                            </button>
-                            <div class="dropdown-menu dropdown-menu-right">
-                                <a class="dropdown-item" href="<?php echo home_url('/event-manager-dashboard/hall-edit'); ?>?id=${hall.id}"><i class="fa fa-edit mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.edit', 'Edit')); ?></a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item text-danger delete-hall" href="javascript:void(0);" data-id="${hall.id}"><i class="fa fa-trash mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.delete', 'Delete')); ?></a>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            tbody.append(row);
-        });
+        $body.html(halls.map(function (h) {
+            return '<button type="button" class="w-hall' + (h.is_active ? '' : ' is-inactive') + '" data-id="' + h.id + '">' +
+                '<span class="w-hall__photo">' + (h.image_url ? '<img src="' + esc(h.image_url) + '" alt="" loading="lazy">' : '<i class="fa fa-building-o" aria-hidden="true"></i>') + '</span>' +
+                '<span class="w-hall__body"><strong>' + esc(h.name) + (h.is_active ? '' : ' <span class="w-tag">' + esc(L.inactive) + '</span>') + '</strong>' +
+                '<span class="w-sub">' + esc([h.capacity ? L.seats.replace('%s', h.capacity.toLocaleString('en-US')) : '', h.location].filter(Boolean).join(' · ')) + '</span>' +
+                '<span class="w-sub">' + esc(h.items ? L.items.replace('%d', h.items) + (h.events.length ? ' · ' + h.events.join(', ') : '') : L.unused) + '</span></span>' +
+                '</button>';
+        }).join(''));
     }
 
-    function renderPagination(current, total) {
-        const pagination = $('#halls-pagination');
-        pagination.empty();
-        if (total <= 1) return;
-
-        const maxVisible = 7;
-        let startPage = Math.max(1, current - Math.floor(maxVisible / 2));
-        let endPage = Math.min(total, startPage + maxVisible - 1);
-        if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
-
-        pagination.append(`<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current - 1}"><i class="fa fa-chevron-left"></i></a></li>`);
-
-        if (startPage > 1) {
-            pagination.append(`<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`);
-            if (startPage > 2) pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            pagination.append(`<li class="page-item ${i === current ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
-        }
-
-        if (endPage < total) {
-            if (endPage < total - 1) pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-            pagination.append(`<li class="page-item"><a class="page-link" href="#" data-page="${total}">${total}</a></li>`);
-        }
-
-        pagination.append(`<li class="page-item ${current === total ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current + 1}"><i class="fa fa-chevron-right"></i></a></li>`);
-
-        pagination.find('a.page-link').on('click', function(e) {
-            e.preventDefault();
-            const page = parseInt($(this).data('page'));
-            if (page && page !== current) loadHallsPage(page);
-        });
+    function setPhoto(id, url) {
+        form.image.value = id || '';
+        $('#h-photo').attr('src', url || '').prop('hidden', !url);
+        $('#h-photo-remove').prop('hidden', !url);
+    }
+    function clearErrors() {
+        $(form).find('.has-error').removeClass('has-error');
+        $(form).find('.w-field__error').remove();
     }
 
-    function updatePaginationInfo(total, page, perPage) {
-        const start = total === 0 ? 0 : ((page - 1) * perPage) + 1;
-        const end = Math.min(page * perPage, total);
-        const text = hallsTranslations.showing.replace('{start}', start).replace('{end}', end).replace('{total}', total);
-        $('#pagination-info-text').text(text);
+    function open(h) {
+        form.reset();
+        clearErrors();
+        $('#hall-title').text(h ? L.edit : L.add);
+        form.hall_id.value = h ? h.id : '';
+        form.name.value = h ? h.name : '';
+        form.capacity.value = h && h.capacity ? h.capacity : '';
+        form.sort_order.value = h ? h.sort_order : 0;
+        form.location.value = h ? h.location || '' : '';
+        form.description.value = h ? h.description || '' : '';
+        $(form).find('input[type="checkbox"][name="is_active"]').prop('checked', h ? h.is_active : true);
+        setPhoto(h ? h.image_id : '', h ? h.image_url : '');
+        $('#hall-delete').prop('hidden', !h);
+        $modal.modal('show');
     }
+    $modal.on('shown.bs.modal', function () { form.name.focus(); });
 
-    // Delete hall
-    $(document).on('click', '.delete-hall', function() {
-        showDeleteConfirm().then((result) => {
-            if (!result.isConfirmed) return;
-
-            const hallId = $(this).data('id');
-            const btn = $(this);
-            btn.prop('disabled', true);
-
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'sc_delete_hall',
-                    nonce: scDashboard.nonce,
-                    hall_id: hallId
-                }
-            }).done(function(response) {
-                if (response.success) {
-                    loadHallsPage(currentPage);
-                } else {
-                    toastr.error(response.data.message || hallsTranslations.error_deleting);
-                    btn.prop('disabled', false);
-                }
+    var frame = null;
+    $('#h-photo-choose').on('click', function () {
+        if (!window.wp || !wp.media) { return; }
+        if (!frame) {
+            frame = wp.media({ title: L.choose, library: { type: 'image' }, multiple: false });
+            frame.on('select', function () {
+                var a = frame.state().get('selection').first().toJSON();
+                setPhoto(a.id, a.sizes && a.sizes.medium ? a.sizes.medium.url : a.url);
             });
+        }
+        frame.open();
+    });
+    $('#h-photo-remove').on('click', function () { setPhoto('', ''); });
+
+    $(form).on('submit', function (e) {
+        e.preventDefault();
+        clearErrors();
+        if (!$.trim(form.name.value)) {
+            $(form.name).closest('.w-field').addClass('has-error').append($('<p class="w-field__error">').text(L.errName));
+            form.name.focus();
+            return;
+        }
+        var data = $(form).serializeArray().reduce(function (o, f) { o[f.name] = f.value; return o; }, {});
+        var $btn = $('#hall-save').prop('disabled', true);
+        post($.extend({ action: 'sc_save_hall' }, data)).done(function (res) {
+            $btn.prop('disabled', false);
+            if (!res.success) {
+                var errs = res.data && res.data.errors || {};
+                Object.keys(errs).forEach(function (k) { $(form).find('[name="' + k + '"]').closest('.w-field').addClass('has-error').append($('<p class="w-field__error">').text(errs[k])); });
+                if (!Object.keys(errs).length) { showError(res.data && res.data.message || L.failed); }
+                return;
+            }
+            $modal.modal('hide');
+            if (window.toastr) { toastr.success(L.saved); }
+            load();
+        }).fail(function () { $btn.prop('disabled', false); showError(L.failed); });
+    });
+
+    $('#hall-delete').on('click', function () {
+        var h = halls.filter(function (x) { return x.id === +form.hall_id.value; })[0];
+        if (!h) { return; }
+        showDeleteConfirm(L.confirmDelete.replace('%1$s', h.name).replace('%2$d', h.items)).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            post({ action: 'sc_delete_hall', hall_id: h.id }).done(function (res) {
+                if (res.success) { $modal.modal('hide'); load(); } else { showError(res.data && res.data.message || L.failed); }
+            }).fail(function () { showError(L.failed); });
         });
     });
 
-    // Search with debounce
-    $('#hall-search').on('input', function() {
-        clearTimeout(searchTimeout);
-        const val = $(this).val().trim();
-        searchTimeout = setTimeout(function() {
-            currentSearch = val;
-            loadHallsPage(1);
-        }, 500);
-    });
+    $('#hall-add').on('click', function () { open(null); });
+    $body.on('click', '[data-add]', function () { open(null); });
+    $body.on('click', '.w-hall', function () { open(halls.filter(function (x) { return x.id === +this.getAttribute('data-id'); }, this)[0]); });
 
-    // Initial load
-    loadHallsPage(1);
+    load();
+    if (new URLSearchParams(location.search).get('add') === '1') { open(null); }
 });
 </script>
-
-</div>
-</div>
 
 <?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>

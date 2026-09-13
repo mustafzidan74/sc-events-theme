@@ -179,62 +179,66 @@ function sc_get_schedule_handler() {
 add_action('wp_ajax_sc_save_schedule', 'sc_save_schedule_handler');
 function sc_save_schedule_handler() {
     $nonce_valid = false;
-    if (isset($_POST['sc_schedule_nonce']) && wp_verify_nonce($_POST['sc_schedule_nonce'], 'sc_schedule_action')) {
+    if (isset($_POST['sc_schedule_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sc_schedule_nonce'])), 'sc_schedule_action')) {
         $nonce_valid = true;
-    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
+    } elseif (isset($_POST['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
         $nonce_valid = true;
     }
-
     if (!$nonce_valid) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
     global $wpdb;
     $table = $wpdb->prefix . 'sc_schedules';
+    $post = function ($key, $default = '') {
+        return isset($_POST[$key]) ? wp_unslash($_POST[$key]) : $default;
+    };
+    // "09:00" or "09:00:00" → "09:00:00"; anything else → ''.
+    $time = function ($value) {
+        return preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/', trim((string) $value), $m) ? sprintf('%02d:%02d:%02d', $m[1], $m[2], $m[3] ?? 0) : '';
+    };
 
-    $schedule_id   = isset($_POST['schedule_id']) ? intval($_POST['schedule_id']) : 0;
-    $event_id      = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $type          = isset($_POST['type']) && in_array($_POST['type'], array('session', 'registration', 'break')) ? $_POST['type'] : 'session';
-    $hall_id       = isset($_POST['hall_id']) && $_POST['hall_id'] !== '' ? intval($_POST['hall_id']) : null;
-    $title         = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
-    $description   = isset($_POST['description']) ? wp_kses_post($_POST['description']) : '';
-    $speaker_id    = isset($_POST['speaker_id']) && $_POST['speaker_id'] !== '' ? intval($_POST['speaker_id']) : null;
-    $speaker_name  = isset($_POST['speaker_name']) ? sanitize_text_field($_POST['speaker_name']) : '';
-    $schedule_date = isset($_POST['schedule_date']) ? sanitize_text_field($_POST['schedule_date']) : '';
-    $start_time    = isset($_POST['start_time']) ? sanitize_text_field($_POST['start_time']) : '';
-    $end_time      = isset($_POST['end_time']) ? sanitize_text_field($_POST['end_time']) : '';
-    $sort_order    = isset($_POST['sort_order']) ? intval($_POST['sort_order']) : 0;
+    $schedule_id   = absint($post('schedule_id', 0));
+    $event_id      = absint($post('event_id', 0));
+    $type          = in_array($post('type'), array('session', 'registration', 'break'), true) ? $post('type') : 'session';
+    $hall_id       = $post('hall_id') !== '' ? absint($post('hall_id')) : null;
+    $title         = sanitize_text_field($post('title'));
+    $description   = wp_kses_post($post('description'));
+    $speaker_raw   = (string) $post('speaker_id');
+    $speaker_id    = ctype_digit($speaker_raw) && (int) $speaker_raw > 0 ? (int) $speaker_raw : null;
+    $speaker_name  = $speaker_id ? '' : sanitize_text_field($post('speaker_name'));
+    $schedule_date = sanitize_text_field($post('schedule_date'));
+    $start_time    = $time($post('start_time'));
+    $end_time      = $time($post('end_time'));
 
-    // Validation
-    if (empty($event_id)) {
-        wp_send_json_error(array('message' => sc_t('validation.event_required', 'Event is required.')));
+    $errors = array();
+    if (!$event_id || !$wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}sc_events WHERE id = %d", $event_id))) {
+        $errors['event_id'] = __('Choose the event.', 'sc_events');
     }
-    if (empty($title)) {
-        wp_send_json_error(array('message' => sc_t('validation.title_required', 'Title is required.')));
+    if ($title === '') {
+        $errors['title'] = __('Title is required.', 'sc_events');
     }
-    if (empty($schedule_date)) {
-        wp_send_json_error(array('message' => sc_t('validation.date_required', 'Date is required.')));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $schedule_date)) {
+        $errors['schedule_date'] = __('Pick the day.', 'sc_events');
     }
-    if (empty($start_time) || empty($end_time)) {
-        wp_send_json_error(array('message' => sc_t('validation.time_required', 'Start time and end time are required.')));
+    if ($start_time === '') {
+        $errors['start_time'] = __('Start time is required.', 'sc_events');
+    }
+    if ($end_time === '') {
+        $errors['end_time'] = __('End time is required.', 'sc_events');
+    } elseif ($start_time !== '' && $end_time <= $start_time) {
+        $errors['end_time'] = __('Ends before it starts.', 'sc_events');
+    }
+    if ($errors) {
+        wp_send_json_error(array('message' => reset($errors), 'errors' => $errors));
     }
 
-    // Get existing schedule if updating
-    if ($schedule_id > 0) {
-        $existing = $wpdb->get_row($wpdb->prepare("SELECT id FROM $table WHERE id = %d", $schedule_id));
-        if (!$existing) {
-            wp_send_json_error(array('message' => __('Schedule not found.', 'sc_events')));
-        }
+    if ($schedule_id > 0 && !$wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE id = %d", $schedule_id))) {
+        wp_send_json_error(array('message' => __('Schedule not found.', 'sc_events')));
     }
-
-    $registration_start = !empty($_POST['registration_start']) ? sanitize_text_field($_POST['registration_start']) : null;
-    $registration_end   = !empty($_POST['registration_end'])   ? sanitize_text_field($_POST['registration_end'])   : null;
-    $break_start        = !empty($_POST['break_start'])        ? sanitize_text_field($_POST['break_start'])        : null;
-    $break_end          = !empty($_POST['break_end'])          ? sanitize_text_field($_POST['break_end'])          : null;
 
     $data = array(
         'event_id'           => $event_id,
@@ -247,12 +251,11 @@ function sc_save_schedule_handler() {
         'schedule_date'      => $schedule_date,
         'start_time'         => $start_time,
         'end_time'           => $end_time,
-        'registration_start' => $registration_start,
-        'registration_end'   => $registration_end,
-        'break_start'        => $break_start,
-        'break_end'          => $break_end,
-        'sort_order'         => $sort_order,
-        'is_active'          => 1,
+        'registration_start' => $time($post('registration_start')) ?: null,
+        'registration_end'   => $time($post('registration_end')) ?: null,
+        'break_start'        => $time($post('break_start')) ?: null,
+        'break_end'          => $time($post('break_end')) ?: null,
+        'sort_order'         => intval($post('sort_order', 0)),
         'updated_at'         => current_time('mysql'),
     );
 
@@ -260,17 +263,65 @@ function sc_save_schedule_handler() {
         $result = $wpdb->update($table, $data, array('id' => $schedule_id));
         $message = sc_t('schedule_updated', 'Schedule updated successfully.');
     } else {
+        $data['is_active'] = 1;
         $data['created_at'] = current_time('mysql');
         $result = $wpdb->insert($table, $data);
-        $schedule_id = $wpdb->insert_id;
+        $schedule_id = (int) $wpdb->insert_id;
         $message = sc_t('schedule_created', 'Schedule created successfully.');
     }
-
     if ($result === false) {
         wp_send_json_error(array('message' => __('Failed to save schedule.', 'sc_events')));
     }
 
     wp_send_json_success(array('message' => $message, 'schedule_id' => $schedule_id));
+}
+
+// ==========================================
+// PROGRAMME: one event's items, days and pick lists
+// ==========================================
+add_action('wp_ajax_sc_get_programme', 'sc_get_programme_handler');
+function sc_get_programme_handler() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    global $wpdb;
+    $p = $wpdb->prefix;
+    $event_id = absint(wp_unslash($_POST['event_id'] ?? 0));
+    if (!$event_id) {
+        wp_send_json_error(array('message' => __('Choose the event.', 'sc_events')));
+    }
+
+    $items = $wpdb->get_results($wpdb->prepare(
+        "SELECT s.id, s.type, s.title, s.description, s.schedule_date, s.start_time, s.end_time, s.hall_id, s.speaker_id, s.speaker_name,
+                s.registration_start, s.registration_end, s.break_start, s.break_end, s.sort_order,
+                h.name AS hall_name, sp.name AS speaker_db_name
+         FROM {$p}sc_schedules s
+         LEFT JOIN {$p}sc_halls h ON h.id = s.hall_id
+         LEFT JOIN {$p}sc_speakers sp ON sp.id = s.speaker_id
+         WHERE s.event_id = %d AND s.is_active = 1
+         ORDER BY s.schedule_date, s.start_time, s.sort_order, h.sort_order, s.id",
+        $event_id
+    ));
+    foreach ($items as $item) {
+        $item->id = (int) $item->id;
+        $item->hall_id = $item->hall_id ? (int) $item->hall_id : null;
+        $item->speaker_id = $item->speaker_id ? (int) $item->speaker_id : null;
+        $item->speaker = $item->speaker_db_name ?: $item->speaker_name;
+        foreach (array('start_time', 'end_time', 'registration_start', 'registration_end', 'break_start', 'break_end') as $k) {
+            $item->$k = $item->$k ? substr($item->$k, 0, 5) : '';
+        }
+    }
+
+    $sessions = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$p}sc_sessions WHERE event_id = %d AND is_published = 1", $event_id));
+
+    wp_send_json_success(array(
+        'items'             => $items,
+        // The public page shows published sessions instead of this programme when an event has any.
+        'published_sessions'=> $sessions,
+    ));
 }
 
 // ==========================================
