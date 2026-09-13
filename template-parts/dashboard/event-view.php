@@ -298,7 +298,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                 <?php else: ?>
                     <p class="w-panel__empty"><?php echo esc_html(sc_t('dashboard_pages.no_event_tickets', 'No tickets yet — without one, nobody can register.')); ?></p>
                 <?php endif; ?>
-                <?php if ($orphaned > 0): ?>
+                <?php if ($orphaned > 0 && !$ended): // Past events carry imported registrations from the old site. ?>
                     <p class="w-panel__note"><?php echo esc_html(sprintf(sc_t('dashboard_pages.orphaned_registrations', '%s people registered with tickets that no longer exist, so they are not counted in the rows above. Their registrations are still valid.'), number_format_i18n($orphaned))); ?></p>
                 <?php endif; ?>
             </section>
