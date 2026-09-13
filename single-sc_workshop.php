@@ -15,6 +15,8 @@
  */
 
 if (!class_exists('SC_Workshop')) {
+    status_header(404);
+    nocache_headers();
     get_template_part('404');
     exit;
 }
@@ -43,7 +45,16 @@ if (empty($workshop_slug) && !empty($_SERVER['REQUEST_URI'])) {
 
 $workshop = $workshop_slug ? SC_Workshop::get_by_slug($workshop_slug) : null;
 
+// Drafts, private, cancelled and disabled workshops stay hidden from visitors;
+// event managers still see them, which is how the dashboard's Preview works.
+if ($workshop && !in_array($workshop->status, array('publish', 'completed'), true)
+    && !(class_exists('SC_Event_Manager_Dashboard') && SC_Event_Manager_Dashboard::is_event_manager())) {
+    $workshop = null;
+}
+
 if (!$workshop) {
+    status_header(404);
+    nocache_headers();
     get_template_part('404');
     exit;
 }
