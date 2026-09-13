@@ -126,11 +126,13 @@
   font-size: 11.5px;
   white-space: nowrap;
   pointer-events: none;
-  opacity: 0;
+  display: none; /* not just transparent: hidden tips at the edges would widen the page */
   z-index: 2;
 }
 .w-bars__col:hover .w-bars__tip,
-.w-bars__col:focus .w-bars__tip { opacity: 1; }
+.w-bars__col:focus .w-bars__tip { display: block; }
+.w-bars__col:nth-last-child(-n+4) .w-bars__tip { left: auto; right: 0; transform: none; }
+.w-bars__col:nth-child(-n+4) .w-bars__tip { left: 0; transform: none; }
 .w-bars__axis {
   display: flex;
   justify-content: space-between;
@@ -199,4 +201,95 @@
   .w-kpi__value { font-size: 22px; }
   .w-panel { padding: 16px; }
   .w-bars { gap: 2px; height: 110px; }
+}
+
+/* Next-event hero */
+.w-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-bottom: 16px;
+  padding: 20px 22px;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: linear-gradient(135deg, var(--w-primary-soft), var(--w-surface) 60%);
+}
+.w-hero__main { min-width: 0; flex: 1 1 320px; }
+.w-hero__eyebrow { color: var(--w-primary-text); font-size: 12.5px; font-weight: 600; }
+.w-dash .w-hero h2 { margin: 4px 0 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.01em; }
+.w-dash .w-hero h2 a { color: var(--w-text); text-decoration: none; }
+.w-dash .w-hero h2 a:hover { text-decoration: underline; }
+.w-hero__meta { margin: 6px 0 0; color: var(--w-text-2); font-size: 13.5px; }
+.w-hero__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.w-hero__figures { display: flex; flex-wrap: wrap; gap: 8px; }
+.w-hero__fig {
+  display: flex;
+  flex-direction: column;
+  min-width: 110px;
+  padding: 10px 14px;
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface);
+  border: 1px solid var(--w-border);
+}
+.w-hero__fig strong { font-size: 24px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.w-hero__fig span { color: var(--w-text-2); font-size: 12px; }
+
+/* Needs-attention list */
+.w-attn { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.w-attn__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--w-border);
+  border-inline-start-width: 3px;
+  border-radius: var(--w-radius-md);
+}
+.w-attn__item--red { border-inline-start-color: var(--w-danger); }
+.w-attn__item--gold { border-inline-start-color: var(--w-gold); }
+.w-attn__icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--w-surface-2);
+  color: var(--w-text-2);
+}
+.w-attn__item--red .w-attn__icon { background: var(--w-danger-soft); color: var(--w-danger); }
+.w-attn__item--gold .w-attn__icon { background: var(--w-gold-soft); color: var(--w-gold-text); }
+.w-attn__body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; font-size: 13.5px; }
+.w-attn__body span { color: var(--w-text-2); font-size: 12.5px; }
+.w-attn__item .btn { flex: none; }
+
+/* Small calendar badge */
+.w-date-badge {
+  width: 40px;
+  height: 44px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface-2);
+  line-height: 1;
+}
+.w-date-badge strong { font-size: 16px; font-weight: 700; }
+.w-date-badge span { margin-top: 2px; color: var(--w-text-2); font-size: 10.5px; text-transform: uppercase; }
+.w-dash .w-rows__main a { display: block; min-width: 0; overflow: hidden; color: var(--w-text); text-decoration: none; }
+.w-rows__main a strong { display: block; }
+.w-dash .w-rows__main a:hover strong { text-decoration: underline; }
+
+@media (max-width: 767.98px) {
+  .w-hero { padding: 16px; }
+  .w-hero__figures { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .w-hero__fig { min-width: 0; }
+  .w-attn__item { flex-wrap: wrap; }
+  .w-attn__body { flex-basis: calc(100% - 44px); }
+  .w-attn__item .btn { margin-inline-start: 44px; }
 }
