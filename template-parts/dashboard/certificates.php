@@ -48,8 +48,9 @@ $events = $wpdb->get_results("SELECT id, title FROM {$wpdb->prefix}sc_events WHE
 
 // Get counts
 $total_certificates = SC_Certificate::count();
-$issued_certificates = SC_Certificate::count(array('status' => 'issued'));
 $revoked_certificates = SC_Certificate::count(array('status' => 'revoked'));
+// Active = every certificate that isn't revoked (issued and downloaded alike).
+$issued_certificates = $total_certificates - $revoked_certificates;
 ?>
 
 <?php get_template_part('template-parts/dashboard/components/dashboard', 'sidebar'); ?>
@@ -362,9 +363,10 @@ jQuery(function($) {
             const isChecked = selectedCertificates.has(String(cert.id)) ? 'checked' : '';
 
             // Status badge
-            let statusBadge = cert.status === 'issued'
-                ? '<span class="badge badge-success"><?php echo esc_js(sc_t('dashboard_pages.issued', 'Issued')); ?></span>'
-                : '<span class="badge badge-danger"><?php echo esc_js(sc_t('dashboard_pages.revoked', 'Revoked')); ?></span>';
+            // "downloaded" is a valid certificate too; only "revoked" is not.
+            let statusBadge = cert.status === 'revoked'
+                ? '<span class="badge badge-danger"><?php echo esc_js(sc_t('dashboard_pages.revoked', 'Revoked')); ?></span>'
+                : '<span class="badge badge-success"><?php echo esc_js(sc_t('dashboard_pages.issued', 'Issued')); ?></span>';
 
             // Format date helper - consistent DD MMM YYYY format
             function formatDate(dateStr) {
@@ -608,7 +610,7 @@ jQuery(function($) {
                                 <table class="table table-sm">
                                     <tr><th><?php echo esc_js(sc_t('certificates.certificate_number', 'Certificate #')); ?></th><td><code>${escapeHtml(cert.certificate_number)}</code></td></tr>
                                     <tr><th><?php echo esc_js(sc_t('certificates.verification_code', 'Verification Code')); ?></th><td><code>${escapeHtml(cert.verification_code)}</code></td></tr>
-                                    <tr><th><?php echo esc_js(sc_t('certificates.status', 'Status')); ?></th><td>${cert.status === 'issued' ? '<span class="badge badge-success"><?php echo esc_js(sc_t('dashboard_pages.issued', 'Issued')); ?></span>' : '<span class="badge badge-danger"><?php echo esc_js(sc_t('dashboard_pages.revoked', 'Revoked')); ?></span>'}</td></tr>
+                                    <tr><th><?php echo esc_js(sc_t('certificates.status', 'Status')); ?></th><td>${cert.status !== 'revoked' ? '<span class="badge badge-success"><?php echo esc_js(sc_t('dashboard_pages.issued', 'Issued')); ?></span>' : '<span class="badge badge-danger"><?php echo esc_js(sc_t('dashboard_pages.revoked', 'Revoked')); ?></span>'}</td></tr>
                                     <tr><th><?php echo esc_js(sc_t('certificates.issued_date', 'Issued Date')); ?></th><td>${cert.issued_at ? new Date(cert.issued_at).toLocaleString() : '-'}</td></tr>
                                     <tr><th><?php echo esc_js(sc_t('dashboard_pages.downloads', 'Downloads')); ?></th><td>${cert.download_count || 0}</td></tr>
                                     <tr><th><?php echo esc_js(sc_t('certificates.last_download', 'Last Download')); ?></th><td>${cert.last_download ? new Date(cert.last_download).toLocaleString() : '<?php echo esc_js(sc_t('certificates.never', 'Never')); ?>'}</td></tr>
