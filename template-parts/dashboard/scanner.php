@@ -156,9 +156,11 @@ if ($is_scanner_only):
     </div>
     <div class="topbar-actions">
         <span class="user-info"><i class="fa fa-user"></i> <?php echo esc_html($current_user_scanner->display_name); ?></span>
+        <?php if (!get_option('sc_site_language', '')): // Hidden while the site is pinned to one language. ?>
         <a href="#" class="topbar-btn btn-lang scanner-lang-switch" data-lang="<?php echo $is_rtl ? 'en' : 'ar'; ?>">
             <?php echo $is_rtl ? 'EN' : 'ع'; ?>
         </a>
+        <?php endif; ?>
         <a href="#" class="topbar-btn btn-logout logout-link">
             <i class="fa fa-power-off"></i>
         </a>
