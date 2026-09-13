@@ -1552,199 +1552,150 @@ function sc_delete_attendee() {
 }
 
 /**
- * Get Events with Pagination
- * Uses Custom Tables (SC_Event) only
+ * Events list: one page of rows plus the tab counts.
+ *
+ * Registrations, check-ins and revenue are counted from the attendees table.
+ * Ticket "sold" counters are not used: saves used to reset them.
  */
 add_action('wp_ajax_sc_get_events_paginated', 'sc_get_events_paginated');
 function sc_get_events_paginated() {
     global $wpdb;
 
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
-    // Check permissions
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
-    // Ensure Custom Tables classes exist
-    if (!class_exists('SC_Event')) {
-        wp_send_json_error(array('message' => __('Custom Tables not available.', 'sc_events')));
+    $events_table    = $wpdb->prefix . 'sc_events';
+    $attendees_table = $wpdb->prefix . 'sc_attendees';
+    $workshops_table = $wpdb->prefix . 'sc_workshops';
+    $tickets_table   = $wpdb->prefix . 'sc_tickets';
+
+    $page        = max(1, absint(wp_unslash($_POST['page'] ?? 1)));
+    $per_page    = min(200, max(10, absint(wp_unslash($_POST['per_page'] ?? 25))));
+    $search      = sanitize_text_field(wp_unslash($_POST['search'] ?? ''));
+    $view        = sanitize_key(wp_unslash($_POST['view'] ?? 'all'));
+    $category_id = absint(wp_unslash($_POST['category_id'] ?? 0));
+    $today       = current_time('Y-m-d');
+
+    // Filters shared by the rows and every tab count.
+    $where  = array('1=1');
+    $values = array();
+    if ($search !== '') {
+        $like    = '%' . $wpdb->esc_like($search) . '%';
+        $where[] = '(e.title LIKE %s OR e.venue_name LIKE %s OR e.venue_city LIKE %s OR e.venue_address LIKE %s)';
+        $values  = array_merge($values, array($like, $like, $like, $like));
     }
+    if ($category_id) {
+        $where[]  = "e.id IN (SELECT event_id FROM {$wpdb->prefix}sc_event_categories WHERE category_id = %d)";
+        $values[] = $category_id;
+    }
+    $base_where = implode(' AND ', $where);
 
-    $page = isset($_POST['page']) ? intval($_POST['page']) : 1;
-    $per_page = isset($_POST['per_page']) ? intval($_POST['per_page']) : 20;
-    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-    $filter = isset($_POST['filter']) ? sanitize_text_field($_POST['filter']) : 'all';
-    $category_id = isset($_POST['category_id']) ? intval($_POST['category_id']) : 0;
-    $offset = ($page - 1) * $per_page;
-
-    // Build query args for SC_Event::get_all()
-    $args = array(
-        'limit'   => $per_page,
-        'offset'  => $offset,
-        'orderby' => 'created_at',
-        'order'   => 'DESC',
+    // Each tab is a fixed SQL condition; "All" leaves out disabled events, as before.
+    $past_date = 'COALESCE(e.end_date, e.start_date)';
+    $views = array(
+        'all'       => "e.status <> 'disabled'",
+        'upcoming'  => $wpdb->prepare("e.status = 'publish' AND {$past_date} >= %s", $today),
+        'past'      => $wpdb->prepare("e.status IN ('publish','completed') AND {$past_date} < %s", $today),
+        'draft'     => "e.status = 'draft'",
+        'completed' => "e.status = 'completed'",
+        'disabled'  => "e.status IN ('disabled','cancelled','private')",
     );
+    $view = isset($views[$view]) ? $view : 'all';
+    $where_sql = $base_where . ' AND ' . $views[$view];
 
-    // Filter by status
-    if ($filter === 'draft') {
-        $args['status'] = 'draft';
-    } elseif ($filter === 'upcoming') {
-        $args['status'] = 'publish';
-        $args['upcoming_only'] = true;
-    } elseif ($filter === 'past') {
-        $args['status'] = array('publish', 'completed');
-        $args['past_only'] = true;
-    } elseif ($filter === 'completed') {
-        $args['status'] = 'completed';
-    } elseif ($filter === 'disabled') {
-        $args['status'] = 'disabled';
-    } else {
-        // All events: include publish, draft, completed (but NOT disabled)
-        $args['status'] = array('publish', 'draft', 'completed');
+    $sortable  = array('title' => 'e.title', 'start_date' => 'e.start_date', 'created_at' => 'e.created_at');
+    $orderby   = sanitize_key(wp_unslash($_POST['orderby'] ?? 'start_date'));
+    $orderby   = isset($sortable[$orderby]) ? $orderby : 'start_date';
+    $order     = sanitize_key(wp_unslash($_POST['order'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC';
+    $order_sql = $sortable[$orderby] . ' ' . $order . ', e.id DESC';
+
+    $prepare = function ($sql, $args) use ($wpdb) {
+        return $args ? $wpdb->prepare($sql, $args) : $sql;
+    };
+
+    $total = (int) $wpdb->get_var($prepare("SELECT COUNT(*) FROM {$events_table} e WHERE {$where_sql}", $values));
+
+    $events = $wpdb->get_results($wpdb->prepare(
+        "SELECT e.id, e.title, e.slug, e.status, e.start_date, e.end_date, e.start_time, e.end_time, e.all_day_event,
+                e.location_type, e.venue_name, e.venue_city, e.featured_image, e.created_at
+         FROM {$events_table} e WHERE {$where_sql} ORDER BY {$order_sql} LIMIT %d OFFSET %d",
+        array_merge($values, array($per_page, ($page - 1) * $per_page))
+    ));
+
+    $ids = array_map('intval', wp_list_pluck($events, 'id'));
+    $stats = $workshops = $tickets = array();
+    if ($ids) {
+        $in = implode(',', $ids);
+        foreach ($wpdb->get_results(
+            "SELECT event_id,
+                    COUNT(*) AS all_rows,
+                    SUM(workshop_id IS NULL AND status = 'active' AND payment_status = 'success') AS registered,
+                    SUM(workshop_id IS NOT NULL AND status = 'active' AND payment_status = 'success') AS workshop_registrations,
+                    SUM(workshop_id IS NULL AND checked_in = 1 AND status = 'active' AND payment_status = 'success') AS checked_in,
+                    COALESCE(SUM(CASE WHEN status = 'active' AND payment_status = 'success' THEN amount_paid END), 0) AS revenue
+             FROM {$attendees_table} WHERE event_id IN ({$in}) GROUP BY event_id"
+        ) as $row) {
+            $stats[(int) $row->event_id] = $row;
+        }
+        foreach ($wpdb->get_results("SELECT event_id, COUNT(*) AS n FROM {$workshops_table} WHERE event_id IN ({$in}) GROUP BY event_id") as $row) {
+            $workshops[(int) $row->event_id] = (int) $row->n;
+        }
+        foreach ($wpdb->get_results("SELECT event_id, COUNT(*) AS n FROM {$tickets_table} WHERE event_id IN ({$in}) AND (workshop_id IS NULL OR workshop_id = 0) AND is_active = 1 GROUP BY event_id") as $row) {
+            $tickets[(int) $row->event_id] = (int) $row->n;
+        }
     }
 
-    // Search
-    if (!empty($search)) {
-        $args['search'] = $search;
-    }
-
-    // Category filter
-    if (!empty($category_id)) {
-        $args['category_id'] = $category_id;
-    }
-
-    // Get events from Custom Tables
-    $sc_events = SC_Event::get_all($args);
-
-    // Get total count for pagination (must match same filters)
-    $count_args = array();
-    if ($filter === 'draft') {
-        $count_args['status'] = 'draft';
-    } elseif ($filter === 'upcoming') {
-        $count_args['status'] = 'publish';
-        $count_args['upcoming_only'] = true;
-    } elseif ($filter === 'past') {
-        $count_args['status'] = array('publish', 'completed');
-        $count_args['past_only'] = true;
-    } elseif ($filter === 'completed') {
-        $count_args['status'] = 'completed';
-    } elseif ($filter === 'disabled') {
-        $count_args['status'] = 'disabled';
-    } else {
-        // All statuses except disabled
-        $count_args['status'] = array('publish', 'draft', 'completed');
-    }
-    if (!empty($search)) {
-        $count_args['search'] = $search;
-    }
-    if (!empty($category_id)) {
-        $count_args['category_id'] = $category_id;
-    }
-    $total = SC_Event::count($count_args);
-    $pages = ceil($total / $per_page);
-
-    $events = array();
-
-    foreach ($sc_events as $event) {
-        // Build venue display
-        $venue_display = '';
-
-        if ($event->location_type === 'offline' || $event->location_type === 'hybrid') {
-            if (!empty($event->venue_name)) {
-                $venue_display = '<i class="fa fa-map-marker text-danger"></i> ' . esc_html($event->venue_name);
-            } elseif (!empty($event->venue_address)) {
-                $venue_display = '<i class="fa fa-map-marker text-danger"></i> ' . esc_html($event->venue_address);
-            }
-        }
-
-        if (empty($venue_display) && ($event->location_type === 'online' || $event->location_type === 'hybrid')) {
-            if (!empty($event->meeting_link)) {
-                $venue_display = '<i class="fa fa-video-camera text-info"></i> ' . esc_html(substr($event->meeting_link, 0, 30)) . (strlen($event->meeting_link) > 30 ? '...' : '');
-            } else {
-                $venue_display = '<i class="fa fa-video-camera text-info"></i> Online Event';
-            }
-        }
-
-        if (empty($venue_display)) {
-            $venue_display = '<i class="fa fa-map-marker"></i> N/A';
-        }
-
-        // Format date/time
-        $date_display = '';
-        if ($event->start_date) {
-            $date_display = date('M d, Y', strtotime($event->start_date));
-            if ($event->start_time) {
-                $date_display .= ' at ' . date('g:i A', strtotime($event->start_time));
-            }
-        }
-
-        // Build event URL
-        $event_url = home_url('/event/' . $event->slug);
-
-        // Calculate available tickets from tickets table
-        $available_tickets = 0;
-        $total_capacity = 0;
-        $tickets_sold = intval($event->total_sold);
-        $has_unlimited = false;
-
-        if (class_exists('SC_Ticket')) {
-            $event_tickets = SC_Ticket::get_by_event($event->id);
-            if (!empty($event_tickets)) {
-                foreach ($event_tickets as $ticket) {
-                    $ticket_quantity = intval($ticket->quantity);
-                    $ticket_sold = intval($ticket->sold ?? 0);
-                    if ($ticket_quantity < 0) {
-                        // -1 means unlimited
-                        $has_unlimited = true;
-                    } elseif ($ticket_quantity > 0) {
-                        $total_capacity += $ticket_quantity;
-                        $available_tickets += max(0, $ticket_quantity - $ticket_sold);
-                    }
-                }
-            }
-        }
-
-        // Build available tickets display
-        $available_display = '';
-        if ($has_unlimited) {
-            $available_display = '<span class="text-muted"><i class="fa fa-infinity"></i> Unlimited</span>';
-        } elseif ($total_capacity > 0) {
-            $percent = round(($available_tickets / $total_capacity) * 100);
-            $color = $percent > 50 ? 'success' : ($percent > 20 ? 'warning' : 'danger');
-            $available_display = '<span class="badge badge-' . $color . '">' . $available_tickets . '/' . $total_capacity . '</span>';
-        } else {
-            $available_display = '<span class="text-muted">No tickets</span>';
-        }
-
-        // Get attendees count for this event
-        $attendees_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}sc_attendees WHERE event_id = %d",
-            $event->id
-        ));
-
-        $events[] = array(
-            'ID' => $event->id,
-            'title' => $event->title,
-            'status' => $event->status,
-            'date_display' => $date_display,
-            'venue' => $venue_display,
-            'available_tickets' => $available_display,
-            'tickets_sold' => $tickets_sold,
-            'attendees_count' => intval($attendees_count),
-            'permalink' => $event_url
+    $rows = array();
+    foreach ($events as $event) {
+        $id = (int) $event->id;
+        $s  = $stats[$id] ?? null;
+        $rows[] = array(
+            'id'                     => $id,
+            'title'                  => $event->title,
+            'slug'                   => $event->slug,
+            'url'                    => home_url('/event/' . $event->slug . '/'),
+            'status'                 => $event->status,
+            'start_date'             => $event->start_date,
+            'end_date'               => $event->end_date,
+            'start_time'             => $event->start_time,
+            'end_time'               => $event->end_time,
+            'all_day'                => (bool) $event->all_day_event,
+            'location_type'          => $event->location_type,
+            'venue_name'             => $event->venue_name,
+            'venue_city'             => $event->venue_city,
+            'thumb'                  => $event->featured_image ? (wp_get_attachment_image_url((int) $event->featured_image, 'thumbnail') ?: '') : '',
+            'created_at'             => $event->created_at,
+            'attendee_rows'          => $s ? (int) $s->all_rows : 0,
+            'registered'             => $s ? (int) $s->registered : 0,
+            'workshop_registrations' => $s ? (int) $s->workshop_registrations : 0,
+            'checked_in'             => $s ? (int) $s->checked_in : 0,
+            'revenue'                => $s ? (float) $s->revenue : 0.0,
+            'workshops'              => $workshops[$id] ?? 0,
+            'tickets'                => $tickets[$id] ?? 0,
         );
     }
 
-    wp_send_json_success(array(
-        'events' => $events,
-        'total' => $total,
-        'pages' => $pages,
-        'current_page' => $page
-    ));
+    $response = array(
+        'events'       => $rows,
+        'total'        => $total,
+        'pages'        => (int) ceil($total / $per_page),
+        'current_page' => $page,
+    );
+
+    if (!empty($_POST['with_counts'])) {
+        $parts = array();
+        foreach ($views as $key => $condition) {
+            $parts[] = "COALESCE(SUM({$condition}), 0) AS `{$key}`";
+        }
+        $counts = $wpdb->get_row($prepare("SELECT " . implode(', ', $parts) . " FROM {$events_table} e WHERE {$base_where}", $values), ARRAY_A);
+        $response['counts'] = array_map('intval', $counts ?: array_fill_keys(array_keys($views), 0));
+    }
+
+    wp_send_json_success($response);
 }
 
 /**

@@ -78,7 +78,16 @@ if (!$event && !empty($event_slug)) {
     }
 }
 
+// Drafts, private, cancelled and disabled events stay hidden from visitors;
+// event managers still see them, which is how the dashboard's preview works.
+if ($event && !in_array($event->status, array('publish', 'completed'), true)
+    && !(class_exists('SC_Event_Manager_Dashboard') && SC_Event_Manager_Dashboard::is_event_manager())) {
+    $event = null;
+}
+
 if (!$event) {
+    status_header(404);
+    nocache_headers();
     get_template_part('404');
     exit;
 }

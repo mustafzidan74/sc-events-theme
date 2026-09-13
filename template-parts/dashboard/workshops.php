@@ -171,7 +171,7 @@ jQuery(function ($) {
         return days === 1 ? L.tomorrow : L.inDays.replace('%d', days);
     }
 
-    var STATUS_TONE = { publish: 'teal', completed: 'primary', cancelled: 'red' };
+    var STATUS_TONE = { publish: 'teal', cancelled: 'red' };
 
     var ICON = {
         pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',

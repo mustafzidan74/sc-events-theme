@@ -401,6 +401,24 @@
 }
 .w-dash .w-row-title:hover { color: var(--w-primary-text); text-decoration: underline; }
 
+/* Small square image at the start of a row */
+.w-thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface-2);
+  object-fit: cover;
+}
+.w-thumb--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--w-text-2);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 /* Inline fill bar (seats taken, and similar) */
 .w-bar {
   display: block;
