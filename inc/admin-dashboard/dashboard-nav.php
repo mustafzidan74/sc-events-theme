@@ -15,6 +15,19 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * URL of a theme asset with its modification time as the version, so browsers
+ * fetch a new copy after every deploy instead of keeping last week's file.
+ *
+ * @param string $relative Path under the theme's assets/ folder.
+ * @return string
+ */
+function sc_dashboard_asset($relative) {
+    $file = get_template_directory() . '/assets/' . ltrim($relative, '/');
+    $version = file_exists($file) ? (string) filemtime($file) : (defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1');
+    return get_template_directory_uri() . '/assets/' . ltrim($relative, '/') . '?v=' . $version;
+}
+
+/**
  * Line icons (24px grid, stroke) keyed by name.
  */
 function sc_dashboard_icon($name, $size = 18) {

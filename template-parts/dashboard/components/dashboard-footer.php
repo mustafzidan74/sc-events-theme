@@ -18,7 +18,7 @@ $asset_version = defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1';
 </div><!-- .w-dash-app -->
 
 <script src="<?php echo esc_url($admin_assets); ?>bundles/libscripts.bundle.js"></script>
-<script src="<?php echo esc_url($admin_assets . 'js/dashboard-core.js?v=' . $asset_version); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('admin-dashboard/js/dashboard-core.js')); ?>"></script>
 <script src="<?php echo esc_url($admin_assets); ?>bundles/vendorscripts.bundle.js"></script>
 <?php if (isset($load_flatpickr) && $load_flatpickr): ?>
 <script src="<?php echo esc_url($admin_assets); ?>vendor/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
@@ -28,11 +28,11 @@ $asset_version = defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1';
 <script src="<?php echo esc_url($admin_assets); ?>vendor/select2/select2.min.js"></script>
 <script src="<?php echo esc_url($admin_assets); ?>vendor/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="<?php echo esc_url($theme_assets . 'js/shared-utilities.js?v=' . $asset_version); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('js/shared-utilities.js')); ?>"></script>
 <?php if (isset($load_charts) && $load_charts): ?>
 <script src="<?php echo esc_url($admin_assets); ?>bundles/c3.bundle.js"></script>
 <?php endif; ?>
-<script src="<?php echo esc_url($admin_assets); ?>bundles/mainscripts.bundle.js?v=<?php echo esc_attr($asset_version); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('admin-dashboard/bundles/mainscripts.bundle.js')); ?>"></script>
 
 <script>
 var ajaxurl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
@@ -50,13 +50,13 @@ if (function_exists('sc_print_modules_js_object')) {
     sc_print_modules_js_object();
 }
 ?>
-<script src="<?php echo esc_url($admin_assets . 'js/dashboard-init.js?v=' . $asset_version); ?>"></script>
-<script src="<?php echo esc_url($theme_assets . 'dashboard/js/wd-shell.js?v=' . $asset_version); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('admin-dashboard/js/dashboard-init.js')); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('dashboard/js/wd-shell.js')); ?>"></script>
 <?php if (!empty($load_wd_list)): ?>
-<script src="<?php echo esc_url($theme_assets . 'dashboard/js/wd-list.js?v=' . $asset_version); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('dashboard/js/wd-list.js')); ?>"></script>
 <?php endif; ?>
 <?php if (!empty($load_wd_form)): ?>
-<script src="<?php echo esc_url($theme_assets . 'dashboard/js/wd-form.js?v=' . $asset_version); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('dashboard/js/wd-form.js')); ?>"></script>
 <?php endif; ?>
 
 <?php wp_footer(); ?>

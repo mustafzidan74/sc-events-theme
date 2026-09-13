@@ -94,15 +94,15 @@ $chat_module_enabled = !function_exists('sc_module_active') || sc_module_active(
     <?php wp_head(); ?>
 
     <!-- Wisdom design system (after wp_head so it wins over enqueued vendor CSS) -->
-    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'frontend/css/wisdom/tokens.css?v=' . $asset_version); ?>">
-    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-shell.css?v=' . $asset_version); ?>">
-    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-components.css?v=' . $asset_version); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('frontend/css/wisdom/tokens.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/wd-shell.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/wd-components.css')); ?>">
     <?php if (!empty($load_wd_list)): ?>
-    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-list.css?v=' . $asset_version); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/wd-list.css')); ?>">
     <?php endif; ?>
     <?php if (!empty($load_wd_form)): ?>
-    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-list.css?v=' . $asset_version); ?>">
-    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-form.css?v=' . $asset_version); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/wd-list.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/wd-form.css')); ?>">
     <?php endif; ?>
 
     <?php if ($chat_module_enabled && !$w_bare): ?>
@@ -115,7 +115,7 @@ $chat_module_enabled = !function_exists('sc_module_active') || sc_module_active(
             chatLabel: '<?php echo esc_js(sc_t('nav.chat', 'Chat Messages')); ?>'
         };
     </script>
-    <script src="<?php echo esc_url($theme_assets . 'js/admin-chat-notifications.js?v=' . $asset_version); ?>"></script>
+    <script src="<?php echo esc_url(sc_dashboard_asset('js/admin-chat-notifications.js')); ?>"></script>
     <?php endif; ?>
 
     <!-- jQuery + Bootstrap for page scripts (load order unchanged from the old shell) -->
