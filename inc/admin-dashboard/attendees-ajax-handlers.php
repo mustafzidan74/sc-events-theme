@@ -595,7 +595,8 @@ function sc_save_single_attendee() {
         'ticket_code' => $saved_attendee ? $saved_attendee->ticket_code : ''
     ));
 }
-add_action('wp_ajax_sc_save_attendee', 'sc_save_single_attendee');
+// The dashboard form now saves through sc_attendee_form_save (below); this older handler is no longer hooked.
+add_action('wp_ajax_sc_save_attendee', 'sc_attendee_form_save');
 
 /**
  * Send ticket email for custom table attendee
@@ -2103,4 +2104,282 @@ function sc_build_email_template($name, $message, $event_name) {
 </html>';
 
     return $html;
+}
+
+// ==========================================
+// ATTENDEE FORM (add / edit page)
+// ==========================================
+
+/**
+ * Email an attendee the link to their ticket (the same page My Account opens).
+ */
+function sc_attendee_send_ticket_link($attendee) {
+    global $wpdb;
+    if (!$attendee || !is_email($attendee->email)) {
+        return false;
+    }
+    $event = class_exists('SC_Event') ? SC_Event::get((int) $attendee->event_id) : null;
+    $workshop = $attendee->workshop_id && class_exists('SC_Workshop') ? SC_Workshop::get((int) $attendee->workshop_id) : null;
+    $title = $workshop ? $workshop->title : ($event ? $event->title : get_bloginfo('name'));
+    $when = $workshop ? $workshop->start_date : ($event ? $event->start_date : '');
+    $url = home_url('/ticket-view/?attendee_id=' . (int) $attendee->id . '&ticket_code=' . rawurlencode($attendee->ticket_code));
+    $site = get_option('sc_platform_name', get_bloginfo('name'));
+
+    $subject = sprintf(__('Your ticket for %s', 'sc_events'), $title);
+    $body = '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#222;max-width:560px;margin:0 auto">'
+        . '<p>' . sprintf(esc_html__('Dear %s,', 'sc_events'), esc_html($attendee->name)) . '</p>'
+        . '<p>' . sprintf(esc_html__('You are registered for %s.', 'sc_events'), '<strong>' . esc_html($title) . '</strong>') . '</p>'
+        . ($when ? '<p>' . esc_html__('Date:', 'sc_events') . ' ' . esc_html(date_i18n('l j F Y', strtotime($when))) . '</p>' : '')
+        . '<p>' . esc_html__('Ticket code:', 'sc_events') . ' <strong style="font-family:monospace">' . esc_html($attendee->ticket_code) . '</strong></p>'
+        . '<p><a href="' . esc_url($url) . '" style="display:inline-block;padding:12px 24px;background:#7a1f1f;color:#fff;text-decoration:none;border-radius:8px">' . esc_html__('Open your ticket', 'sc_events') . '</a></p>'
+        . '<p style="color:#666;font-size:13px">' . esc_html__('Show the QR code on that page at the entrance.', 'sc_events') . '</p>'
+        . '<p>' . esc_html($site) . '</p></div>';
+
+    $sent = wp_mail($attendee->email, $subject, $body, array('Content-Type: text/html; charset=UTF-8'));
+    if ($sent) {
+        $wpdb->update($wpdb->prefix . 'sc_attendees', array('email_sent' => 1, 'email_sent_at' => current_time('mysql')), array('id' => (int) $attendee->id));
+    }
+    return $sent;
+}
+
+/**
+ * Create or update an attendee from the dashboard form.
+ *
+ * Replaces sc_save_single_attendee, which un-checked people in on every edit,
+ * ignored the check-in and email toggles, never stored the amount paid or a
+ * workshop, forced the status to active, created WordPress accounts with the
+ * phone number as password, and left sold counters wrong when the ticket changed.
+ */
+function sc_attendee_form_save() {
+    $nonce_ok = (isset($_POST['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce'))
+        || (isset($_POST['sc_attendee_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sc_attendee_nonce'])), 'sc_attendee_action'));
+    if (!$nonce_ok) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+
+    global $wpdb;
+    $p = $wpdb->prefix;
+    $in = function ($key, $default = '') {
+        return isset($_POST[$key]) ? wp_unslash($_POST[$key]) : $default;
+    };
+
+    $attendee_id = absint($in('attendee_id', 0));
+    $existing = $attendee_id ? SC_Attendee::get($attendee_id) : null;
+    if ($attendee_id && !$existing) {
+        wp_send_json_error(array('message' => __('Attendee not found.', 'sc_events')));
+    }
+
+    // The event (and workshop) of an existing attendee stay fixed; moving someone between events is a new registration.
+    $event_id    = $existing ? (int) $existing->event_id : absint($in('event_id', 0));
+    $workshop_id = $existing ? (int) $existing->workshop_id : absint($in('workshop_id', 0));
+    $ticket_id   = absint($in('ticket_id', 0));
+    $name        = sanitize_text_field($in('name'));
+    $email_raw   = trim((string) $in('email'));
+    $email       = sanitize_email($email_raw);
+    $phone       = sanitize_text_field($in('phone'));
+
+    $errors = array();
+    $event = $event_id ? SC_Event::get($event_id) : null;
+    if (!$event) {
+        $errors['event_id'] = __('Choose the event.', 'sc_events');
+    }
+    if ($workshop_id && !$wpdb->get_var($wpdb->prepare("SELECT id FROM {$p}sc_workshops WHERE id = %d AND event_id = %d", $workshop_id, $event_id))) {
+        $errors['workshop_id'] = __('That workshop is not part of this event.', 'sc_events');
+    }
+    if ($name === '') {
+        $errors['name'] = __('Name is required.', 'sc_events');
+    }
+    if ($email_raw === '' || !is_email($email_raw)) {
+        $errors['email'] = __('Enter a valid email address.', 'sc_events');
+    }
+    $ticket = $ticket_id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$p}sc_tickets WHERE id = %d", $ticket_id)) : null;
+    $ticket_ok = $ticket && (int) $ticket->event_id === $event_id
+        && ($workshop_id ? (int) $ticket->workshop_id === $workshop_id : empty($ticket->workshop_id));
+    if (!$ticket_ok && !($existing && $ticket_id === (int) $existing->ticket_id)) {
+        $errors['ticket_id'] = __('Choose a ticket for this event.', 'sc_events');
+    }
+    if (!$errors && empty($_POST['allow_duplicate'])) {
+        $dupe = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$p}sc_attendees WHERE event_id = %d AND email = %s AND status = 'active' AND id <> %d AND "
+            . ($workshop_id ? 'workshop_id = %d' : 'workshop_id IS NULL AND %d = 0'),
+            $event_id, $email, $attendee_id, $workshop_id
+        ));
+        if ($dupe) {
+            wp_send_json_error(array(
+                'message'   => __('This email is already registered here.', 'sc_events'),
+                'errors'    => array('email' => __('Already registered with this email.', 'sc_events')),
+                'duplicate' => (int) $dupe,
+            ));
+        }
+    }
+    if ($errors) {
+        wp_send_json_error(array('message' => reset($errors), 'errors' => $errors));
+    }
+
+    $payment_status = in_array($in('payment_status'), array('success', 'pending', 'failed', 'refunded'), true) ? $in('payment_status') : 'success';
+    $payment_method = sanitize_key($in('payment_method', 'free')) ?: 'free';
+    $coupon_code    = sanitize_text_field($in('coupon_code'));
+    if ($coupon_code !== '' && $payment_method === 'free') {
+        $payment_method = 'coupon';
+    }
+    $amount_paid = $in('amount_paid') !== '' ? max(0, (float) $in('amount_paid')) : ($ticket && $payment_method === 'paid' ? (float) $ticket->price : 0);
+    if ($payment_method === 'free') {
+        $amount_paid = 0;
+        $coupon_code = '';
+    }
+    $status = in_array($in('status'), array('active', 'cancelled'), true) ? $in('status') : 'active';
+
+    // Registration answers keyed by the event's (or workshop's) question labels.
+    $answers = array();
+    $posted_answers = isset($_POST['extra_fields']) && is_array($_POST['extra_fields']) ? wp_unslash($_POST['extra_fields']) : array();
+    foreach ($posted_answers as $label => $value) {
+        $label = sanitize_text_field((string) $label);
+        if ($label === '') {
+            continue;
+        }
+        $answers[$label] = is_array($value) ? implode(', ', array_map('sanitize_text_field', $value)) : sanitize_textarea_field((string) $value);
+    }
+
+    $user = get_user_by('email', $email);
+
+    if (!$existing) {
+        $attendee_id = (int) sc_create_attendee(array(
+            'event_id'       => $event_id,
+            'workshop_id'    => $workshop_id,
+            'ticket_id'      => $ticket_id,
+            'ticket_name'    => $ticket ? $ticket->name : '',
+            'ticket_type'    => $ticket && $ticket->ticket_type ? $ticket->ticket_type : 'general',
+            'user_id'        => $user ? $user->ID : 0,
+            'name'           => $name,
+            'email'          => $email,
+            'phone'          => $phone,
+            'payment_status' => $payment_status,
+            'payment_method' => $payment_method,
+            'amount_paid'    => $amount_paid,
+            'coupon_code'    => $coupon_code,
+        ));
+        if (!$attendee_id) {
+            wp_send_json_error(array('message' => __('Could not register this attendee.', 'sc_events')));
+        }
+        $wpdb->update($p . 'sc_attendees', array(
+            'notes'        => sanitize_textarea_field($in('notes')),
+            'status'       => $status,
+            'extra_fields' => $answers ? wp_json_encode($answers, JSON_UNESCAPED_UNICODE) : null,
+        ), array('id' => $attendee_id));
+
+        if (!empty($_POST['check_in_now'])) {
+            SC_Attendee::check_in($attendee_id);
+            $wpdb->update($p . 'sc_attendees', array('checked_in_by' => get_current_user_id()), array('id' => $attendee_id));
+        }
+        $created = SC_Attendee::get($attendee_id);
+        $emailed = !empty($_POST['send_email']) ? sc_attendee_send_ticket_link($created) : false;
+
+        wp_send_json_success(array(
+            'message'     => $emailed || empty($_POST['send_email'])
+                ? __('Attendee registered.', 'sc_events')
+                : __('Attendee registered, but the ticket email could not be sent.', 'sc_events'),
+            'attendee_id' => $attendee_id,
+            'ticket_code' => $created->ticket_code,
+            'redirect'    => home_url('/event-manager-dashboard/attendee-edit?id=' . $attendee_id . '&created=1'),
+        ));
+    }
+
+    // Update. Check-in state is changed only by its own buttons.
+    $data = array(
+        'name'           => $name,
+        'email'          => $email,
+        'phone'          => $phone,
+        'payment_status' => $payment_status,
+        'payment_method' => $payment_method,
+        'amount_paid'    => $amount_paid,
+        'coupon_code'    => $coupon_code,
+        'notes'          => sanitize_textarea_field($in('notes')),
+        'status'         => $status,
+        'updated_at'     => current_time('mysql'),
+    );
+    if ($user && !(int) $existing->user_id) {
+        $data['user_id'] = $user->ID;
+    }
+    if (isset($_POST['extra_fields'])) {
+        // SC_Attendee::get() returns extra_fields already decoded.
+        $stored = is_string($existing->extra_fields) ? json_decode($existing->extra_fields, true) : json_decode(wp_json_encode($existing->extra_fields), true);
+        $stored = is_array($stored) ? $stored : array();
+        $data['extra_fields'] = wp_json_encode(array_merge($stored, $answers), JSON_UNESCAPED_UNICODE);
+    }
+
+    // Moving to another ticket moves the sold count with it.
+    $old_ticket = (int) $existing->ticket_id;
+    if ($ticket_ok && $ticket_id !== $old_ticket) {
+        $data['ticket_id'] = $ticket_id;
+        $data['ticket_name'] = $ticket->name;
+    }
+    $was_counted = $existing->payment_status === 'success' && $existing->status === 'active';
+    $now_counted = $payment_status === 'success' && $status === 'active';
+    $new_ticket = isset($data['ticket_id']) ? $ticket_id : $old_ticket;
+
+    $wpdb->update($p . 'sc_attendees', $data, array('id' => $attendee_id));
+
+    if ($old_ticket && $was_counted && ($new_ticket !== $old_ticket || !$now_counted)) {
+        SC_Ticket::decrement_sold($old_ticket);
+    }
+    if ($new_ticket && $now_counted && ($new_ticket !== $old_ticket || !$was_counted)) {
+        SC_Ticket::increment_sold($new_ticket);
+    }
+    SC_Event::update_stats($event_id);
+    if ($workshop_id && class_exists('SC_Workshop')) {
+        SC_Workshop::update_stats($workshop_id);
+    }
+
+    wp_send_json_success(array('message' => __('Attendee updated.', 'sc_events'), 'attendee_id' => $attendee_id));
+}
+
+add_action('wp_ajax_sc_undo_checkin_attendee', 'sc_undo_checkin_attendee');
+function sc_undo_checkin_attendee() {
+    check_ajax_referer('sc_dashboard_nonce', 'nonce');
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    $id = absint($_POST['attendee_id'] ?? 0);
+    if (!$id || !SC_Attendee::undo_check_in($id)) {
+        wp_send_json_error(array('message' => __('Could not undo the check-in.', 'sc_events')));
+    }
+    wp_send_json_success(array('message' => __('Check-in undone.', 'sc_events')));
+}
+
+add_action('wp_ajax_sc_attendee_send_ticket', 'sc_attendee_send_ticket');
+function sc_attendee_send_ticket() {
+    check_ajax_referer('sc_dashboard_nonce', 'nonce');
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    $attendee = SC_Attendee::get(absint($_POST['attendee_id'] ?? 0));
+    if (!$attendee) {
+        wp_send_json_error(array('message' => __('Attendee not found.', 'sc_events')));
+    }
+    if (!sc_attendee_send_ticket_link($attendee)) {
+        wp_send_json_error(array('message' => __('The email could not be sent. Check the site’s mail settings.', 'sc_events')));
+    }
+    wp_send_json_success(array('message' => sprintf(__('Ticket sent to %s.', 'sc_events'), $attendee->email)));
+}
+
+add_action('wp_ajax_sc_regenerate_ticket_code', 'sc_regenerate_ticket_code');
+function sc_regenerate_ticket_code() {
+    check_ajax_referer('sc_dashboard_nonce', 'nonce');
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    global $wpdb;
+    $attendee = SC_Attendee::get(absint($_POST['attendee_id'] ?? 0));
+    if (!$attendee) {
+        wp_send_json_error(array('message' => __('Attendee not found.', 'sc_events')));
+    }
+    $code = SC_Attendee::generate_ticket_code();
+    $qr = json_decode((string) $attendee->qr_data, true);
+    $qr = is_array($qr) ? $qr : array('type' => 'attendee', 'event' => (int) $attendee->event_id);
+    $qr['code'] = $code;
+    $wpdb->update($wpdb->prefix . 'sc_attendees', array('ticket_code' => $code, 'qr_data' => wp_json_encode($qr), 'updated_at' => current_time('mysql')), array('id' => (int) $attendee->id));
+    wp_send_json_success(array('message' => __('New ticket code created. The old QR code no longer works.', 'sc_events'), 'ticket_code' => $code));
 }

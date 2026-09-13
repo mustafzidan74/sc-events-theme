@@ -55,6 +55,19 @@ class SC_Checkin {
             $workshop_id = (int) $attendee->workshop_id;
         }
 
+        // The action column is enum('checkin','checkout','manual_checkin','manual_checkout');
+        // anything else was rejected, so no dashboard check-in was ever logged.
+        // An undo has no value there; logging it as a checkout would count towards
+        // certificate "checked out" rules, so it stays in the activity log only.
+        if ($action === 'undo_check_in') {
+            return false;
+        }
+        $map = array(
+            'check_in'  => $method === 'qr' ? 'checkin' : 'manual_checkin',
+            'check_out' => $method === 'qr' ? 'checkout' : 'manual_checkout',
+        );
+        $action = $map[$action] ?? $action;
+
         $data = array(
             'attendee_id' => $attendee_id,
             'event_id'    => $attendee->event_id,
@@ -179,14 +192,14 @@ class SC_Checkin {
 
         // Total check-ins
         $total_checkins = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $table WHERE event_id = %d AND action = 'check_in'",
+            "SELECT COUNT(*) FROM $table WHERE event_id = %d AND action IN ('checkin', 'manual_checkin')",
             $event_id
         ));
 
         // Check-ins by method
         $by_method = $wpdb->get_results($wpdb->prepare(
             "SELECT scan_method AS method, COUNT(*) as count FROM $table
-            WHERE event_id = %d AND action = 'check_in'
+            WHERE event_id = %d AND action IN ('checkin', 'manual_checkin')
             GROUP BY scan_method",
             $event_id
         ), OBJECT_K);
@@ -194,7 +207,7 @@ class SC_Checkin {
         // Check-ins by hour
         $by_hour = $wpdb->get_results($wpdb->prepare(
             "SELECT HOUR(created_at) as hour, COUNT(*) as count FROM $table
-            WHERE event_id = %d AND action = 'check_in'
+            WHERE event_id = %d AND action IN ('checkin', 'manual_checkin')
             GROUP BY HOUR(created_at)
             ORDER BY hour",
             $event_id
@@ -202,7 +215,7 @@ class SC_Checkin {
 
         // Unique staff who checked in
         $staff_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT scanned_by) FROM $table WHERE event_id = %d AND action = 'check_in'",
+            "SELECT COUNT(DISTINCT scanned_by) FROM $table WHERE event_id = %d AND action IN ('checkin', 'manual_checkin')",
             $event_id
         ));
 
@@ -231,7 +244,7 @@ class SC_Checkin {
             "SELECT c.*, a.first_name, a.last_name, a.email, a.ticket_code
             FROM $table c
             LEFT JOIN $attendees_table a ON c.attendee_id = a.id
-            WHERE c.event_id = %d AND c.action = 'check_in' AND c.id > %d
+            WHERE c.event_id = %d AND c.action IN ('checkin', 'manual_checkin') AND c.id > %d
             ORDER BY c.created_at DESC
             LIMIT %d",
             $event_id,
