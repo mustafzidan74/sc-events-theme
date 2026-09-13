@@ -929,204 +929,145 @@ function sc_scan_and_checkin() {
  * Shows each day with check-in/check-out times, duration, and handles missing checkouts
  */
 add_action('wp_ajax_sc_get_attendance_details', 'sc_get_attendance_details');
+/**
+ * Per-day attendance for one attendee, from the check-in log.
+ *
+ * Used to read legacy sc_attendee posts, so it failed for every attendee in the
+ * custom tables. Scanner rows are "checkin"/"checkout"; SC_Checkin::log writes
+ * "check_in"/"check_out". A day left open gets an automatic check-out at the
+ * event's end time once that time has passed.
+ */
 function sc_get_attendance_details() {
-    // Verify nonce
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
-    // Check permissions
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
-    $attendee_id = isset($_POST['attendee_id']) ? intval($_POST['attendee_id']) : 0;
-
-    if (!$attendee_id) {
-        wp_send_json_error(array('message' => __('Invalid attendee ID.', 'sc_events')));
-    }
-
-    // Get attendee info
-    $attendee = get_post($attendee_id);
-    if (!$attendee || $attendee->post_type !== 'sc_attendee') {
+    global $wpdb;
+    $attendee_id = isset($_POST['attendee_id']) ? absint($_POST['attendee_id']) : 0;
+    $attendee = $attendee_id ? $wpdb->get_row($wpdb->prepare(
+        "SELECT a.id, a.name, a.event_id, a.checked_in_at, e.title, e.start_date, e.end_date, e.end_time, e.attendance_tracking
+         FROM {$wpdb->prefix}sc_attendees a
+         LEFT JOIN {$wpdb->prefix}sc_events e ON e.id = a.event_id
+         WHERE a.id = %d",
+        $attendee_id
+    )) : null;
+    if (!$attendee) {
         wp_send_json_error(array('message' => __('Attendee not found.', 'sc_events')));
     }
 
-    $attendee_name = get_post_meta($attendee_id, 'sc_name', true);
-    $event_id = get_post_meta($attendee_id, 'sc_event_id', true);
-    $event = get_post($event_id);
-
-    // Get event dates and times
-    $event_start_date = get_post_meta($event_id, 'sc_start_date', true);
-    $event_end_date = get_post_meta($event_id, 'sc_end_date', true);
-    $event_end_time = get_post_meta($event_id, 'sc_end_time', true);
-
-    // If no end date, use start date (single day event)
-    if (empty($event_end_date)) {
-        $event_end_date = $event_start_date;
-    }
-
-    // Default end time if not set
-    if (empty($event_end_time)) {
-        $event_end_time = '23:59:59';
-    }
-
-    // Get attendance tracking status
-    $tracking_enabled = get_post_meta($event_id, 'sc_attendance_tracking', true) === 'yes';
-
-    // Get attendance log
-    $attendance_log = get_post_meta($attendee_id, 'sc_attendance_log', true);
-    if (!is_array($attendance_log)) {
-        $attendance_log = array();
-    }
-
-    // Calculate event days
-    $start = new DateTime($event_start_date);
-    $end = new DateTime($event_end_date);
-    $end->modify('+1 day'); // Include end date
-
-    $interval = new DateInterval('P1D');
-    $date_range = new DatePeriod($start, $interval, $end);
+    $start_date = $attendee->start_date ?: current_time('Y-m-d');
+    $end_date   = $attendee->end_date ?: $start_date;
+    $end_time   = $attendee->end_time ?: '23:59:59';
+    $tracking   = (int) $attendee->attendance_tracking === 1;
 
     $event_days = array();
-    foreach ($date_range as $date) {
+    $period = new DatePeriod(new DateTime($start_date), new DateInterval('P1D'), (new DateTime($end_date))->modify('+1 day'));
+    foreach ($period as $date) {
         $event_days[] = $date->format('Y-m-d');
     }
 
-    // Group attendance log entries by date
-    $entries_by_date = array();
-    foreach ($attendance_log as $entry) {
-        if (isset($entry['date'])) {
-            if (!isset($entries_by_date[$entry['date']])) {
-                $entries_by_date[$entry['date']] = array();
-            }
-            $entries_by_date[$entry['date']][] = $entry;
-        }
+    $log = $wpdb->get_results($wpdb->prepare(
+        "SELECT action, created_at FROM {$wpdb->prefix}sc_checkins WHERE attendee_id = %d ORDER BY created_at ASC, id ASC",
+        $attendee_id
+    ));
+    $by_day = array();
+    foreach ($log as $row) {
+        $by_day[substr($row->created_at, 0, 10)][] = $row;
+    }
+    // Attendees checked in before the log existed only have checked_in_at.
+    if (!$log && $attendee->checked_in_at) {
+        $by_day[substr($attendee->checked_in_at, 0, 10)][] = (object) array('action' => 'checkin', 'created_at' => $attendee->checked_in_at);
     }
 
-    // Build per-day attendance data
-    $daily_attendance = array();
-    $total_duration_seconds = 0;
+    $fmt = function ($seconds) {
+        return sprintf('%02d:%02d', floor($seconds / 3600), floor(($seconds % 3600) / 60));
+    };
+    $now = current_time('timestamp');
+    $today = current_time('Y-m-d');
+    $daily = array();
+    $total_seconds = 0;
     $days_without_checkout = 0;
 
     foreach ($event_days as $day) {
-        $day_entries = isset($entries_by_date[$day]) ? $entries_by_date[$day] : array();
-
-        // Sort entries by timestamp
-        usort($day_entries, function($a, $b) {
-            return $a['timestamp'] - $b['timestamp'];
-        });
-
-        $day_data = array(
-            'date' => $day,
-            'date_formatted' => date('D, M d, Y', strtotime($day)),
-            'sessions' => array(),
-            'total_duration' => 0,
-            'total_duration_formatted' => '00:00',
-            'missing_checkout' => false,
-            'has_attendance' => count($day_entries) > 0
-        );
-
-        // Process sessions (pair check-ins with check-outs)
         $sessions = array();
-        $current_session = null;
-
-        foreach ($day_entries as $entry) {
-            if ($entry['type'] === 'check_in') {
-                // Start new session
-                $current_session = array(
-                    'check_in_time' => date('h:i A', $entry['timestamp']),
-                    'check_in_timestamp' => $entry['timestamp'],
-                    'check_out_time' => null,
-                    'check_out_timestamp' => null,
-                    'duration_seconds' => 0,
-                    'duration_formatted' => '-',
-                    'auto_checkout' => false
-                );
-            } elseif ($entry['type'] === 'check_out' && $current_session !== null) {
-                // Complete session with check-out
-                $current_session['check_out_time'] = date('h:i A', $entry['timestamp']);
-                $current_session['check_out_timestamp'] = $entry['timestamp'];
-                $duration = $entry['timestamp'] - $current_session['check_in_timestamp'];
-                $current_session['duration_seconds'] = $duration;
-                $current_session['duration_formatted'] = sprintf('%02d:%02d', floor($duration / 3600), floor(($duration % 3600) / 60));
-
-                $sessions[] = $current_session;
-                $current_session = null;
+        $open = null;
+        foreach (isset($by_day[$day]) ? $by_day[$day] : array() as $entry) {
+            $ts = strtotime($entry->created_at);
+            if (in_array($entry->action, array('checkin', 'check_in', 'manual_checkin'), true)) {
+                if ($open === null) {
+                    $open = $ts;
+                }
+            } elseif (in_array($entry->action, array('checkout', 'check_out'), true) && $open !== null) {
+                $sessions[] = array('in' => $open, 'out' => $ts, 'auto' => false);
+                $open = null;
             }
         }
 
-        // Handle missing checkout - auto calculate using event end time
-        if ($current_session !== null) {
-            $day_end_time = strtotime($day . ' ' . $event_end_time);
-            $now = current_time('timestamp');
-
-            // Use the lesser of event end time or current time (for today)
-            $auto_checkout_time = ($day === date('Y-m-d')) ? min($day_end_time, $now) : $day_end_time;
-
-            // Only apply if this day has passed or it's event end time
-            if ($now > $day_end_time || $day !== date('Y-m-d')) {
-                $current_session['check_out_time'] = date('h:i A', $auto_checkout_time) . ' (Auto)';
-                $current_session['check_out_timestamp'] = $auto_checkout_time;
-                $duration = $auto_checkout_time - $current_session['check_in_timestamp'];
-                $current_session['duration_seconds'] = $duration;
-                $current_session['duration_formatted'] = sprintf('%02d:%02d', floor($duration / 3600), floor(($duration % 3600) / 60));
-                $current_session['auto_checkout'] = true;
-
-                $day_data['missing_checkout'] = true;
+        $missing = false;
+        $still_in = false;
+        if ($open !== null) {
+            $day_end = strtotime($day . ' ' . $end_time);
+            if ($day < $today || $now > $day_end) {
+                $sessions[] = array('in' => $open, 'out' => max($open, $day_end), 'auto' => true);
+                $missing = true;
                 $days_without_checkout++;
             } else {
-                // Currently checked in today
-                $current_session['check_out_time'] = __('Still checked in', 'sc_events');
-                $current_session['duration_formatted'] = __('In progress', 'sc_events');
+                $sessions[] = array('in' => $open, 'out' => null, 'auto' => false);
+                $still_in = true;
             }
-
-            $sessions[] = $current_session;
         }
 
-        // Calculate total duration for the day
-        $day_total_duration = 0;
-        foreach ($sessions as $session) {
-            $day_total_duration += $session['duration_seconds'];
+        $day_seconds = 0;
+        $out_sessions = array();
+        foreach ($sessions as $sess) {
+            $duration = $sess['out'] ? $sess['out'] - $sess['in'] : 0;
+            $day_seconds += $duration;
+            $out_sessions[] = array(
+                'check_in_time'      => date('h:i A', $sess['in']),
+                'check_out_time'     => $sess['out'] ? date('h:i A', $sess['out']) . ($sess['auto'] ? ' (Auto)' : '') : __('Still checked in', 'sc_events'),
+                'duration_seconds'   => $duration,
+                'duration_formatted' => $sess['out'] ? $fmt($duration) : __('In progress', 'sc_events'),
+                'auto_checkout'      => $sess['auto'],
+            );
         }
+        $total_seconds += $day_seconds;
 
-        $day_data['sessions'] = $sessions;
-        $day_data['total_duration'] = $day_total_duration;
-        $day_data['total_duration_formatted'] = sprintf('%02d:%02d', floor($day_total_duration / 3600), floor(($day_total_duration % 3600) / 60));
-
-        $total_duration_seconds += $day_total_duration;
-        $daily_attendance[] = $day_data;
+        $daily[] = array(
+            'date'                     => $day,
+            'date_formatted'           => date('D, M d, Y', strtotime($day)),
+            'sessions'                 => $out_sessions,
+            'total_duration'           => $day_seconds,
+            'total_duration_formatted' => $fmt($day_seconds),
+            'missing_checkout'         => $missing,
+            'still_checked_in'         => $still_in,
+            'has_attendance'           => !empty($out_sessions),
+        );
     }
-
-    // Calculate total duration
-    $total_hours = floor($total_duration_seconds / 3600);
-    $total_minutes = floor(($total_duration_seconds % 3600) / 60);
-    $total_duration_formatted = sprintf('%02d:%02d', $total_hours, $total_minutes);
-
-    // Count days with attendance
-    $days_attended = count(array_filter($daily_attendance, function($d) { return $d['has_attendance']; }));
 
     wp_send_json_success(array(
         'attendee' => array(
-            'id' => $attendee_id,
-            'name' => $attendee_name,
-            'event_id' => $event_id,
-            'event_name' => $event ? $event->post_title : ''
+            'id'         => (int) $attendee->id,
+            'name'       => $attendee->name,
+            'event_id'   => (int) $attendee->event_id,
+            'event_name' => $attendee->title ?: '',
         ),
         'event' => array(
-            'start_date' => $event_start_date,
-            'end_date' => $event_end_date,
-            'end_time' => $event_end_time,
-            'total_days' => count($event_days),
-            'tracking_enabled' => $tracking_enabled
+            'start_date'       => $start_date,
+            'end_date'         => $end_date,
+            'end_time'         => $end_time,
+            'total_days'       => count($event_days),
+            'tracking_enabled' => $tracking,
         ),
-        'daily_attendance' => $daily_attendance,
+        'daily_attendance' => $daily,
         'summary' => array(
-            'total_duration_seconds' => $total_duration_seconds,
-            'total_duration_formatted' => $total_duration_formatted,
-            'days_attended' => $days_attended,
-            'days_without_checkout' => $days_without_checkout,
-            'total_event_days' => count($event_days)
-        )
+            'total_duration_seconds'   => $total_seconds,
+            'total_duration_formatted' => $fmt($total_seconds),
+            'days_attended'            => count(array_filter($daily, function ($d) { return $d['has_attendance']; })),
+            'days_without_checkout'    => $days_without_checkout,
+            'total_event_days'         => count($event_days),
+        ),
     ));
 }

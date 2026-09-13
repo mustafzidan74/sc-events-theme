@@ -14,6 +14,8 @@ if (function_exists('sc_is_module_enabled') && !sc_is_module_enabled('attendees'
     return;
 }
 
+require_once __DIR__ . '/attendees-query.php';
+
 /**
  * Filter out payment type labels accidentally stored as coupon codes.
  * Returns the actual coupon code or empty string if it's a payment type label.
@@ -168,258 +170,6 @@ function sc_search_users_handler() {
     $result = array_slice($result, 0, 20);
 
     wp_send_json_success($result);
-}
-
-/**
- * Calculate attendance summary for an attendee
- * Used for CSV export and other summary displays
- * Uses Custom Tables only
- *
- * @param int $attendee_id The attendee ID (custom table ID)
- * @param int $event_id The event ID (custom table ID)
- * @return array Attendance summary data
- */
-function sc_calculate_attendance_summary($attendee_id, $event_id) {
-    $result = array(
-        'total_duration_formatted' => '-',
-        'days_attended' => 0,
-        'days_without_checkout' => 0
-    );
-
-    // Get event from custom table
-    if (!class_exists('SC_Event')) {
-        return $result;
-    }
-
-    $sc_event = SC_Event::get($event_id);
-    if (!$sc_event) {
-        return $result;
-    }
-
-    // Check if tracking is enabled for this event
-    if (empty($sc_event->attendance_tracking) || $sc_event->attendance_tracking !== 'yes') {
-        return $result;
-    }
-
-    // Get attendee from custom table
-    if (!class_exists('SC_Attendee')) {
-        return $result;
-    }
-
-    $sc_attendee = SC_Attendee::get($attendee_id);
-    if (!$sc_attendee) {
-        return $result;
-    }
-
-    // Get attendance log from attendee
-    $attendance_log = $sc_attendee->attendance_log;
-    if (is_string($attendance_log)) {
-        $attendance_log = json_decode($attendance_log, true);
-    }
-    if (!is_array($attendance_log) || empty($attendance_log)) {
-        return $result;
-    }
-
-    // Get event dates from custom table
-    $event_start_date = $sc_event->start_date;
-    $event_end_date = $sc_event->end_date;
-    $event_end_time = $sc_event->end_time;
-
-    if (empty($event_end_date)) {
-        $event_end_date = $event_start_date;
-    }
-    if (empty($event_end_time)) {
-        $event_end_time = '23:59:59';
-    }
-
-    // Calculate event days
-    $start = new DateTime($event_start_date);
-    $end = new DateTime($event_end_date);
-    $end->modify('+1 day');
-
-    $interval = new DateInterval('P1D');
-    $date_range = new DatePeriod($start, $interval, $end);
-
-    $event_days = array();
-    foreach ($date_range as $date) {
-        $event_days[] = $date->format('Y-m-d');
-    }
-
-    // Group entries by date
-    $entries_by_date = array();
-    foreach ($attendance_log as $entry) {
-        if (isset($entry['date'])) {
-            if (!isset($entries_by_date[$entry['date']])) {
-                $entries_by_date[$entry['date']] = array();
-            }
-            $entries_by_date[$entry['date']][] = $entry;
-        }
-    }
-
-    // Process each day
-    $total_duration_seconds = 0;
-    $days_attended = 0;
-    $days_without_checkout = 0;
-
-    foreach ($event_days as $day) {
-        $day_entries = isset($entries_by_date[$day]) ? $entries_by_date[$day] : array();
-
-        if (empty($day_entries)) {
-            continue;
-        }
-
-        $days_attended++;
-
-        // Sort entries by timestamp
-        usort($day_entries, function($a, $b) {
-            return $a['timestamp'] - $b['timestamp'];
-        });
-
-        // Process sessions
-        $current_session = null;
-        foreach ($day_entries as $entry) {
-            if ($entry['type'] === 'check_in') {
-                $current_session = $entry;
-            } elseif ($entry['type'] === 'check_out' && $current_session !== null) {
-                $duration = $entry['timestamp'] - $current_session['timestamp'];
-                $total_duration_seconds += $duration;
-                $current_session = null;
-            }
-        }
-
-        // Handle missing checkout
-        if ($current_session !== null) {
-            $day_end_time = strtotime($day . ' ' . $event_end_time);
-            $now = current_time('timestamp');
-
-            // Only count if day has passed
-            if ($now > $day_end_time || $day !== date('Y-m-d')) {
-                $auto_checkout_time = ($day === date('Y-m-d')) ? min($day_end_time, $now) : $day_end_time;
-                $duration = $auto_checkout_time - $current_session['timestamp'];
-                $total_duration_seconds += $duration;
-                $days_without_checkout++;
-            }
-        }
-    }
-
-    // Format total duration
-    $total_hours = floor($total_duration_seconds / 3600);
-    $total_minutes = floor(($total_duration_seconds % 3600) / 60);
-    $result['total_duration_formatted'] = sprintf('%02d:%02d', $total_hours, $total_minutes);
-    $result['days_attended'] = $days_attended;
-    $result['days_without_checkout'] = $days_without_checkout;
-
-    return $result;
-}
-
-/**
- * Get attendees list with filters
- * Uses custom tables only - no Eventin/WP_Query fallback
- */
-function sc_get_attendees_list() {
-    check_ajax_referer('sc_dashboard_nonce', 'nonce');
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => 'Unauthorized'));
-    }
-
-    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '';
-    $ticket_status = isset($_POST['ticket_status']) ? sanitize_text_field($_POST['ticket_status']) : '';
-    $payment_type = isset($_POST['payment_type']) ? sanitize_text_field($_POST['payment_type']) : '';
-    $coupon_code = isset($_POST['coupon_code']) ? sanitize_text_field($_POST['coupon_code']) : '';
-    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-
-    if (!class_exists('SC_Attendee') || $event_id <= 0) {
-        wp_send_json_error(array('message' => 'Invalid request'));
-        return;
-    }
-
-    $attendees = sc_get_attendees_list_from_custom_tables($event_id, $status, $ticket_status, $payment_type, $coupon_code, $search);
-    wp_send_json_success(array('attendees' => $attendees));
-}
-add_action('wp_ajax_sc_get_attendees_list', 'sc_get_attendees_list');
-
-/**
- * Get attendees from custom tables
- * Uses sc_attendees table directly - no WP_Query fallback
- */
-function sc_get_attendees_list_from_custom_tables($event_id, $status = '', $ticket_status = '', $payment_type = '', $coupon_code = '', $search = '') {
-    global $wpdb;
-
-    // Get event from custom table (event_id IS the custom table ID now)
-    $sc_event = SC_Event::get($event_id);
-    if (!$sc_event) {
-        return array();
-    }
-
-    $sc_event_id = $sc_event->id;
-
-    // Build query args for SC_Attendee
-    $args = array(
-        'limit' => 10000, // Large limit for all attendees
-        'offset' => 0,
-        'orderby' => 'created_at',
-        'order' => 'DESC',
-    );
-
-    // Map status filter
-    if (!empty($status)) {
-        $args['payment_status'] = $status;
-    }
-
-    // Check-in filter (ticket_status maps to checked_in)
-    if (!empty($ticket_status)) {
-        if ($ticket_status === 'used') {
-            $args['checked_in'] = true;
-        } elseif ($ticket_status === 'unused') {
-            $args['checked_in'] = false;
-        }
-    }
-
-    // Search filter
-    if (!empty($search)) {
-        $args['search'] = $search;
-    }
-
-    // Get attendees from custom table
-    $sc_attendees = SC_Attendee::get_by_event($sc_event_id, $args);
-
-    // Get event title once
-    $event_title = $sc_event->title;
-
-    // Filter by coupon and payment type in PHP (these may need additional columns in future)
-    $attendees = array();
-    foreach ($sc_attendees as $att) {
-        // Additional filters that aren't in SC_Attendee::get_by_event yet
-        if (!empty($coupon_code) && stripos($att->coupon_code ?? '', $coupon_code) === false) {
-            continue;
-        }
-        if (!empty($payment_type) && ($att->payment_method ?? '') !== $payment_type) {
-            continue;
-        }
-
-        $attendees[] = array(
-            'id' => $att->wp_post_id ?: $att->id, // Use WP post ID if available for compatibility
-            'sc_id' => $att->id, // Custom table ID
-            'ticket_id' => $att->ticket_code,
-            'event_id' => $event_id,
-            'event_title' => $event_title,
-            'name' => $att->name,
-            'email' => $att->email,
-            'phone' => $att->phone,
-            'ticket_type' => $att->ticket_name,
-            'status' => $att->payment_status,
-            'ticket_status' => $att->checked_in ? 'used' : 'unused',
-            'checkin_time' => $att->checked_in_at ? date('Y-m-d H:i', strtotime($att->checked_in_at)) : '',
-            'coupon_used' => sc_sanitize_coupon_display($att->coupon_code),
-            'payment_type' => $att->payment_method ?: 'free',
-            'order_id' => $att->order_id,
-            'created_at' => date('Y-m-d H:i', strtotime($att->created_at)),
-        );
-    }
-
-    return $attendees;
 }
 
 /**
@@ -1135,221 +885,134 @@ function sc_get_event_extra_fields() {
 add_action('wp_ajax_sc_get_event_extra_fields', 'sc_get_event_extra_fields');
 
 /**
- * Export attendees to CSV
- * Uses Custom Tables only
+ * Neutralise spreadsheet formulas in a CSV cell. Names and registration answers
+ * come from the public form, so "=HYPERLINK(…)" must not run in Excel. Plain
+ * signed numbers such as phone "+20100…" are left alone.
+ */
+function sc_csv_cell($value) {
+    if (is_array($value)) {
+        $value = implode(', ', $value);
+    }
+    $value = (string) $value;
+    if ($value !== '' && (preg_match('/^[=@\t\r]/', $value) || preg_match('/^[+\-](?![\d\s().]*$)/', $value))) {
+        return "'" . $value;
+    }
+    return $value;
+}
+
+/**
+ * Export attendees to CSV — exactly the rows the list shows for the same filters.
+ *
+ * Streams in batches so a full export never holds every attendee in memory.
  */
 function sc_export_attendees_csv() {
-    // Verify nonce
     if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'sc_dashboard_nonce')) {
         wp_die('Security check failed');
     }
-
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_die('Unauthorized');
     }
 
-    if (!class_exists('SC_Attendee') || !class_exists('SC_Event')) {
-        wp_die('Custom tables not available');
-    }
-
-    $event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
-    $status = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
-    $ticket_status = isset($_GET['ticket_status']) ? sanitize_text_field($_GET['ticket_status']) : '';
-    $payment_type = isset($_GET['payment_type']) ? sanitize_text_field($_GET['payment_type']) : '';
-
-    // Use custom tables export
-    sc_export_attendees_csv_custom($event_id, $status, $ticket_status, $payment_type);
-}
-add_action('wp_ajax_sc_export_attendees_csv', 'sc_export_attendees_csv');
-
-/**
- * Export attendees to CSV using custom tables (optimized)
- */
-function sc_export_attendees_csv_custom($event_id, $status = '', $ticket_status = '', $payment_type = '') {
     global $wpdb;
+    @set_time_limit(300);
+    $f = sc_attendees_read_filters($_GET);
+    $batch = 1000;
 
-    // Build query args
-    $args = array(
-        'limit' => 100000,
-        'offset' => 0,
-        'orderby' => 'created_at',
-        'order' => 'DESC'
-    );
-
-    if (!empty($status)) {
-        $args['payment_status'] = $status;
+    // The rows to export, as an id list when extra-field filters narrowed them in PHP.
+    $ids = null;
+    if ($f['extra_filters']) {
+        $ids = array_map('intval', wp_list_pluck(sc_attendees_extra_filtered_rows($f), 'id'));
     }
+    list($where, $values) = sc_attendees_where($f);
 
-    if (!empty($ticket_status)) {
-        if ($ticket_status === 'used') {
-            $args['checked_in'] = true;
-        } elseif ($ticket_status === 'unused') {
-            $args['checked_in'] = false;
+    $fetch = function ($offset, $columns) use ($wpdb, $f, $ids, $where, $values, $batch) {
+        if ($ids !== null) {
+            $chunk = array_slice($ids, $offset, $batch);
+            if (!$chunk) {
+                return array();
+            }
+            $rows = $wpdb->get_results($columns . ' WHERE a.id IN (' . implode(',', $chunk) . ')');
+            $order = array_flip($chunk);
+            usort($rows, function ($x, $y) use ($order) {
+                return $order[(int) $x->id] - $order[(int) $y->id];
+            });
+            return $rows;
         }
-    }
+        $sql = $columns . " WHERE {$where} ORDER BY a.{$f['orderby']} {$f['order']}, a.id DESC LIMIT %d OFFSET %d";
+        return $wpdb->get_results($wpdb->prepare($sql, array_merge($values, array($batch, $offset))));
+    };
 
-    // Get attendees
-    $attendees = array();
-    if ($event_id > 0) {
-        // event_id from dropdown is SC_Event table ID, not WordPress post_id
-        $sc_event = SC_Event::get($event_id);
-        if ($sc_event) {
-            $attendees = SC_Attendee::get_by_event($sc_event->id, $args);
-        }
-    } else {
-        // Get all attendees
-        $attendees = SC_Attendee::get_all($args);
-    }
-
-    // First pass: collect all unique extra field labels
-    $all_extra_field_labels = array();
-    foreach ($attendees as $attendee) {
-        if (!empty($attendee->extra_fields)) {
-            $extra_fields = is_string($attendee->extra_fields) ? json_decode($attendee->extra_fields, true) : $attendee->extra_fields;
-            if (is_array($extra_fields)) {
-                foreach ($extra_fields as $label => $value) {
-                    if (!in_array($label, $all_extra_field_labels)) {
-                        $all_extra_field_labels[] = $label;
-                    }
+    // Pass 1: every extra-field label present, first spelling wins (labels vary in case).
+    $labels = array();
+    for ($offset = 0; ; $offset += $batch) {
+        $rows = $fetch($offset, "SELECT a.id, a.extra_fields FROM {$wpdb->prefix}sc_attendees a");
+        foreach ($rows as $row) {
+            foreach (array_keys(sc_normalize_attendee_extra_fields($row->extra_fields)) as $label) {
+                $key = mb_strtolower($label);
+                if (!isset($labels[$key])) {
+                    $labels[$key] = $label;
                 }
             }
         }
+        if (count($rows) < $batch) {
+            break;
+        }
     }
 
-    // Set headers for CSV download
-    $filename = 'attendees-' . date('Y-m-d') . '.csv';
+    nocache_headers();
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=' . $filename);
+    header('Content-Disposition: attachment; filename=attendees-' . gmdate('Y-m-d') . '.csv');
+    $out = fopen('php://output', 'w');
+    fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+    fprintf($out, "sep=,
+");
 
-    // Create output stream
-    $output = fopen('php://output', 'w');
+    fputcsv($out, array_map('sc_csv_cell', array_merge(array(
+        'Attendee ID', 'Ticket Code', 'Event', 'Workshop', 'Name', 'Email', 'Phone', 'Ticket',
+        'Ticket Price', 'Amount Paid', 'Payment Status', 'Payment Method', 'Coupon',
+        'Checked In', 'Check-in Time', 'Certificate', 'Transaction ID', 'Registered At',
+    ), array_values($labels))));
 
-    // Add BOM for UTF-8
-    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-
-    // Tell Excel to use comma as separator (for all locales)
-    fprintf($output, "sep=,\n");
-
-    // Build CSV headers
-    $csv_headers = array(
-        'Attendee ID',
-        'Ticket Code',
-        'Event ID',
-        'Event Title',
-        'Name',
-        'Email',
-        'Phone',
-        'Ticket Type',
-        'Ticket Name',
-        'Ticket Price',
-        'Payment Status',
-        'Ticket Status',
-        'Payment Method',
-        'Coupon Used',
-        'Check-in Time',
-        'Order ID',
-        'Created At',
-        'Total Attendance Time',
-        'Days Attended',
-        'Days Without Checkout'
-    );
-
-    // Add extra field labels as columns
-    foreach ($all_extra_field_labels as $label) {
-        $csv_headers[] = $label;
+    // Pass 2: the rows.
+    for ($offset = 0; ; $offset += $batch) {
+        $rows = $fetch($offset, sc_attendees_select_sql());
+        foreach ($rows as $att) {
+            $extra = array_change_key_case(sc_normalize_attendee_extra_fields($att->extra_fields), CASE_LOWER);
+            $line = array(
+                $att->id,
+                $att->ticket_code,
+                $att->event_title,
+                $att->workshop_title,
+                $att->name,
+                $att->email,
+                $att->phone,
+                $att->ticket_name,
+                $att->ticket_price,
+                $att->amount_paid,
+                $att->payment_status,
+                $att->payment_method,
+                sc_sanitize_coupon_display($att->coupon_code),
+                $att->checked_in ? 'yes' : 'no',
+                $att->checked_in_at,
+                (int) $att->has_certificate ? 'yes' : 'no',
+                $att->transaction_id,
+                $att->created_at,
+            );
+            foreach (array_keys($labels) as $key) {
+                $line[] = isset($extra[$key]) ? $extra[$key] : '';
+            }
+            fputcsv($out, array_map('sc_csv_cell', $line));
+        }
+        if (count($rows) < $batch) {
+            break;
+        }
+        flush();
     }
 
-    fputcsv($output, $csv_headers);
-
-    // Cache for events and tickets
-    $events_cache = array();
-    $tickets_cache = array();
-
-    // Add data rows
-    foreach ($attendees as $attendee) {
-        // Get event info
-        $event_title = '';
-        $wp_event_id = 0;
-        if (!isset($events_cache[$attendee->event_id])) {
-            $event = SC_Event::get($attendee->event_id);
-            if ($event) {
-                $events_cache[$attendee->event_id] = $event;
-            }
-        }
-        if (isset($events_cache[$attendee->event_id])) {
-            $event_title = $events_cache[$attendee->event_id]->title;
-            $wp_event_id = $events_cache[$attendee->event_id]->wp_post_id ?? 0;
-        }
-
-        // Get ticket info
-        $ticket_name = '';
-        $ticket_price = '';
-        if ($attendee->ticket_id && !isset($tickets_cache[$attendee->ticket_id])) {
-            $ticket = SC_Ticket::get($attendee->ticket_id);
-            if ($ticket) {
-                $tickets_cache[$attendee->ticket_id] = $ticket;
-            }
-        }
-        if ($attendee->ticket_id && isset($tickets_cache[$attendee->ticket_id])) {
-            $ticket_name = $tickets_cache[$attendee->ticket_id]->name;
-            $ticket_price = $tickets_cache[$attendee->ticket_id]->price;
-        }
-
-        // Calculate attendance summary
-        $attendance_summary = array(
-            'total_duration_formatted' => '',
-            'days_attended' => 0,
-            'days_without_checkout' => 0
-        );
-        if ($attendee->wp_post_id && $wp_event_id) {
-            $attendance_summary = sc_calculate_attendance_summary($attendee->wp_post_id, $wp_event_id);
-        }
-
-        // Parse extra fields
-        $extra_fields = array();
-        if (!empty($attendee->extra_fields)) {
-            $extra_fields = is_string($attendee->extra_fields) ? json_decode($attendee->extra_fields, true) : $attendee->extra_fields;
-        }
-
-        // Build row data
-        $row_data = array(
-            $attendee->id,
-            $attendee->ticket_code,
-            $wp_event_id,
-            $event_title,
-            $attendee->name,
-            $attendee->email,
-            $attendee->phone,
-            $ticket_name,
-            $ticket_name,
-            $ticket_price,
-            $attendee->payment_status,
-            $attendee->checked_in ? 'used' : 'unused',
-            $attendee->payment_method,
-            $attendee->coupon_code,
-            $attendee->checked_in_at,
-            $attendee->transaction_id,
-            $attendee->created_at,
-            $attendance_summary['total_duration_formatted'],
-            $attendance_summary['days_attended'],
-            $attendance_summary['days_without_checkout']
-        );
-
-        // Add extra field values
-        foreach ($all_extra_field_labels as $label) {
-            $value = '';
-            if (is_array($extra_fields) && isset($extra_fields[$label])) {
-                $value = $extra_fields[$label];
-            }
-            $row_data[] = $value;
-        }
-
-        fputcsv($output, $row_data);
-    }
-
-    fclose($output);
+    fclose($out);
     exit;
 }
+add_action('wp_ajax_sc_export_attendees_csv', 'sc_export_attendees_csv');
 
 /**
  * Import attendees from CSV
@@ -1736,8 +1399,12 @@ function sc_normalize_attendee_extra_fields($raw) {
  * @return bool True only if every filter condition is satisfied (AND).
  */
 function sc_attendee_matches_extra_filters($map, $filters) {
+    // Labels are matched case-insensitively: stored rows carry both
+    // "Academic level" and "Academic Level" for the same field.
+    $map = array_change_key_case((array) $map, CASE_LOWER);
+
     foreach ($filters as $f) {
-        $label = isset($f['label']) ? $f['label'] : '';
+        $label = isset($f['label']) ? mb_strtolower($f['label']) : '';
         $type  = isset($f['type']) ? $f['type'] : 'text';
         $value = isset($f['value']) ? $f['value'] : '';
 
@@ -1797,11 +1464,6 @@ function sc_attendee_matches_extra_filters($map, $filters) {
 
 add_action('wp_ajax_sc_get_attendees_paginated', 'sc_get_attendees_paginated');
 function sc_get_attendees_paginated() {
-    // Increase limits to prevent timeout
-    @set_time_limit(120);
-    @ini_set('memory_limit', '256M');
-
-    // Security checks
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
@@ -1809,201 +1471,63 @@ function sc_get_attendees_paginated() {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
-    if (!class_exists('SC_Attendee') || !class_exists('SC_Event')) {
-        wp_send_json_error(array('message' => 'Custom tables not available'));
-    }
+    $page = max(1, absint($_POST['page'] ?? 1));
+    // certificate-issue asks for up to 1000 at once; the list uses 25–100.
+    $per_page = min(max(1, absint($_POST['per_page'] ?? 20)), 1000);
+    $filters = sc_attendees_read_filters($_POST);
 
-    // Get pagination parameters with sanitization
-    $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
-    // Allow higher limit for certificate issuance (max 1000), default limit 50
-    $requested_per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 20;
-    $per_page = min($requested_per_page, 1000);
-    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-    $event_id = isset($_POST['event_id']) ? absint($_POST['event_id']) : 0;
-    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '';
-    $ticket_status = isset($_POST['ticket_status']) ? sanitize_text_field($_POST['ticket_status']) : '';
-    $payment_type = isset($_POST['payment_type']) ? sanitize_text_field($_POST['payment_type']) : '';
-    $coupon_code = isset($_POST['coupon_code']) ? sanitize_text_field($_POST['coupon_code']) : '';
+    $result = sc_attendees_page($filters, $page, $per_page);
+    $scans = sc_attendees_scan_summary(wp_list_pluck($result['rows'], 'id'));
+    $visible_event_statuses = array('publish', 'draft', 'completed');
 
-    // Additional filters on the event's extra fields (JSON: [{label, type, value}, ...]).
-    // These are applied in PHP because values live in a JSON column stored in two shapes.
-    $extra_filters = array();
-    if (!empty($_POST['extra_filters'])) {
-        $decoded = json_decode(wp_unslash($_POST['extra_filters']), true);
-        if (is_array($decoded)) {
-            foreach ($decoded as $f) {
-                if (!is_array($f) || !isset($f['label'])) {
-                    continue;
-                }
-                $clean = array(
-                    'label' => sanitize_text_field($f['label']),
-                    'type'  => isset($f['type']) ? sanitize_key($f['type']) : 'text',
-                );
-                $val = isset($f['value']) ? $f['value'] : '';
-                if (is_array($val)) {
-                    $clean['value'] = array_values(array_filter(array_map('sanitize_text_field', $val), 'strlen'));
-                } else {
-                    $clean['value'] = sanitize_text_field($val);
-                }
-                // Skip empty conditions ("All" / blank).
-                if ((is_array($clean['value']) && empty($clean['value'])) || $clean['value'] === '') {
-                    continue;
-                }
-                $extra_filters[] = $clean;
-            }
-        }
-    }
-
-    // Build query args for custom tables
-    $args = array(
-        'limit' => $per_page,
-        'offset' => ($page - 1) * $per_page,
-        'orderby' => 'created_at',
-        'order' => 'DESC'
-    );
-
-    if ($event_id > 0) {
-        $args['event_id'] = $event_id;
-    }
-
-    if (!empty($status)) {
-        $args['payment_status'] = $status;
-    }
-
-    if (!empty($ticket_status)) {
-        $args['checked_in'] = ($ticket_status === 'used');
-    }
-
-    if (!empty($payment_type)) {
-        $args['payment_method'] = $payment_type;
-    }
-
-    if (!empty($coupon_code)) {
-        $args['coupon_code'] = $coupon_code;
-    }
-
-    if (!empty($search)) {
-        $args['search'] = $search;
-    }
-
-    // Get attendees from custom table
-    if (!empty($extra_filters)) {
-        // Extra-field filtering runs in PHP over the full event-scoped result set,
-        // then we paginate the filtered list ourselves.
-        $batch_args = $args;
-        $batch_args['limit']  = SC_EXTRA_FILTER_MAX;
-        $batch_args['offset'] = 0;
-
-        $result = SC_Attendee::get_list($batch_args);
-        $candidates = $result['attendees'];
-
-        if (count($candidates) >= SC_EXTRA_FILTER_MAX) {
-            error_log('[sc_events] Extra-field filter hit the ' . SC_EXTRA_FILTER_MAX . ' attendee cap; results may be incomplete.');
-        }
-
-        $matched = array();
-        foreach ($candidates as $candidate) {
-            $map = sc_normalize_attendee_extra_fields($candidate->extra_fields);
-            if (sc_attendee_matches_extra_filters($map, $extra_filters)) {
-                $matched[] = $candidate;
-            }
-        }
-
-        $total_attendees = count($matched);
-        $sc_attendees = array_slice($matched, ($page - 1) * $per_page, $per_page);
-    } else {
-        $result = SC_Attendee::get_list($args);
-        $sc_attendees = $result['attendees'];
-        $total_attendees = $result['total'];
-    }
-
-    // Format attendees for response
     $attendees = array();
-    foreach ($sc_attendees as $att) {
-        // Get event info and check if event is visible (not soft-deleted)
-        $sc_event = SC_Event::get($att->event_id);
-        $event_title = $sc_event ? $sc_event->title : '';
-        $event_visible_statuses = array('publish', 'draft', 'completed');
-        $event_deleted = !$sc_event || !in_array($sc_event->status ?? '', $event_visible_statuses);
-
-        // Get attendance tracking data
-        $tracking_enabled = $sc_event && !empty($sc_event->attendance_tracking) && $sc_event->attendance_tracking === 'yes';
-        $scan_count = 0;
-        $last_checkin = '';
-        $last_checkout = '';
-
-        if ($tracking_enabled && !empty($att->attendance_log)) {
-            $attendance_log = is_string($att->attendance_log) ? json_decode($att->attendance_log, true) : $att->attendance_log;
-            if (is_array($attendance_log)) {
-                $scan_count = count($attendance_log);
-
-                $checkins = array_filter($attendance_log, function($entry) {
-                    return isset($entry['type']) && $entry['type'] === 'check_in';
-                });
-                $checkouts = array_filter($attendance_log, function($entry) {
-                    return isset($entry['type']) && $entry['type'] === 'check_out';
-                });
-
-                if (!empty($checkins)) {
-                    $last_checkin_entry = end($checkins);
-                    if (isset($last_checkin_entry['timestamp'])) {
-                        $last_checkin = date('Y-m-d H:i', $last_checkin_entry['timestamp']);
-                    }
-                }
-
-                if (!empty($checkouts)) {
-                    $last_checkout_entry = end($checkouts);
-                    if (isset($last_checkout_entry['timestamp'])) {
-                        $last_checkout = date('Y-m-d H:i', $last_checkout_entry['timestamp']);
-                    }
-                }
-            }
-        }
-
-        // Check if attendee has a certificate issued
-        $has_certificate = false;
-        if (class_exists('SC_Certificate')) {
-            $certificate = SC_Certificate::get_by_attendee_event($att->id, $att->event_id);
-            $has_certificate = !empty($certificate);
-        }
+    foreach ($result['rows'] as $att) {
+        $scan = isset($scans[(int) $att->id]) ? $scans[(int) $att->id] : null;
+        $tracking = (int) $att->attendance_tracking === 1;
 
         $attendees[] = array(
-            'id' => $att->id,
-            'ticket_id' => $att->ticket_code ?: 'SC' . str_pad($att->id, 6, '0', STR_PAD_LEFT),
-            'event_id' => $att->event_id,
-            'event_title' => $event_title ?: __('Unknown Event', 'sc_events'),
-            'event_deleted' => $event_deleted,
-            'name' => $att->name,
-            'email' => $att->email,
-            'phone' => $att->phone,
-            'ticket_name' => $att->ticket_name,
-            'ticket_type' => $att->ticket_name,
-            'status' => $att->payment_status ?: 'success',
-            'ticket_status' => $att->checked_in ? 'used' : 'unused',
-            'checked_in' => (bool) $att->checked_in,
-            'checkin_time' => $att->checked_in_at ? date('Y-m-d H:i', strtotime($att->checked_in_at)) : '',
-            'coupon_used' => sc_sanitize_coupon_display($att->coupon_code),
-            'payment_type' => $att->payment_method ?: 'free',
-            'order_id' => $att->order_id,
-            'created_at' => $att->created_at ? date('Y-m-d H:i', strtotime($att->created_at)) : '',
-            'tracking_enabled' => $tracking_enabled,
-            'scan_count' => $scan_count,
-            'last_checkin' => $last_checkin,
-            'last_checkout' => $last_checkout,
-            'has_certificate' => $has_certificate
+            'id'               => (int) $att->id,
+            'ticket_id'        => $att->ticket_code ?: 'SC' . str_pad($att->id, 6, '0', STR_PAD_LEFT),
+            'event_id'         => (int) $att->event_id,
+            'event_title'      => $att->event_title ?: __('Unknown Event', 'sc_events'),
+            'event_deleted'    => !$att->event_title || !in_array($att->event_status, $visible_event_statuses, true),
+            'workshop_id'      => $att->workshop_id ? (int) $att->workshop_id : null,
+            'workshop_title'   => $att->workshop_title ?: '',
+            'name'             => $att->name,
+            'email'            => $att->email,
+            'phone'            => $att->phone,
+            'ticket_name'      => $att->ticket_name,
+            'ticket_type'      => $att->ticket_name,
+            'status'           => $att->payment_status ?: 'success',
+            'attendee_status'  => $att->status,
+            'ticket_status'    => $att->checked_in ? 'used' : 'unused',
+            'checked_in'       => (bool) $att->checked_in,
+            'checkin_time'     => $att->checked_in_at ? mysql2date('Y-m-d H:i', $att->checked_in_at) : '',
+            'coupon_used'      => sc_sanitize_coupon_display($att->coupon_code),
+            'payment_type'     => $att->payment_method ?: 'free',
+            'amount_paid'      => (float) $att->amount_paid,
+            'order_id'         => $att->order_id,
+            'created_at'       => $att->created_at ? mysql2date('Y-m-d H:i', $att->created_at) : '',
+            'tracking_enabled' => $tracking,
+            'scan_count'       => $scan ? (int) $scan->scans : 0,
+            'last_checkin'     => $scan && $scan->last_in ? mysql2date('Y-m-d H:i', $scan->last_in) : '',
+            'last_checkout'    => $scan && $scan->last_out ? mysql2date('Y-m-d H:i', $scan->last_out) : '',
+            'has_certificate'  => (bool) (int) $att->has_certificate,
         );
     }
 
-    // Calculate pagination
-    $total_pages = ceil($total_attendees / $per_page);
-
-    wp_send_json_success(array(
-        'attendees' => $attendees,
-        'total' => $total_attendees,
-        'pages' => $total_pages,
+    $response = array(
+        'attendees'    => $attendees,
+        'total'        => $result['total'],
+        'pages'        => (int) ceil($result['total'] / $per_page),
         'current_page' => $page,
-        'per_page' => $per_page
-    ));
+        'per_page'     => $per_page,
+    );
+    if (!empty($_POST['with_counts'])) {
+        $response['counts'] = sc_attendees_counts($filters);
+    }
+
+    wp_send_json_success($response);
 }
 
 /**
