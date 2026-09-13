@@ -557,17 +557,35 @@ function sc_create_or_update_event() {
         }
     }
 
-    // Save Tickets data to sc_tickets table
+    // Save Tickets data to sc_tickets table.
+    // Tickets are updated in place by id. Deleting and re-inserting them on every save
+    // reset each ticket's sold counter, orphaned attendees that point at the old ids, and
+    // turned workshop tickets into event tickets. Workshop tickets are managed on the
+    // workshop form and never touched here.
     if (isset($_POST['tickets_data'])) {
         $tickets_json = wp_unslash($_POST['tickets_data']);
         $tickets = json_decode($tickets_json, true);
 
         if (json_last_error() === JSON_ERROR_NONE && is_array($tickets)) {
-            // Delete existing tickets for this event first
-            SC_Ticket::delete_by_event($event_id);
+            global $wpdb;
+            $tickets_table = $wpdb->prefix . 'sc_tickets';
+            $existing = array();
+            foreach ($wpdb->get_results($wpdb->prepare(
+                "SELECT id, name FROM {$tickets_table} WHERE event_id = %d AND (workshop_id IS NULL OR workshop_id = 0)",
+                $event_id
+            )) as $row) {
+                $existing[(int) $row->id] = $row->name;
+            }
+            $kept = array();
+            $truthy = function ($v) {
+                return $v === true || $v === 'true' || $v === 1 || $v === '1';
+            };
 
             $sort_order = 0;
             foreach ($tickets as $ticket) {
+                if (!is_array($ticket)) {
+                    continue;
+                }
                 $ticket_name = isset($ticket['name']) ? $ticket['name'] : '';
                 $ticket_price = isset($ticket['price']) ? floatval($ticket['price']) : 0;
                 // Accept both 'qty' and 'quantity' field names
@@ -582,15 +600,15 @@ function sc_create_or_update_event() {
                 if (isset($ticket['status'])) {
                     $ticket_status = $ticket['status'];
                 } elseif (isset($ticket['is_active'])) {
-                    $ticket_status = ($ticket['is_active'] === true || $ticket['is_active'] === 'true' || $ticket['is_active'] == 1) ? 'active' : 'inactive';
+                    $ticket_status = $truthy($ticket['is_active']) ? 'active' : 'inactive';
                 }
-                $ticket_sold = isset($ticket['sold']) ? intval($ticket['sold']) : 0;
                 // Handle use_coupons_only
-                $use_coupons = 0;
                 if (isset($ticket['use_coupons'])) {
                     $use_coupons = $ticket['use_coupons'] ? 1 : 0;
                 } elseif (isset($ticket['use_coupons_only'])) {
-                    $use_coupons = ($ticket['use_coupons_only'] === true || $ticket['use_coupons_only'] === 'true' || $ticket['use_coupons_only'] == 1) ? 1 : 0;
+                    $use_coupons = $truthy($ticket['use_coupons_only']) ? 1 : 0;
+                } else {
+                    $use_coupons = !empty($ticket['enable_coupons']) && $ticket['enable_coupons'] !== 'false' ? 1 : 0;
                 }
 
                 $ticket_data = array(
@@ -599,7 +617,6 @@ function sc_create_or_update_event() {
                     'description'   => sanitize_textarea_field($ticket_desc),
                     'price'         => $ticket_price,
                     'quantity'      => $ticket_qty,
-                    'sold'          => $ticket_sold,
                     'min_per_order' => $ticket_min,
                     'max_per_order' => $ticket_max,
                     'status'        => $ticket_status,
@@ -607,9 +624,50 @@ function sc_create_or_update_event() {
                     'sale_start'    => isset($ticket['sale_start']) ? $ticket['sale_start'] : null,
                     'sale_end'      => isset($ticket['sale_end']) ? $ticket['sale_end'] : null,
                     'use_coupons'   => $use_coupons,
-                    'ticket_type'   => sanitize_text_field($ticket['ticket_type'] ?? 'general'),
                 );
-                SC_Ticket::create($ticket_data);
+                if (isset($ticket['ticket_type'])) {
+                    $ticket_data['ticket_type'] = sanitize_text_field($ticket['ticket_type']);
+                }
+
+                // Match an existing event ticket: by id, else by exact name (older forms dropped the id on edit).
+                $match = isset($ticket['id']) ? (int) $ticket['id'] : 0;
+                if (!$match || !isset($existing[$match]) || isset($kept[$match])) {
+                    $match = 0;
+                    foreach ($existing as $existing_id => $existing_name) {
+                        if (!isset($kept[$existing_id]) && $existing_name === $ticket_data['name']) {
+                            $match = $existing_id;
+                            break;
+                        }
+                    }
+                }
+
+                if ($match) {
+                    // The sold counter belongs to registrations, not to the form.
+                    SC_Ticket::update($match, $ticket_data);
+                    $kept[$match] = true;
+                } else {
+                    $ticket_data['sold'] = 0;
+                    if (!isset($ticket_data['ticket_type'])) {
+                        $ticket_data['ticket_type'] = 'general';
+                    }
+                    $new_ticket_id = SC_Ticket::create($ticket_data);
+                    if ($new_ticket_id) {
+                        $kept[(int) $new_ticket_id] = true;
+                    }
+                }
+            }
+
+            // Tickets removed in the form: delete unused ones; switch off any that people hold.
+            foreach (array_diff_key($existing, $kept) as $removed_id => $removed_name) {
+                $held = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}sc_attendees WHERE ticket_id = %d",
+                    $removed_id
+                ));
+                if ($held > 0) {
+                    SC_Ticket::update($removed_id, array('is_active' => 0));
+                } else {
+                    SC_Ticket::delete($removed_id);
+                }
             }
 
             // Update event capacity from tickets
@@ -1084,6 +1142,10 @@ function sc_duplicate_event() {
     // Copy tickets
     $tickets = SC_Ticket::get_by_event($event_id, array('is_active' => null));
     foreach ($tickets as $ticket) {
+        // Workshop tickets stay with their workshops; a copied event has none.
+        if (!empty($ticket->workshop_id)) {
+            continue;
+        }
         SC_Ticket::create(array(
             'event_id'      => $new_event_id,
             'name'          => $ticket->name,

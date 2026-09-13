@@ -80,7 +80,12 @@ $event_organizers = $wpdb->get_col($wpdb->prepare(
 // Get tickets for this event
 $tickets = array();
 if (class_exists('SC_Ticket')) {
-    $tickets = SC_Ticket::get_by_event($event_id, array('is_active' => null));
+    // Event tickets only: workshop tickets are edited on their workshop, and saving
+    // them from here would detach them.
+    $tickets = array_values(array_filter(
+        SC_Ticket::get_by_event($event_id, array('is_active' => null)),
+        function ($t) { return empty($t->workshop_id); }
+    ));
 }
 
 // Get certificate templates (table may not exist yet)
@@ -1994,6 +1999,8 @@ jQuery(document).ready(function($) {
         console.log('window.ticketsArray before:', window.ticketsArray);
 
         if (index >= 0) {
+            // Keep the stored id so the server updates this ticket instead of replacing it.
+            ticketData.id = tickets[index] ? tickets[index].id || null : null;
             tickets[index] = ticketData;
             toastr.success(eventEditTranslations.ticket_updated);
         } else {
