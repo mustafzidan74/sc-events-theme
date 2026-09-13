@@ -636,3 +636,33 @@
 .w-dash .w-field .wp-editor-container { border: 0; }
 .w-dash .w-field .wp-editor-tabs { padding-inline-end: 6px; }
 .w-dash .w-field .wp-media-buttons .button { border-radius: var(--w-radius-sm); }
+
+/* Buttons inside an affix input (show / generate password) */
+.w-dash .w-affix__btn {
+  flex: none;
+  padding: 0 12px;
+  border: 0;
+  border-inline-start: 1px solid var(--w-border-strong);
+  background: var(--w-surface-2);
+  color: var(--w-text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.w-dash .w-affix__btn:hover { color: var(--w-text); }
+.w-dash .w-affix__btn:focus-visible { box-shadow: inset var(--w-focus-ring); outline: 0; }
+
+/* A form without a section nav (short forms) */
+.w-form-layout--noseq { grid-template-columns: minmax(0, 1fr) 300px; }
+@media (max-width: 991.98px) {
+  .w-form-layout--noseq { grid-template-columns: minmax(0, 1fr); }
+}
+.w-checklist__group {
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--w-border);
+  background: var(--w-surface-2);
+  color: var(--w-text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.w-checklist__group:first-child { border-top: 0; }

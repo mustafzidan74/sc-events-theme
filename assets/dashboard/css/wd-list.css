@@ -661,3 +661,36 @@
   .w-pager__info { width: 100%; justify-content: space-between; }
   .w-pager__goto { display: none; }
 }
+
+/* ==========================================================================
+   Access lines and check lists (scanner team)
+   ========================================================================== */
+
+.w-access { font-size: 13px; line-height: 1.5; }
+.w-access.is-ended { color: var(--w-text-3); }
+.w-access .w-tag { margin-inline-start: 4px; vertical-align: 1px; }
+
+.w-checklist {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-md);
+}
+.w-checklist__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--w-border);
+  font-weight: 400;
+  cursor: pointer;
+}
+.w-checklist__item:first-child { border-top: 0; }
+.w-checklist__item:hover { background: var(--w-surface-2); }
+.w-checklist__item input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--w-primary); }
+.w-checklist__item > span { display: flex; flex-direction: column; min-width: 0; font-size: 13.5px; }
+.w-dash fieldset.w-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.w-dash fieldset.w-field legend { margin-bottom: 6px; font-size: 13px; }
