@@ -639,6 +639,37 @@ function sc_session_checkin() {
         ));
     }
 
+    // Attendees are only registered into the sessions that exist when they sign up. For a
+    // session added later that doesn't need its own registration, anyone holding a valid
+    // ticket for the event may attend: register them on the spot.
+    if (!$registration && $session_id && $attendee_id) {
+        $open_session = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, event_id FROM $sessions_table WHERE id = %d AND is_published = 1 AND (require_registration IS NULL OR require_registration = 0)",
+            $session_id
+        ));
+        $holder = $open_session ? $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM $attendees_table WHERE id = %d AND event_id = %d AND status = 'active' AND payment_status = 'success'",
+            $attendee_id,
+            (int) $open_session->event_id
+        )) : null;
+        if ($open_session && $holder && sc_scanner_can_access_session($session_id, (int) $open_session->event_id)) {
+            $code = 'SES-' . $session_id . '-' . strtoupper(wp_generate_password(8, false));
+            $wpdb->insert($reg_table, array(
+                'session_id'        => $session_id,
+                'attendee_id'       => $attendee_id,
+                'event_id'          => (int) $open_session->event_id,
+                'registration_code' => $code,
+                'qr_code'           => wp_json_encode(array('type' => 'session', 'session_id' => $session_id, 'attendee_id' => $attendee_id, 'code' => $code)),
+                'status'            => 'registered',
+                'registered_at'     => current_time('mysql'),
+            ));
+            $wpdb->query($wpdb->prepare("UPDATE $sessions_table SET registered_count = registered_count + 1 WHERE id = %d", $session_id));
+            $registration = $wpdb->get_row($wpdb->prepare("SELECT * FROM $reg_table WHERE session_id = %d AND attendee_id = %d", $session_id, $attendee_id));
+        } elseif ($open_session && !$holder) {
+            wp_send_json_error(array('message' => __('This ticket is not for the event this session belongs to.', 'sc_events'), 'title' => 'Wrong Event'));
+        }
+    }
+
     if (!$registration) {
         wp_send_json_error(array('message' => __('Session registration not found.', 'sc_events')));
     }

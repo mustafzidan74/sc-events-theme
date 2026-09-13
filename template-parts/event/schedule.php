@@ -49,12 +49,17 @@ $file_url = $schedules_file ? wp_get_attachment_url($schedules_file) : '';
 
 if (!$sessions_data && !$schedules && !$file_url) return;
 
+// Sessions store times as DATETIME, schedules as TIME: take the clock part of either.
+$clock = function ($value) {
+    return preg_match('/(\d{1,2}:\d{2})(?::\d{2})?$/', trim((string) $value), $m) ? str_pad($m[1], 5, '0', STR_PAD_LEFT) : '';
+};
+
 // Group by day, then by starting time inside the day.
 $rows = $use_sessions ? $sessions_data : $schedules;
 $days = [];
 foreach ($rows as $row) {
     $date = $use_sessions ? ($row->session_date ?? '') : ($row->schedule_date ?? '');
-    $time = substr((string) ($row->start_time ?? ''), 0, 5);
+    $time = $clock($row->start_time ?? '');
     if (!$date) { continue; }
     $days[$date][$time][] = $row;
 }
@@ -101,8 +106,8 @@ $day_keys = array_keys($days);
                     $type  = strtolower((string) ($item->type ?? 'session'));
                     $break = $type === 'break';
                     $hall  = $item->hall_name ?? '';
-                    $by    = $item->speaker_db_name ?: ($item->speaker_name ?? '');
-                    $end   = substr((string) ($item->end_time ?? ''), 0, 5);
+                    $by    = ($item->speaker_db_name ?? '') ?: ($item->speaker_name ?? '');
+                    $end   = $clock($item->end_time ?? '');
                 ?>
                 <div class="w-ses<?php echo $break ? ' w-ses--break' : ''; ?>">
                     <div class="w-ses__top">
