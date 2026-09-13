@@ -1,6 +1,6 @@
 <?php
 /**
- * Speakers Management Page
+ * Speakers — list pattern over sc_get_speakers_paginated.
  *
  * @package sc_events
  */
@@ -9,465 +9,216 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = sc_t('dashboard_pages.speakers_management', 'Speakers Management');
+global $wpdb, $load_wd_list;
+$load_wd_list = true;
+
+$events = $wpdb->get_results("SELECT id, title FROM {$wpdb->prefix}sc_events WHERE status IN ('publish', 'completed', 'draft') ORDER BY start_date DESC LIMIT 200");
+$dashboard_url = home_url('/event-manager-dashboard/');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+$t = array(
+    'title'      => sc_t('nav.speakers', 'Speakers'),
+    'subtitle'   => sc_t('dashboard_pages.speakers_subtitle', 'People on the programme. Add them to an event from the event’s Speakers section.'),
+    'add'        => sc_t('dashboard_pages.add_speaker', 'Add speaker'),
+    'search'     => sc_t('dashboard_pages.search_speakers', 'Search name, title, company or email'),
+    'all_events' => sc_t('dashboard_pages.all_events', 'All events'),
+);
+
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
-
-// Get all events for the filter dropdown from sc_events custom table
-global $wpdb;
-$sc_events_table = $wpdb->prefix . 'sc_events';
-$events = $wpdb->get_results("SELECT id, title FROM $sc_events_table WHERE status = 'publish' ORDER BY title ASC");
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <div class="block-header">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <h2><?php echo esc_html(sc_t('dashboard_pages.speakers_management', 'Speakers Management')); ?></h2>
-                <ul class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                    <li class="breadcrumb-item active"><?php echo esc_html(sc_t('nav.speakers', 'Speakers')); ?></li>
-                </ul>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <div class="d-flex flex-row-reverse">
-                    <div class="page_action">
-                        <a href="<?php echo home_url('/event-manager-dashboard/speaker-create'); ?>" class="btn btn-primary">
-                            <i class="fa fa-plus"></i> <?php echo esc_html(sc_t('dashboard_pages.add_speaker', 'Add Speaker')); ?>
-                        </a>
-                    </div>
-                </div>
-            </div>
+
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html($t['title']); ?><span class="w-page-head__count" data-w-total></span></h1>
+            <p class="w-page-head__sub"><?php echo esc_html($t['subtitle']); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-secondary" href="<?php echo esc_url(home_url('/speakers/')); ?>" target="_blank" rel="noopener"><i class="fa fa-external-link" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.view_on_site', 'View on site')); ?></a>
+            <a class="btn btn-primary" href="<?php echo esc_url($dashboard_url . 'speaker-create'); ?>"><i class="fa fa-plus" aria-hidden="true"></i> <?php echo esc_html($t['add']); ?></a>
         </div>
     </div>
 
-    <!-- Search and Filter -->
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <div class="input-group">
-                <div class="input-group-prepend">
-                    <span class="input-group-text"><i class="fa fa-search"></i></span>
-                </div>
-                <input type="text" class="form-control" id="speaker-search" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.search_speakers', 'Search by name or title/role...')); ?>">
-            </div>
-        </div>
-        <div class="col-md-6">
-            <select class="form-control" id="event-filter">
-                <option value=""><?php echo esc_html(sc_t('dashboard_pages.all_events', 'All Events')); ?></option>
-                <?php foreach ($events as $event): ?>
-                    <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
+    <div id="speakers-list">
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr($t['title']); ?>"></div>
+
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html($t['search']); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr($t['search']); ?>" autocomplete="off">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
+            <select class="form-control" data-w-filter="event_id" aria-label="<?php echo esc_attr($t['all_events']); ?>">
+                <option value=""><?php echo esc_html($t['all_events']); ?></option>
+                <?php foreach ($events as $ev): ?>
+                    <option value="<?php echo (int) $ev->id; ?>"><?php echo esc_html($ev->title); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
-    </div>
 
-    <!-- Speakers List -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="speakers-table">
-                            <thead>
-                                <tr>
-                                    <th width="60"><?php echo esc_html(sc_t('dashboard_pages.speaker_photo', 'Photo')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.name', 'Name')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.speaker_title', 'Title/Role')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.email', 'Email')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.social_links', 'Social Links')); ?></th>
-                                    <th><?php echo esc_html(sc_t('nav.events', 'Events')); ?></th>
-                                    <th width="150"><?php echo esc_html(sc_t('dashboard_pages.actions', 'Actions')); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <i class="fa fa-spinner fa-spin fa-3x text-muted"></i>
-                                        <p class="mt-3"><?php echo esc_html(sc_t('dashboard_pages.loading', 'Loading speakers...')); ?></p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <div class="pagination-info">
-                                <span id="pagination-info-text"><?php echo esc_html(sc_t('dashboard_pages.loading', 'Loading...')); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <nav aria-label="Speakers pagination">
-                                <ul class="pagination justify-content-end mb-0" id="speakers-pagination">
-                                    <!-- Will be populated by JavaScript -->
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-bulkbar" data-w-bulk hidden></div>
+
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table>
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
             </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
         </div>
     </div>
+
+</div>
 </div>
 
 <script>
-// JavaScript Translations Object
-var speakersTranslations = {
-    loading_speakers: '<?php echo esc_js(sc_t('dashboard_pages.loading_speakers', 'Loading speakers...')); ?>',
-    error_loading_speakers: '<?php echo esc_js(sc_t('dashboard_pages.error_loading_speakers', 'Error loading speakers')); ?>',
-    failed_load_speakers: '<?php echo esc_js(sc_t('dashboard_pages.failed_load_speakers', 'Failed to load speakers. Please try again.')); ?>',
-    no_speakers_found: '<?php echo esc_js(sc_t('dashboard_pages.no_speakers_found', 'No speakers found. Click "Add Speaker" to create one.')); ?>',
-    events_label: '<?php echo esc_js(sc_t('nav.events', 'events')); ?>',
-    showing_speakers: '<?php echo esc_js(sc_t('dashboard_pages.showing_to_of', 'Showing {start} to {end} of {total} speakers')); ?>',
-    upload_image_required: '<?php echo esc_js(sc_t('dashboard_pages.upload_image_required', 'Please upload a profile image.')); ?>',
-    saving: '<?php echo esc_js(sc_t('dashboard_pages.saving', 'Saving...')); ?>',
-    error_saving_speaker: '<?php echo esc_js(sc_t('dashboard_pages.error_saving_speaker', 'Error saving speaker')); ?>',
-    save_speaker: '<?php echo esc_js(sc_t('dashboard_pages.save_speaker', 'Save Speaker')); ?>',
-    error_deleting_speaker: '<?php echo esc_js(sc_t('dashboard_pages.error_deleting_speaker', 'Error deleting speaker')); ?>'
-};
-
-jQuery(document).ready(function($) {
+jQuery(function ($) {
     'use strict';
 
-    let currentPage = 1;
-    let currentSearch = '';
-    let currentEventId = '';
-    let searchTimeout;
+    var esc = WDList.esc;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var eventTitles = <?php echo $js(array_reduce($events, function ($c, $e) { $c[(int) $e->id] = $e->title; return $c; }, array())); ?>;
+    var L = <?php echo $js(array(
+        'active'       => sc_t('dashboard_pages.on_site', 'On the site'),
+        'hidden'       => sc_t('dashboard_pages.hidden', 'Hidden'),
+        'upcoming'     => sc_t('dashboard_pages.in_upcoming_event', 'In an upcoming event'),
+        'unlinked'     => sc_t('dashboard_pages.in_no_event', 'In no event'),
+        'speaker'      => sc_t('dashboard_pages.speaker', 'Speaker'),
+        'latest'       => sc_t('dashboard_pages.latest_event', 'Latest event'),
+        'events'       => sc_t('dashboard_pages.events', 'Events'),
+        'contact'      => sc_t('dashboard_pages.contact', 'Contact'),
+        'order'        => sc_t('dashboard_pages.order', 'Order'),
+        'upcomingTag'  => sc_t('dashboard_pages.upcoming', 'Upcoming'),
+        'hiddenTag'    => sc_t('dashboard_pages.hidden', 'Hidden'),
+        'none'         => sc_t('dashboard_pages.none', 'None'),
+        'edit'         => sc_t('dashboard_pages.edit', 'Edit'),
+        'view'         => sc_t('dashboard_pages.view_on_site', 'View on site'),
+        'show'         => sc_t('dashboard_pages.show_on_site', 'Show on site'),
+        'hide'         => sc_t('dashboard_pages.hide_from_site', 'Hide from site'),
+        'delete'       => sc_t('dashboard_pages.delete', 'Delete'),
+        'search'       => sc_t('general.search', 'Search'),
+        'event'        => sc_t('events.event', 'Event'),
+        'emptyText'    => sc_t('dashboard_pages.no_speakers', 'No speakers yet.'),
+        'confirmDelete'=> sc_t('dashboard_pages.confirm_delete_speakers', 'Delete %d speakers? They are removed from every event they are in. This cannot be undone.'),
+        'confirmDeleteOne' => sc_t('dashboard_pages.confirm_delete_speaker', 'Delete %s? They are removed from every event they are in. This cannot be undone.'),
+        'failed'       => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
 
-    // Escape HTML helper function
-    function escapeHtml(text) {
-        if (!text) return '';
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    function initials(name) {
+        var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        return ((parts[0] || '?').charAt(0) + (parts.length > 1 ? parts[1].charAt(0) : '')).toUpperCase();
+    }
+    function bulk(op, ids) {
+        return $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: { action: 'sc_bulk_speakers', nonce: scDashboard.nonce, op: op, ids: ids } })
+            .done(function (res) {
+                if (res.success) { showSuccess(res.data.message); list.reload(); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            })
+            .fail(function () { showError(L.failed); });
+    }
+    function confirmDelete(ids, name) {
+        showDeleteConfirm(name ? L.confirmDeleteOne.replace('%s', name) : L.confirmDelete.replace('%d', ids.length)).then(function (r) {
+            if (r.isConfirmed) { bulk('delete', ids); }
+        });
     }
 
-    // Load speakers with pagination
-    function loadSpeakersPage(page) {
-        currentPage = page;
+    var ICON = {
+        pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+        external: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3',
+        eye: 'M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+        eyeOff: 'M17.9 17.9A10 10 0 0 1 12 19c-7 0-11-7-11-7a18 18 0 0 1 5.1-5.9M9.9 4.2A9 9 0 0 1 12 4c7 0 11 8 11 8a18 18 0 0 1-2.2 3.2M1 1l22 22',
+        trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14'
+    };
 
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_speakers_paginated',
-                nonce: scDashboard.nonce,
-                page: page,
-                per_page: 50,
-                search: currentSearch,
-                event_id: currentEventId
+    var list = WDList.create({
+        root: document.getElementById('speakers-list'),
+        action: 'sc_get_speakers_paginated',
+        rowsKey: 'speakers',
+        filters: ['search', 'event_id'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        defaultSort: { orderby: 'name', order: 'asc' },
+        tabs: [
+            { key: 'active', label: L.active, params: { view: 'active' }, countKey: 'active' },
+            { key: 'upcoming', label: L.upcoming, params: { view: 'upcoming' }, countKey: 'upcoming' },
+            { key: 'unlinked', label: L.unlinked, params: { view: 'unlinked' }, countKey: 'unlinked' },
+            { key: 'hidden', label: L.hidden, params: { view: 'hidden' }, countKey: 'hidden' }
+        ],
+        emptyText: L.emptyText,
+        columns: [
+            {
+                label: L.speaker, sort: 'name',
+                render: function (s) {
+                    var pic = s.photo
+                        ? '<img class="w-person__avatar w-person__avatar--img" src="' + esc(s.photo) + '" alt="" loading="lazy">'
+                        : '<span class="w-person__avatar" data-tone="' + (s.id % 4) + '" aria-hidden="true">' + esc(initials(s.name)) + '</span>';
+                    var sub = [s.title, s.company].filter(Boolean).join(' · ');
+                    return '<div class="w-person">' + pic + '<span class="w-person__text"><a class="w-row-title" href="' + esc(dashboardUrl + 'speaker-edit?id=' + s.id) + '">' + esc(s.name) + '</a>' +
+                        (sub ? '<span class="w-sub w-truncate">' + esc(sub) + '</span>' : '') + '</span>' +
+                        (s.is_active ? '' : ' <span class="w-tag">' + esc(L.hiddenTag) + '</span>') + '</div>';
+                }
             },
-            beforeSend: function() {
-                const tbody = $('#speakers-table tbody');
-                tbody.html('<tr><td colspan="7" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-3x text-muted"></i><p class="mt-3">' + speakersTranslations.loading_speakers + '</p></td></tr>');
-            }
-        }).done(function(response) {
-            if (response.success) {
-                renderSpeakersTable(response.data.speakers);
-                renderPagination(response.data.current_page, response.data.pages);
-                updatePaginationInfo(response.data.total, response.data.current_page, 50);
-            } else {
-                showError(response.data.message || speakersTranslations.error_loading_speakers);
-            }
-        }).fail(function() {
-            showError(speakersTranslations.failed_load_speakers);
-        });
-    }
-
-    function renderSpeakersTable(speakers) {
-        const tbody = $('#speakers-table tbody');
-        tbody.empty();
-
-        if (!speakers || speakers.length === 0) {
-            tbody.html('<tr><td colspan="7" class="text-center py-4">' + speakersTranslations.no_speakers_found + '</td></tr>');
-            return;
-        }
-
-        speakers.forEach(function(speaker) {
-            const imageUrl = speaker.image_url || scDashboard.themeUrl + '/assets/images/default-avatar.png';
-            const socialLinks = [];
-
-            // Add all 15 social media platforms
-            if (speaker.facebook) socialLinks.push('<a href="' + speaker.facebook + '" target="_blank" title="Facebook"><i class="fa fa-facebook"></i></a>');
-            if (speaker.twitter) socialLinks.push('<a href="' + speaker.twitter + '" target="_blank" title="Twitter"><i class="fa fa-twitter"></i></a>');
-            if (speaker.linkedin) socialLinks.push('<a href="' + speaker.linkedin + '" target="_blank" title="LinkedIn"><i class="fa fa-linkedin"></i></a>');
-            if (speaker.instagram) socialLinks.push('<a href="' + speaker.instagram + '" target="_blank" title="Instagram"><i class="fa fa-instagram"></i></a>');
-            if (speaker.youtube) socialLinks.push('<a href="' + speaker.youtube + '" target="_blank" title="YouTube"><i class="fa fa-youtube"></i></a>');
-            if (speaker.github) socialLinks.push('<a href="' + speaker.github + '" target="_blank" title="GitHub"><i class="fa fa-github"></i></a>');
-            if (speaker.tiktok) socialLinks.push('<a href="' + speaker.tiktok + '" target="_blank" title="TikTok"><i class="fa fa-video-camera"></i></a>');
-            if (speaker.snapchat) socialLinks.push('<a href="' + speaker.snapchat + '" target="_blank" title="Snapchat"><i class="fa fa-snapchat"></i></a>');
-            if (speaker.whatsapp) socialLinks.push('<a href="' + speaker.whatsapp + '" target="_blank" title="WhatsApp"><i class="fa fa-whatsapp"></i></a>');
-            if (speaker.pinterest) socialLinks.push('<a href="' + speaker.pinterest + '" target="_blank" title="Pinterest"><i class="fa fa-pinterest"></i></a>');
-            if (speaker.tumblr) socialLinks.push('<a href="' + speaker.tumblr + '" target="_blank" title="Tumblr"><i class="fa fa-tumblr"></i></a>');
-            if (speaker.reddit) socialLinks.push('<a href="' + speaker.reddit + '" target="_blank" title="Reddit"><i class="fa fa-reddit"></i></a>');
-            if (speaker.medium) socialLinks.push('<a href="' + speaker.medium + '" target="_blank" title="Medium"><i class="fa fa-medium"></i></a>');
-            if (speaker.vimeo) socialLinks.push('<a href="' + speaker.vimeo + '" target="_blank" title="Vimeo"><i class="fa fa-vimeo"></i></a>');
-            if (speaker.website) socialLinks.push('<a href="' + speaker.website + '" target="_blank" title="Website"><i class="fa fa-globe"></i></a>');
-
-            const row = `
-                <tr>
-                    <td><img src="${imageUrl}" class="rounded-circle" width="40" height="40"></td>
-                    <td><strong>${escapeHtml(speaker.name)}</strong></td>
-                    <td>${escapeHtml(speaker.title || '-')}</td>
-                    <td>${escapeHtml(speaker.email || '-')}</td>
-                    <td>${socialLinks.join(' ') || '-'}</td>
-                    <td><span class="badge badge-info">${speaker.events_count || 0} ${speakersTranslations.events_label}</span></td>
-                    <td>
-                        <div class="btn-group">
-                            <a href="<?php echo home_url('/event-manager-dashboard/speaker-edit'); ?>?id=${speaker.ID}" class="btn btn-sm btn-primary" title="<?php echo esc_attr(sc_t('dashboard_pages.edit', 'Edit')); ?>">
-                                <i class="fa fa-edit"></i>
-                            </a>
-                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="sr-only">Toggle Dropdown</span>
-                            </button>
-                            <div class="dropdown-menu dropdown-menu-right">
-                                <a class="dropdown-item" href="<?php echo home_url('/event-manager-dashboard/speaker-edit'); ?>?id=${speaker.ID}"><i class="fa fa-edit mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.edit', 'Edit')); ?></a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item text-danger delete-speaker" href="javascript:void(0);" data-id="${speaker.ID}"><i class="fa fa-trash mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.delete', 'Delete')); ?></a>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            tbody.append(row);
-        });
-    }
-
-    // Render pagination controls
-    function renderPagination(current, total) {
-        const pagination = $('#speakers-pagination');
-        pagination.empty();
-
-        if (total <= 1) return;
-
-        const maxVisible = 7; // Maximum page numbers to show
-        let startPage = Math.max(1, current - Math.floor(maxVisible / 2));
-        let endPage = Math.min(total, startPage + maxVisible - 1);
-
-        // Adjust start if we're near the end
-        if (endPage - startPage < maxVisible - 1) {
-            startPage = Math.max(1, endPage - maxVisible + 1);
-        }
-
-        // Previous button
-        pagination.append(`
-            <li class="page-item ${current === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current - 1}">
-                    <i class="fa fa-chevron-left"></i>
-                </a>
-            </li>
-        `);
-
-        // First page + ellipsis
-        if (startPage > 1) {
-            pagination.append(`
-                <li class="page-item">
-                    <a class="page-link" href="#" data-page="1">1</a>
-                </li>
-            `);
-            if (startPage > 2) {
-                pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-            }
-        }
-
-        // Page numbers
-        for (let i = startPage; i <= endPage; i++) {
-            pagination.append(`
-                <li class="page-item ${i === current ? 'active' : ''}">
-                    <a class="page-link" href="#" data-page="${i}">${i}</a>
-                </li>
-            `);
-        }
-
-        // Last page + ellipsis
-        if (endPage < total) {
-            if (endPage < total - 1) {
-                pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-            }
-            pagination.append(`
-                <li class="page-item">
-                    <a class="page-link" href="#" data-page="${total}">${total}</a>
-                </li>
-            `);
-        }
-
-        // Next button
-        pagination.append(`
-            <li class="page-item ${current === total ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current + 1}">
-                    <i class="fa fa-chevron-right"></i>
-                </a>
-            </li>
-        `);
-
-        // Attach click handlers
-        pagination.find('a.page-link').on('click', function(e) {
-            e.preventDefault();
-            const page = parseInt($(this).data('page'));
-            if (page && page !== current) {
-                loadSpeakersPage(page);
-            }
-        });
-    }
-
-    // Update pagination info text
-    function updatePaginationInfo(total, page, perPage) {
-        const start = total === 0 ? 0 : ((page - 1) * perPage) + 1;
-        const end = Math.min(page * perPage, total);
-        const text = speakersTranslations.showing_speakers.replace('{start}', start).replace('{end}', end).replace('{total}', total);
-        $('#pagination-info-text').text(text);
-    }
-
-    // Note: Create and Edit speaker buttons are now links to speaker-create and speaker-edit pages
-
-    // Delete speaker
-    $(document).on('click', '.delete-speaker', function() {
-        showDeleteConfirm().then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            const speakerId = $(this).data('id');
-            const btn = $(this);
-            btn.prop('disabled', true);
-
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'sc_delete_speaker',
-                    nonce: scDashboard.nonce,
-                    speaker_id: speakerId
+            {
+                label: L.latest,
+                render: function (s) {
+                    if (!s.latest_event) { return '<span class="text-muted">' + esc(L.none) + '</span>'; }
+                    return '<div class="w-stack"><span class="w-truncate">' + esc(s.latest_event.title) + '</span>' +
+                        (s.latest_event.upcoming ? '<span class="w-tag w-tag--teal">' + esc(L.upcomingTag) + '</span>' : '') + '</div>';
                 }
-            }).done(function(response) {
-                if (response.success) {
-                    loadSpeakersPage(currentPage);
-                } else {
-                    showError(response.data.message || speakersTranslations.error_deleting_speaker);
-                    btn.prop('disabled', false);
+            },
+            {
+                label: L.events, sort: 'events',
+                render: function (s) { return '<span class="w-num">' + WDList.num(s.events) + '</span>'; }
+            },
+            {
+                label: L.contact, className: 'w-col-xl',
+                render: function (s) {
+                    if (!s.email && !s.phone) { return '<span class="text-muted">—</span>'; }
+                    return '<div class="w-stack">' + (s.email ? '<span class="w-ltr w-truncate">' + esc(s.email) + '</span>' : '') + (s.phone ? '<span class="w-sub w-ltr">' + esc(s.phone) + '</span>' : '') + '</div>';
                 }
-            });
-        });
-    });
-
-    // Save speaker
-    $('#speaker-form').on('submit', function(e) {
-        e.preventDefault();
-
-        // Check if image is uploaded (for new speakers) or exists (for editing)
-        const hasImage = $('#speaker-has-image').val() === '1';
-        const imageFile = $('#speaker-image')[0].files[0];
-
-        if (!hasImage && !imageFile) {
-            showError(speakersTranslations.upload_image_required);
-            return false;
-        }
-
-        const formData = new FormData(this);
-        formData.append('action', 'sc_save_speaker');
-        formData.append('nonce', scDashboard.nonce);
-
-        const btn = $('#save-speaker-btn');
-        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + speakersTranslations.saving);
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false
-        }).done(function(response) {
-            if (response.success) {
-                // Close modal with fallback
-                try {
-                    if (typeof $.fn.modal !== 'undefined') {
-                        $('#speakerModal').modal('hide');
-                    } else {
-                        $('#speakerModal').removeClass('show').css('display', 'none');
-                        $('body').removeClass('modal-open');
-                        $('.modal-backdrop').remove();
-                    }
-                } catch (e) {
-                    $('#speakerModal').removeClass('show').css('display', 'none');
-                    $('body').removeClass('modal-open');
-                    $('.modal-backdrop').remove();
-                }
-                loadSpeakersPage(currentPage);
-            } else {
-                showError(response.data.message || speakersTranslations.error_saving_speaker);
+            },
+            {
+                label: L.order, sort: 'display_order', className: 'w-col-xl',
+                render: function (s) { return '<span class="w-num">' + WDList.num(s.display_order) + '</span>'; }
             }
-        }).always(function() {
-            btn.prop('disabled', false).html('<i class="fa fa-save"></i> ' + speakersTranslations.save_speaker);
-        });
-    });
-
-    // Image preview
-    $('#speaker-image').on('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                $('#speaker-image-preview img').attr('src', e.target.result);
-                $('#speaker-image-preview').show();
-            };
-            reader.readAsDataURL(file);
-            $('.custom-file-label').text(file.name);
+        ],
+        rowMenu: function (s) {
+            return [
+                { label: L.edit, icon: ICON.pencil, href: dashboardUrl + 'speaker-edit?id=' + s.id },
+                { label: L.view, icon: ICON.external, href: s.url, disabled: !s.is_active },
+                s.is_active
+                    ? { label: L.hide, icon: ICON.eyeOff, onSelect: function () { bulk('hide', [s.id]); } }
+                    : { label: L.show, icon: ICON.eye, onSelect: function () { bulk('show', [s.id]); } },
+                { separator: true },
+                { label: L.delete, icon: ICON.trash, danger: true, onSelect: function () { confirmDelete([s.id], s.name); } }
+            ];
+        },
+        bulkActions: [
+            { key: 'show', label: L.show, icon: ICON.eye, run: function (ids) { bulk('show', ids); } },
+            { key: 'hide', label: L.hide, icon: ICON.eyeOff, run: function (ids) { bulk('hide', ids); } },
+            { key: 'delete', label: L.delete, icon: ICON.trash, danger: true, run: function (ids) { confirmDelete(ids); } }
+        ],
+        chips: function (state) {
+            var f = state.filters, chips = [];
+            if (f.search) { chips.push({ label: L.search, value: f.search, clear: function (l) { l.setFilter('search', ''); } }); }
+            if (f.event_id) { chips.push({ label: L.event, value: eventTitles[f.event_id] || ('#' + f.event_id), clear: function (l) { l.setFilter('event_id', ''); } }); }
+            return chips;
         }
     });
-
-    // Close modal handler
-    $('[data-dismiss="modal"]').on('click', function() {
-        const modal = $(this).closest('.modal');
-        try {
-            if (typeof $.fn.modal !== 'undefined') {
-                modal.modal('hide');
-            } else {
-                modal.removeClass('show').css('display', 'none');
-                $('body').removeClass('modal-open');
-                $('.modal-backdrop').remove();
-            }
-        } catch (e) {
-            modal.removeClass('show').css('display', 'none');
-            $('body').removeClass('modal-open');
-            $('.modal-backdrop').remove();
-        }
-    });
-
-    // Search functionality with debounce
-    $('#speaker-search').on('input', function() {
-        clearTimeout(searchTimeout);
-        const searchValue = $(this).val().trim();
-
-        searchTimeout = setTimeout(function() {
-            currentSearch = searchValue;
-            loadSpeakersPage(1); // Reset to page 1 on search
-        }, 500); // Wait 500ms after user stops typing
-    });
-
-    // Event filter
-    $('#event-filter').on('change', function() {
-        currentEventId = $(this).val();
-        loadSpeakersPage(1); // Reset to page 1 on filter change
-    });
-
-    // Initial load
-    loadSpeakersPage(1);
 });
 </script>
-
-</div>
-</div>
 
 <?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>

@@ -694,3 +694,4 @@
 .w-checklist__item > span { display: flex; flex-direction: column; min-width: 0; font-size: 13.5px; }
 .w-dash fieldset.w-field { min-width: 0; margin: 0; padding: 0; border: 0; }
 .w-dash fieldset.w-field legend { margin-bottom: 6px; font-size: 13px; }
+.w-person__avatar--img { object-fit: cover; background: var(--w-surface-2); }

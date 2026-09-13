@@ -123,22 +123,25 @@ function sc_get_speaker() {
 }
 
 /**
- * Save speaker to custom table
+ * Save speaker to custom table.
+ *
+ * Text is unslashed before sanitising (quotes were stored as \" and \'), the
+ * form's status and order are honoured, a removed photo is cleared, social
+ * networks the form doesn't show are kept, and an existing slug only changes
+ * when a new one is posted.
  */
 add_action('wp_ajax_sc_save_speaker', 'sc_save_speaker');
 function sc_save_speaker() {
     // Support both nonce types
     $nonce_valid = false;
-    if (isset($_POST['sc_speaker_nonce']) && wp_verify_nonce($_POST['sc_speaker_nonce'], 'sc_speaker_action')) {
+    if (isset($_POST['sc_speaker_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sc_speaker_nonce'])), 'sc_speaker_action')) {
         $nonce_valid = true;
-    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
+    } elseif (isset($_POST['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
         $nonce_valid = true;
     }
-
     if (!$nonce_valid) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
@@ -146,105 +149,145 @@ function sc_save_speaker() {
     global $wpdb;
     $table = $wpdb->prefix . 'sc_speakers';
 
-    // Support both field naming conventions
-    $speaker_id = isset($_POST['speaker_id']) ? intval($_POST['speaker_id']) : 0;
-    $speaker_name = isset($_POST['speaker_name']) ? sanitize_text_field($_POST['speaker_name']) : (isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '');
-    $speaker_email = isset($_POST['speaker_email']) ? sanitize_email($_POST['speaker_email']) : (isset($_POST['email']) ? sanitize_email($_POST['email']) : '');
-    $speaker_phone = isset($_POST['speaker_phone']) ? sanitize_text_field($_POST['speaker_phone']) : (isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '');
-    $speaker_title = isset($_POST['speaker_title']) ? sanitize_text_field($_POST['speaker_title']) : (isset($_POST['designation']) ? sanitize_text_field($_POST['designation']) : '');
-    $speaker_company = isset($_POST['speaker_company']) ? sanitize_text_field($_POST['speaker_company']) : (isset($_POST['company']) ? sanitize_text_field($_POST['company']) : '');
-    $speaker_bio = isset($_POST['speaker_bio']) ? wp_kses_post($_POST['speaker_bio']) : (isset($_POST['bio']) ? wp_kses_post($_POST['bio']) : '');
-    $speaker_website = isset($_POST['speaker_website']) ? esc_url_raw($_POST['speaker_website']) : (isset($_POST['website']) ? esc_url_raw($_POST['website']) : '');
-    if (empty($speaker_name)) {
-        wp_send_json_error(array('message' => __('Speaker name is required.', 'sc_events')));
-    }
+    // Read a field under either naming convention ("speaker_x" first).
+    $field = function ($key, $sanitize = 'sanitize_text_field') {
+        foreach (array('speaker_' . $key, $key) as $k) {
+            if (isset($_POST[$k])) {
+                return call_user_func($sanitize, wp_unslash($_POST[$k]));
+            }
+        }
+        return null;
+    };
 
-    // Check image - support both file upload and media library ID
-    $has_image_file = isset($_FILES['speaker_image']) && !empty($_FILES['speaker_image']['name']);
-    $has_image_id = isset($_POST['image']) && intval($_POST['image']) > 0;
-
-    // Get existing speaker photo if updating
-    $existing_photo = 0;
+    $speaker_id = isset($_POST['speaker_id']) ? absint($_POST['speaker_id']) : 0;
+    $existing = null;
     if ($speaker_id > 0) {
-        $existing = $wpdb->get_row($wpdb->prepare("SELECT photo FROM $table WHERE id = %d", $speaker_id));
+        $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $speaker_id));
         if (!$existing) {
             wp_send_json_error(array('message' => __('Speaker not found.', 'sc_events')));
         }
-        $existing_photo = intval($existing->photo);
     }
 
-    // Build social links array - support both naming conventions
-    $social_links = array();
-    $social_platforms = array('facebook', 'twitter', 'linkedin', 'instagram', 'youtube', 'github', 'tiktok', 'whatsapp', 'snapchat', 'pinterest', 'tumblr', 'reddit', 'medium', 'vimeo');
-    foreach ($social_platforms as $platform) {
-        $url = isset($_POST['speaker_' . $platform]) ? esc_url_raw($_POST['speaker_' . $platform]) : '';
-        if (empty($url)) {
-            $url = isset($_POST[$platform]) ? esc_url_raw($_POST[$platform]) : '';
-        }
-        if (!empty($url)) {
-            $social_links[$platform] = $url;
-        }
+    $name    = (string) $field('name');
+    $email   = (string) $field('email', 'sanitize_email');
+    $raw_email = isset($_POST['email']) ? trim((string) wp_unslash($_POST['email'])) : '';
+    $website = (string) $field('website', 'esc_url_raw');
+    $title   = $field('title');
+    if ($title === null) {
+        $title = $field('designation');
     }
 
-    // Handle image - either file upload or media library ID
-    $photo_id = 0;
-    if ($has_image_file) {
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-        require_once(ABSPATH . 'wp-admin/includes/media.php');
-
-        $attachment_id = media_handle_upload('speaker_image', 0);
-        if (!is_wp_error($attachment_id)) {
-            $photo_id = $attachment_id;
-        }
-    } elseif ($has_image_id) {
-        $photo_id = intval($_POST['image']);
+    $errors = array();
+    if ($name === '') {
+        $errors['name'] = __('Speaker name is required.', 'sc_events');
     }
-
-    // Generate slug
-    $slug = sanitize_title($speaker_name);
-    $original_slug = $slug;
-    $counter = 1;
-    while ($wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE slug = %s AND id != %d", $slug, $speaker_id))) {
-        $slug = $original_slug . '-' . $counter;
-        $counter++;
+    if ($raw_email !== '' && !is_email($raw_email)) {
+        $errors['email'] = __('Enter a valid email address.', 'sc_events');
+    }
+    if ($errors) {
+        wp_send_json_error(array('message' => reset($errors), 'errors' => $errors));
     }
 
     $data = array(
-        'name' => $speaker_name,
-        'slug' => $slug,
-        'title' => $speaker_title,
-        'company' => $speaker_company,
-        'email' => $speaker_email,
-        'phone' => $speaker_phone,
-        'bio' => $speaker_bio,
-        'website' => $speaker_website,
-        'social_links' => wp_json_encode($social_links),
-        'is_active' => 1,
-        'updated_at' => current_time('mysql')
+        'name'       => $name,
+        'title'      => (string) $title,
+        'company'    => (string) $field('company'),
+        'email'      => $email,
+        'phone'      => (string) $field('phone'),
+        'bio'        => (string) $field('bio', 'wp_kses_post'),
+        'website'    => $website,
+        'updated_at' => current_time('mysql'),
     );
 
-    if ($photo_id > 0) {
-        $data['photo'] = $photo_id;
+    if (isset($_POST['is_active'])) {
+        $data['is_active'] = !empty($_POST['is_active']) ? 1 : 0;
+    } elseif (!$existing) {
+        $data['is_active'] = 1;
+    }
+    if (isset($_POST['display_order']) && $_POST['display_order'] !== '') {
+        $data['display_order'] = max(0, intval($_POST['display_order']));
     }
 
-    if ($speaker_id > 0) {
-        // Update existing speaker
+    // Social links: start from what is stored so networks this form doesn't show survive.
+    $social = $existing && $existing->social_links ? json_decode($existing->social_links, true) : array();
+    $social = is_array($social) ? $social : array();
+    $platforms = array('facebook', 'twitter', 'linkedin', 'instagram', 'youtube', 'github', 'tiktok', 'whatsapp', 'snapchat', 'pinterest', 'tumblr', 'reddit', 'medium', 'vimeo');
+    foreach ($platforms as $platform) {
+        foreach (array('speaker_' . $platform, $platform) as $k) {
+            if (isset($_POST[$k])) {
+                $url = esc_url_raw(trim((string) wp_unslash($_POST[$k])));
+                if ($url === '') {
+                    unset($social[$platform]);
+                } else {
+                    $social[$platform] = $url;
+                }
+                break;
+            }
+        }
+    }
+    $data['social_links'] = wp_json_encode($social);
+
+    // Photo: an uploaded file, a media-library id, or an empty value to clear it.
+    if (isset($_FILES['speaker_image']) && !empty($_FILES['speaker_image']['name'])) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        $attachment_id = media_handle_upload('speaker_image', 0);
+        if (is_wp_error($attachment_id)) {
+            wp_send_json_error(array('message' => $attachment_id->get_error_message(), 'errors' => array('photo' => $attachment_id->get_error_message())));
+        }
+        $data['photo'] = (int) $attachment_id;
+    } else {
+        foreach (array('photo', 'image') as $k) {
+            if (isset($_POST[$k])) {
+                $photo = absint($_POST[$k]);
+                if ($photo > 0) {
+                    $data['photo'] = $photo;
+                } elseif ($existing && $k === 'photo') {
+                    $data['photo'] = null;
+                }
+                break;
+            }
+        }
+    }
+
+    // Slug: a posted one wins; new speakers get one from the name; existing ones keep theirs.
+    $wanted = isset($_POST['slug']) ? sanitize_title(wp_unslash($_POST['slug'])) : '';
+    if ($wanted === '' && (!$existing || !$existing->slug)) {
+        $wanted = sanitize_title($name);
+    }
+    if ($wanted !== '') {
+        $slug = $wanted;
+        $n = 1;
+        while ($wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE slug = %s AND id != %d", $slug, $speaker_id))) {
+            if (isset($_POST['slug']) && $_POST['slug'] !== '' && $slug === $wanted) {
+                wp_send_json_error(array('message' => __('Another speaker already uses this web address.', 'sc_events'), 'errors' => array('slug' => __('Another speaker already uses this web address.', 'sc_events'))));
+            }
+            $slug = $wanted . '-' . ($n++);
+        }
+        $data['slug'] = $slug;
+    }
+
+    if ($existing) {
         $result = $wpdb->update($table, $data, array('id' => $speaker_id));
         $message = __('Speaker updated successfully.', 'sc_events');
     } else {
-        // Create new speaker
         $data['created_at'] = current_time('mysql');
         $result = $wpdb->insert($table, $data);
-        $speaker_id = $wpdb->insert_id;
+        $speaker_id = (int) $wpdb->insert_id;
         $message = __('Speaker created successfully.', 'sc_events');
     }
-
     if ($result === false) {
         wp_send_json_error(array('message' => __('Failed to save speaker.', 'sc_events')));
     }
 
-    wp_send_json_success(array('message' => $message, 'speaker_id' => $speaker_id));
+    $slug_now = $wpdb->get_var($wpdb->prepare("SELECT slug FROM {$table} WHERE id = %d", $speaker_id));
+    wp_send_json_success(array(
+        'message'    => $message,
+        'speaker_id' => $speaker_id,
+        'slug'       => $slug_now,
+        'redirect'   => home_url('/event-manager-dashboard/speaker-edit?id=' . $speaker_id . '&created=1'),
+    ));
 }
 
 /**
@@ -284,110 +327,151 @@ function sc_delete_speaker() {
 }
 
 /**
- * Get speakers with pagination
+ * Speakers list (list pattern): one page plus tab counts.
+ * Tabs: on the site (active), hidden, in an upcoming event, in no event.
  */
 add_action('wp_ajax_sc_get_speakers_paginated', 'sc_get_speakers_paginated');
 function sc_get_speakers_paginated() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
     global $wpdb;
-    $table = $wpdb->prefix . 'sc_speakers';
-    $pivot_table = $wpdb->prefix . 'sc_event_speakers';
+    $s_table = $wpdb->prefix . 'sc_speakers';
+    $pivot   = $wpdb->prefix . 'sc_event_speakers';
+    $events  = $wpdb->prefix . 'sc_events';
+    $today   = current_time('Y-m-d');
 
-    $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
-    $per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 50;
-    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-    $event_id = isset($_POST['event_id']) ? absint($_POST['event_id']) : 0;
-    $offset = ($page - 1) * $per_page;
+    $page     = max(1, absint(wp_unslash($_POST['page'] ?? 1)));
+    $per_page = min(200, max(10, absint(wp_unslash($_POST['per_page'] ?? 25))));
+    $search   = sanitize_text_field(wp_unslash($_POST['search'] ?? ''));
+    $event_id = absint(wp_unslash($_POST['event_id'] ?? 0));
+    $view     = sanitize_key(wp_unslash($_POST['view'] ?? 'active'));
 
-    $where = "WHERE s.is_active = 1";
-    if (!empty($search)) {
-        $search_like = '%' . $wpdb->esc_like($search) . '%';
-        $where .= $wpdb->prepare(" AND (s.name LIKE %s OR s.title LIKE %s OR s.company LIKE %s)", $search_like, $search_like, $search_like);
+    $where  = array('1=1');
+    $values = array();
+    if ($search !== '') {
+        $like = '%' . $wpdb->esc_like($search) . '%';
+        $where[] = '(s.name LIKE %s OR s.title LIKE %s OR s.company LIKE %s OR s.email LIKE %s)';
+        array_push($values, $like, $like, $like, $like);
     }
-
-    // Filter by event if specified
-    $join = "";
-    if ($event_id > 0) {
-        $join = $wpdb->prepare(" INNER JOIN $pivot_table es ON s.id = es.speaker_id AND es.event_id = %d", $event_id);
+    if ($event_id) {
+        $where[] = "s.id IN (SELECT speaker_id FROM {$pivot} WHERE event_id = %d)";
+        $values[] = $event_id;
     }
+    $base = implode(' AND ', $where);
 
-    $total = $wpdb->get_var("SELECT COUNT(DISTINCT s.id) FROM $table s $join $where");
-    $speakers = $wpdb->get_results($wpdb->prepare(
-        "SELECT DISTINCT s.* FROM $table s $join $where ORDER BY s.name ASC LIMIT %d OFFSET %d",
-        $per_page, $offset
+    $upcoming = $wpdb->prepare(
+        "EXISTS (SELECT 1 FROM {$pivot} p JOIN {$events} e ON e.id = p.event_id WHERE p.speaker_id = s.id AND e.status = 'publish' AND COALESCE(e.end_date, e.start_date) >= %s)",
+        $today
+    );
+    $views = array(
+        'active'   => 's.is_active = 1',
+        'hidden'   => 's.is_active = 0',
+        'upcoming' => $upcoming,
+        'unlinked' => "NOT EXISTS (SELECT 1 FROM {$pivot} p WHERE p.speaker_id = s.id)",
+    );
+    $view = isset($views[$view]) ? $view : 'active';
+    $where_sql = $base . ' AND ' . $views[$view];
+
+    $sortable = array('name' => 's.name', 'display_order' => 's.display_order', 'events' => 'events_count_live', 'created_at' => 's.created_at');
+    $orderby  = sanitize_key(wp_unslash($_POST['orderby'] ?? 'name'));
+    $orderby  = isset($sortable[$orderby]) ? $orderby : 'name';
+    $order    = sanitize_key(wp_unslash($_POST['order'] ?? 'asc')) === 'desc' ? 'DESC' : 'ASC';
+
+    $prepare = function ($sql, $args) use ($wpdb) {
+        return $args ? $wpdb->prepare($sql, $args) : $sql;
+    };
+    $total = (int) $wpdb->get_var($prepare("SELECT COUNT(*) FROM {$s_table} s WHERE {$where_sql}", $values));
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT s.id, s.name, s.slug, s.title, s.company, s.email, s.phone, s.photo, s.is_active, s.display_order, s.social_links, s.website,
+                (SELECT COUNT(*) FROM {$pivot} p WHERE p.speaker_id = s.id) AS events_count_live
+         FROM {$s_table} s WHERE {$where_sql}
+         ORDER BY {$sortable[$orderby]} {$order}, s.name ASC
+         LIMIT %d OFFSET %d",
+        array_merge($values, array($per_page, ($page - 1) * $per_page))
     ));
 
-    // Get events count for each speaker from the pivot table (only count existing events)
-    $speaker_ids = array_column($speakers, 'id');
-    $events_counts = array();
-    if (!empty($speaker_ids)) {
-        // Sanitize and prepare speaker IDs
-        $speaker_ids = array_map('intval', $speaker_ids);
-        $speaker_ids = array_filter($speaker_ids);
-
-        if (!empty($speaker_ids)) {
-            $events_table = $wpdb->prefix . 'sc_events';
-            // Use prepared statement with placeholders for IN clause
-            $placeholders = implode(',', array_fill(0, count($speaker_ids), '%d'));
-            $counts = $wpdb->get_results($wpdb->prepare("
-                SELECT es.speaker_id, COUNT(DISTINCT es.event_id) as count
-                FROM $pivot_table es
-                INNER JOIN $events_table e ON es.event_id = e.id
-                WHERE es.speaker_id IN ($placeholders)
-                GROUP BY es.speaker_id
-            ", $speaker_ids));
-            foreach ($counts as $row) {
-                $events_counts[$row->speaker_id] = intval($row->count);
+    // The latest event each speaker on this page is linked to.
+    $latest = array();
+    $ids = array_map('intval', wp_list_pluck($rows, 'id'));
+    if ($ids) {
+        foreach ($wpdb->get_results(
+            "SELECT p.speaker_id, e.id, e.title, e.start_date, COALESCE(e.end_date, e.start_date) AS last_day
+             FROM {$pivot} p JOIN {$events} e ON e.id = p.event_id
+             WHERE p.speaker_id IN (" . implode(',', $ids) . ')
+             ORDER BY e.start_date DESC'
+        ) as $r) {
+            if (!isset($latest[(int) $r->speaker_id])) {
+                $latest[(int) $r->speaker_id] = array('id' => (int) $r->id, 'title' => $r->title, 'upcoming' => $r->last_day >= $today);
             }
         }
     }
 
-    $speakers_data = array();
-    foreach ($speakers as $speaker) {
-        $social_links = json_decode($speaker->social_links, true) ?: array();
-        $photo_url = $speaker->photo ? wp_get_attachment_url($speaker->photo) : '';
-
-        $speakers_data[] = array(
-            'ID' => $speaker->id,
-            'name' => $speaker->name,
-            'title' => $speaker->title,
-            'email' => $speaker->email,
-            'phone' => $speaker->phone,
-            'bio' => $speaker->bio,
-            'company' => $speaker->company,
-            'website' => $speaker->website,
-            'image_url' => $photo_url,
-            'facebook' => $social_links['facebook'] ?? '',
-            'twitter' => $social_links['twitter'] ?? '',
-            'linkedin' => $social_links['linkedin'] ?? '',
-            'instagram' => $social_links['instagram'] ?? '',
-            'youtube' => $social_links['youtube'] ?? '',
-            'github' => $social_links['github'] ?? '',
-            'tiktok' => $social_links['tiktok'] ?? '',
-            'snapchat' => $social_links['snapchat'] ?? '',
-            'whatsapp' => $social_links['whatsapp'] ?? '',
-            'pinterest' => $social_links['pinterest'] ?? '',
-            'tumblr' => $social_links['tumblr'] ?? '',
-            'reddit' => $social_links['reddit'] ?? '',
-            'medium' => $social_links['medium'] ?? '',
-            'vimeo' => $social_links['vimeo'] ?? '',
-            'events_count' => isset($events_counts[$speaker->id]) ? $events_counts[$speaker->id] : 0
+    $out = array();
+    foreach ($rows as $r) {
+        $social = json_decode((string) $r->social_links, true);
+        $out[] = array(
+            'id'            => (int) $r->id,
+            'name'          => $r->name,
+            'slug'          => $r->slug,
+            'url'           => home_url('/speaker/' . $r->slug . '/'),
+            'title'         => $r->title,
+            'company'       => $r->company,
+            'email'         => $r->email,
+            'phone'         => $r->phone,
+            'photo'         => $r->photo ? (wp_get_attachment_image_url((int) $r->photo, 'thumbnail') ?: '') : '',
+            'is_active'     => (bool) $r->is_active,
+            'display_order' => (int) $r->display_order,
+            'events'        => (int) $r->events_count_live,
+            'latest_event'  => $latest[(int) $r->id] ?? null,
+            'links'         => (is_array($social) ? count(array_filter($social)) : 0) + ($r->website ? 1 : 0),
         );
     }
 
-    wp_send_json_success(array(
-        'speakers' => $speakers_data,
-        'total' => intval($total),
-        'pages' => ceil($total / $per_page),
-        'current_page' => $page
-    ));
+    $response = array('speakers' => $out, 'total' => $total);
+    if (!empty($_POST['with_counts'])) {
+        $parts = array('COUNT(*) AS `all`');
+        foreach ($views as $k => $cond) {
+            $parts[] = "COALESCE(SUM({$cond}), 0) AS `{$k}`";
+        }
+        $response['counts'] = array_map('intval', (array) $wpdb->get_row($prepare('SELECT ' . implode(', ', $parts) . " FROM {$s_table} s WHERE {$base}", $values), ARRAY_A));
+    }
+    wp_send_json_success($response);
+}
+
+/**
+ * Bulk: show on site, hide, or delete speakers.
+ */
+add_action('wp_ajax_sc_bulk_speakers', 'sc_bulk_speakers');
+function sc_bulk_speakers() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    global $wpdb;
+    $ids = array_values(array_filter(array_map('absint', (array) wp_unslash($_POST['ids'] ?? array()))));
+    $op  = sanitize_key(wp_unslash($_POST['op'] ?? ''));
+    if (!$ids || !in_array($op, array('show', 'hide', 'delete'), true)) {
+        wp_send_json_error(array('message' => __('Nothing to do.', 'sc_events')));
+    }
+    $in = implode(',', $ids);
+    if ($op === 'delete') {
+        $wpdb->query("DELETE FROM {$wpdb->prefix}sc_event_speakers WHERE speaker_id IN ({$in})");
+        $n = (int) $wpdb->query("DELETE FROM {$wpdb->prefix}sc_speakers WHERE id IN ({$in})");
+        $message = sprintf(_n('%d speaker deleted.', '%d speakers deleted.', $n, 'sc_events'), $n);
+    } else {
+        $n = (int) $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}sc_speakers SET is_active = %d, updated_at = %s WHERE id IN ({$in})", $op === 'show' ? 1 : 0, current_time('mysql')));
+        $message = $op === 'show'
+            ? sprintf(_n('%d speaker shown on the site.', '%d speakers shown on the site.', $n, 'sc_events'), $n)
+            : sprintf(_n('%d speaker hidden from the site.', '%d speakers hidden from the site.', $n, 'sc_events'), $n);
+    }
+    wp_send_json_success(array('message' => $message));
 }
 
 endif; // End speakers module check
