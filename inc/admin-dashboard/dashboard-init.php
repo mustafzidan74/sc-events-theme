@@ -155,7 +155,9 @@ class SC_Event_Manager_Dashboard {
 
         // Also check if URL matches dashboard pattern (fallback)
         if (!$dashboard_page) {
-            $request_uri = $_SERVER['REQUEST_URI'];
+            // Path only: with the query string left on, "workshop-edit?id=2" was
+            // sanitised to "workshop-editid2" and fell back to home.
+            $request_uri = (string) wp_parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
             if (preg_match('#/event-manager-dashboard/([^/]+)/?#', $request_uri, $matches)) {
                 $dashboard_page = $matches[1];
             } elseif (preg_match('#/event-manager-dashboard/?$#', $request_uri)) {
