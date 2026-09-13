@@ -112,6 +112,9 @@ function sc_get_event_speakers_list() {
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
 
     $event_id = intval($_POST['event_id'] ?? 0);
     if (!$event_id) {
@@ -278,127 +281,155 @@ function sc_get_session() {
 // SAVE SESSION (CREATE / UPDATE)
 // ==========================================
 add_action('wp_ajax_sc_save_session', 'sc_save_session');
+/**
+ * Create or update a session.
+ *
+ * Text is unslashed before sanitising. On update, CME, certificate and
+ * registration settings change only when the request carries them (the old
+ * forms had no CME fields, so every save wrote 0 hours). duration_minutes is
+ * left to the database where it is a generated column.
+ */
 function sc_save_session() {
     $nonce_valid = false;
-    if (isset($_POST['sc_session_nonce']) && wp_verify_nonce($_POST['sc_session_nonce'], 'sc_session_action')) {
+    if (isset($_POST['sc_session_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sc_session_nonce'])), 'sc_session_action')) {
         $nonce_valid = true;
-    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
+    } elseif (isset($_POST['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
         $nonce_valid = true;
     }
-
     if (!$nonce_valid) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
     global $wpdb;
     $table = $wpdb->prefix . 'sc_sessions';
+    $in = function ($key, $default = '') {
+        return isset($_POST[$key]) ? wp_unslash($_POST[$key]) : $default;
+    };
+    $time = function ($value) {
+        return preg_match('/(\d{1,2}):(\d{2})(?::\d{2})?$/', trim((string) $value), $m) ? sprintf('%02d:%02d', $m[1], $m[2]) : '';
+    };
 
-    $session_id = isset($_POST['session_id']) ? intval($_POST['session_id']) : 0;
-    $title = sanitize_text_field($_POST['title'] ?? '');
-    $event_id = intval($_POST['event_id'] ?? 0);
-    $session_date = sanitize_text_field($_POST['session_date'] ?? '');
-    $start_time = sanitize_text_field($_POST['start_time'] ?? '');
+    $session_id   = absint($in('session_id', 0));
+    $title        = sanitize_text_field($in('title'));
+    $event_id     = absint($in('event_id', 0));
+    $session_date = sanitize_text_field($in('session_date'));
+    $start_time   = $time($in('start_time'));
+    $end_time     = $time($in('end_time'));
 
-    if (empty($title)) {
-        wp_send_json_error(array('message' => __('Session title is required.', 'sc_events')));
+    $errors = array();
+    if ($title === '') {
+        $errors['title'] = __('Session title is required.', 'sc_events');
     }
-    if (!$event_id) {
-        wp_send_json_error(array('message' => __('Event is required.', 'sc_events')));
+    if (!$event_id || !$wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}sc_events WHERE id = %d", $event_id))) {
+        $errors['event_id'] = __('Event is required.', 'sc_events');
     }
-    if (empty($session_date)) {
-        wp_send_json_error(array('message' => __('Session date is required.', 'sc_events')));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $session_date)) {
+        $errors['session_date'] = __('Session date is required.', 'sc_events');
     }
-    if (empty($start_time)) {
-        wp_send_json_error(array('message' => __('Start time is required.', 'sc_events')));
+    if ($start_time === '') {
+        $errors['start_time'] = __('Start time is required.', 'sc_events');
     }
-
-    // Build start/end datetime
-    $start_datetime = $session_date . ' ' . $start_time . ':00';
-    $end_time_input = sanitize_text_field($_POST['end_time'] ?? '');
-    $end_datetime = $end_time_input ? ($session_date . ' ' . $end_time_input . ':00') : null;
-
-    // Calculate duration
-    $duration_minutes = null;
-    if ($end_datetime) {
-        $start_ts = strtotime($start_datetime);
-        $end_ts = strtotime($end_datetime);
-        if ($end_ts > $start_ts) {
-            $duration_minutes = ($end_ts - $start_ts) / 60;
-        }
+    if ($end_time !== '' && $start_time !== '' && $end_time <= $start_time) {
+        $errors['end_time'] = __('Ends before it starts.', 'sc_events');
     }
-
-    $status = sanitize_text_field($_POST['status'] ?? 'draft');
-    $is_published = in_array($status, array('published', 'live')) ? 1 : 0;
-
-    // Generate unique slug for the session within the event
-    $base_slug = sanitize_title($title);
-    if (empty($base_slug)) {
-        $base_slug = 'session';
-    }
-    $slug = $base_slug;
-    $slug_counter = 1;
-    $slug_check_exclude = $session_id > 0 ? $wpdb->prepare(" AND id != %d", $session_id) : '';
-    while ($wpdb->get_var($wpdb->prepare(
-        "SELECT id FROM $table WHERE event_id = %d AND slug = %s" . $slug_check_exclude,
-        $event_id, $slug
-    ))) {
-        $slug = $base_slug . '-' . (++$slug_counter);
+    if ($errors) {
+        wp_send_json_error(array('message' => reset($errors), 'errors' => $errors));
     }
 
-    $data = array(
-        'event_id' => $event_id,
-        'title' => $title,
-        'slug' => $slug,
-        'description' => wp_kses_post($_POST['description'] ?? ''),
-        'session_type' => sanitize_text_field($_POST['session_type'] ?? 'lecture'),
-        'track' => sanitize_text_field($_POST['track'] ?? ''),
-        'session_date' => $session_date,
-        'start_time' => $start_datetime,
-        'end_time' => $end_datetime,
-        'duration_minutes' => $duration_minutes,
-        'hall_name' => sanitize_text_field($_POST['hall_name'] ?? ''),
-        'capacity' => intval($_POST['capacity'] ?? 0),
-        'cme_hours' => floatval($_POST['cme_hours'] ?? 0),
-        'cme_category' => sanitize_text_field($_POST['cme_category'] ?? ''),
-        'enable_certificate' => intval($_POST['enable_certificate'] ?? 0),
-        'certificate_template_id' => intval($_POST['certificate_template_id'] ?? 0) ?: null,
-        'min_attendance_percentage' => floatval($_POST['min_attendance_percentage'] ?? 80),
-        'status' => $status,
-        'is_published' => $is_published,
-        'sort_order' => intval($_POST['sort_order'] ?? 0),
-        'updated_at' => current_time('mysql'),
-    );
-
+    $existing = null;
     if ($session_id > 0) {
-        // Update
-        $existing = $wpdb->get_row($wpdb->prepare("SELECT id FROM $table WHERE id = %d", $session_id));
+        $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $session_id));
         if (!$existing) {
             wp_send_json_error(array('message' => __('Session not found.', 'sc_events')));
         }
-        $wpdb->update($table, $data, array('id' => $session_id));
+    }
+
+    $types = array('lecture', 'workshop', 'panel', 'keynote', 'break', 'networking', 'exhibition', 'poster', 'symposium', 'hands_on', 'other');
+    $statuses = array('draft', 'published', 'live', 'ended', 'cancelled');
+    $status = in_array($in('status'), $statuses, true) ? $in('status') : ($existing ? $existing->status : 'draft');
+    $type = in_array($in('session_type'), $types, true) ? $in('session_type') : ($existing ? $existing->session_type : 'lecture');
+
+    // Unique slug within the event; an existing session keeps its slug unless the title changes.
+    $base_slug = sanitize_title($title) ?: 'session';
+    $slug = $base_slug;
+    $n = 1;
+    while ($wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE event_id = %d AND slug = %s AND id != %d", $event_id, $slug, $session_id))) {
+        $slug = $base_slug . '-' . (++$n);
+    }
+
+    $data = array(
+        'event_id'     => $event_id,
+        'title'        => $title,
+        'slug'         => $slug,
+        'description'  => wp_kses_post($in('description')),
+        'session_type' => $type,
+        'track'        => sanitize_text_field($in('track')),
+        'session_date' => $session_date,
+        'start_time'   => $session_date . ' ' . $start_time . ':00',
+        'end_time'     => $end_time !== '' ? $session_date . ' ' . $end_time . ':00' : null,
+        'hall_name'    => sanitize_text_field($in('hall_name')),
+        'capacity'     => max(0, intval($in('capacity', 0))),
+        'status'       => $status,
+        'is_published' => in_array($status, array('published', 'live'), true) ? 1 : 0,
+        'sort_order'   => intval($in('sort_order', 0)),
+        'updated_at'   => current_time('mysql'),
+    );
+
+    // Settings the older forms didn't send: only touch them when posted (defaults on create).
+    $optional = array(
+        'cme_hours'                 => array('floatval', 0),
+        'cme_category'              => array('sanitize_text_field', ''),
+        'enable_certificate'        => array(function ($v) { return !empty($v) ? 1 : 0; }, 0),
+        'certificate_template_id'   => array(function ($v) { return absint($v) ?: null; }, null),
+        'min_attendance_percentage' => array(function ($v) { return min(100, max(0, floatval($v))); }, 80),
+        'require_registration'      => array(function ($v) { return !empty($v) ? 1 : 0; }, 0),
+    );
+    foreach ($optional as $column => $rule) {
+        if (isset($_POST[$column])) {
+            $data[$column] = call_user_func($rule[0], $in($column));
+        } elseif (!$existing) {
+            $data[$column] = $rule[1];
+        }
+    }
+
+    // duration_minutes is generated on the production database; write it only where it is a plain column.
+    $duration_extra = $wpdb->get_var($wpdb->prepare(
+        'SELECT EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s',
+        $table,
+        'duration_minutes'
+    ));
+    if ($duration_extra !== null && stripos((string) $duration_extra, 'generated') === false) {
+        $data['duration_minutes'] = $end_time !== '' ? (int) ((strtotime($data['end_time']) - strtotime($data['start_time'])) / 60) : null;
+    }
+
+    if ($existing) {
+        $result = $wpdb->update($table, $data, array('id' => $session_id));
         $message = __('Session updated successfully.', 'sc_events');
     } else {
-        // Create
         $data['created_at'] = current_time('mysql');
-        $wpdb->insert($table, $data);
-        $session_id = $wpdb->insert_id;
-
-        if (!$session_id) {
-            wp_send_json_error(array('message' => __('Failed to create session.', 'sc_events')));
-        }
+        $data['created_by'] = get_current_user_id();
+        $result = $wpdb->insert($table, $data);
+        $session_id = (int) $wpdb->insert_id;
         $message = __('Session created successfully.', 'sc_events');
     }
-
-    // Handle speakers
-    if (isset($_POST['speakers']) && is_array($_POST['speakers'])) {
-        sc_save_session_speakers_data($session_id, $_POST['speakers']);
+    if ($result === false || !$session_id) {
+        wp_send_json_error(array('message' => __('Failed to save session.', 'sc_events')));
     }
 
-    wp_send_json_success(array('message' => $message, 'session_id' => $session_id));
+    // Speakers: the form marks that it sent the list, so an empty list clears it.
+    if (isset($_POST['speakers_present']) || (isset($_POST['speakers']) && is_array($_POST['speakers']))) {
+        $speakers = isset($_POST['speakers']) && is_array($_POST['speakers']) ? wp_unslash($_POST['speakers']) : array();
+        sc_save_session_speakers_data($session_id, $speakers);
+    }
+
+    wp_send_json_success(array(
+        'message'    => $message,
+        'session_id' => $session_id,
+        'redirect'   => home_url('/event-manager-dashboard/session-edit?id=' . $session_id . '&created=1'),
+    ));
 }
 
 /**
@@ -996,6 +1027,87 @@ function sc_get_session_attendance_stats() {
             'min_attendance' => (float) $session->min_attendance_percentage,
         ),
     ));
+}
+
+
+// ==========================================
+// SESSIONS LIST (list pattern)
+// ==========================================
+add_action('wp_ajax_sc_get_sessions_paginated', 'sc_get_sessions_paginated');
+function sc_get_sessions_paginated() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_dashboard_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+    global $wpdb;
+    $p = $wpdb->prefix;
+
+    $page     = max(1, absint(wp_unslash($_POST['page'] ?? 1)));
+    $per_page = min(200, max(10, absint(wp_unslash($_POST['per_page'] ?? 25))));
+    $search   = sanitize_text_field(wp_unslash($_POST['search'] ?? ''));
+    $event_id = absint(wp_unslash($_POST['event_id'] ?? 0));
+    $date     = sanitize_text_field(wp_unslash($_POST['date'] ?? ''));
+    $status   = sanitize_key(wp_unslash($_POST['status'] ?? ''));
+
+    $where = array('1=1');
+    $values = array();
+    if ($search !== '') {
+        $like = '%' . $wpdb->esc_like($search) . '%';
+        $where[] = '(s.title LIKE %s OR s.track LIKE %s OR s.hall_name LIKE %s)';
+        array_push($values, $like, $like, $like);
+    }
+    if ($event_id) {
+        $where[] = 's.event_id = %d';
+        $values[] = $event_id;
+    }
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        $where[] = 's.session_date = %s';
+        $values[] = $date;
+    }
+    $base = implode(' AND ', $where);
+    $statuses = array('draft', 'published', 'live', 'ended', 'cancelled');
+    $where_sql = $base . (in_array($status, $statuses, true) ? $wpdb->prepare(' AND s.status = %s', $status) : '');
+
+    $sortable = array('title' => 's.title', 'session_date' => 's.session_date', 'registered' => 'registered', 'attended' => 'attended');
+    $orderby = sanitize_key(wp_unslash($_POST['orderby'] ?? 'session_date'));
+    $orderby = isset($sortable[$orderby]) ? $orderby : 'session_date';
+    $order = sanitize_key(wp_unslash($_POST['order'] ?? 'asc')) === 'desc' ? 'DESC' : 'ASC';
+    $order_sql = $sortable[$orderby] . ' ' . $order . ($orderby === 'session_date' ? ', s.start_time ' . $order : '') . ', s.sort_order, s.id';
+
+    $prepare = function ($sql, $args) use ($wpdb) {
+        return $args ? $wpdb->prepare($sql, $args) : $sql;
+    };
+    $total = (int) $wpdb->get_var($prepare("SELECT COUNT(*) FROM {$p}sc_sessions s WHERE {$where_sql}", $values));
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT s.id, s.event_id, s.title, s.track, s.session_type, s.session_date, s.start_time, s.end_time, s.hall_name, s.capacity,
+                s.status, s.cme_hours, s.enable_certificate, e.title AS event_title,
+                (SELECT COUNT(*) FROM {$p}sc_session_registrations r WHERE r.session_id = s.id AND r.status <> 'cancelled') AS registered,
+                (SELECT COUNT(*) FROM {$p}sc_session_attendance a WHERE a.session_id = s.id AND a.check_in_time IS NOT NULL) AS attended,
+                (SELECT COUNT(*) FROM {$p}sc_session_speakers ss WHERE ss.session_id = s.id) AS speakers
+         FROM {$p}sc_sessions s LEFT JOIN {$p}sc_events e ON e.id = s.event_id
+         WHERE {$where_sql} ORDER BY {$order_sql} LIMIT %d OFFSET %d",
+        array_merge($values, array($per_page, ($page - 1) * $per_page))
+    ));
+    foreach ($rows as $r) {
+        foreach (array('id', 'event_id', 'capacity', 'registered', 'attended', 'speakers', 'enable_certificate') as $k) {
+            $r->$k = (int) $r->$k;
+        }
+        $r->cme_hours = (float) $r->cme_hours;
+        $r->start = $r->start_time ? substr($r->start_time, -8, 5) : '';
+        $r->end = $r->end_time ? substr($r->end_time, -8, 5) : '';
+    }
+
+    $response = array('sessions' => $rows, 'total' => $total);
+    if (!empty($_POST['with_counts'])) {
+        $counts = $wpdb->get_row($prepare(
+            "SELECT COUNT(*) AS `all`, " . implode(', ', array_map(function ($s) { return "COALESCE(SUM(s.status = '{$s}'), 0) AS `{$s}`"; }, $statuses)) . " FROM {$p}sc_sessions s WHERE {$base}",
+            $values
+        ), ARRAY_A);
+        $response['counts'] = array_map('intval', (array) $counts);
+    }
+    wp_send_json_success($response);
 }
 
 endif; // if $sessions_module_active

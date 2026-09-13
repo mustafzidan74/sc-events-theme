@@ -695,3 +695,5 @@
 .w-dash fieldset.w-field { min-width: 0; margin: 0; padding: 0; border: 0; }
 .w-dash fieldset.w-field legend { margin-bottom: 6px; font-size: 13px; }
 .w-person__avatar--img { object-fit: cover; background: var(--w-surface-2); }
+.w-dash .w-toolbar .w-toolbar__date { flex: 0 0 170px; max-width: 170px; }
+@media (max-width: 767.98px) { .w-dash .w-toolbar .w-toolbar__date { flex: 1 1 calc(50% - 4px); max-width: none; } }

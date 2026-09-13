@@ -674,3 +674,7 @@
   .w-speaker-top { grid-template-columns: minmax(0, 1fr); }
   .w-speaker-top__photo { max-width: 200px; }
 }
+
+/* Speaker row: speaker | role | remove */
+.w-fields--speaker { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; }
+@media (max-width: 575.98px) { .w-fields--speaker { grid-template-columns: minmax(0, 1fr) auto; } .w-fields--speaker .w-field:nth-child(2) { grid-column: 1; } }
