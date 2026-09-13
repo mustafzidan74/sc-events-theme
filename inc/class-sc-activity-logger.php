@@ -221,6 +221,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_profile_update($user_id, $old_user_data) {
+        $old_user_data = is_object($old_user_data) ? get_object_vars($old_user_data) : (array) $old_user_data;
         $user = get_user_by('ID', $user_id);
         if ($user) {
             self::log(self::TYPE_USER, 'profile_update', array(
@@ -245,6 +246,7 @@ class SC_Activity_Logger {
     // ========================================
 
     public static function log_event_created($event_id, $event_data) {
+        $event_data = is_object($event_data) ? get_object_vars($event_data) : (array) $event_data;
         self::log(self::TYPE_EVENT, 'created', array(
             'object_type' => 'event',
             'object_id' => $event_id,
@@ -262,6 +264,8 @@ class SC_Activity_Logger {
         } else {
             $old_data = $data;
         }
+        $new_data = is_object($new_data) ? get_object_vars($new_data) : (array) $new_data;
+        $old_data = is_object($old_data) ? get_object_vars($old_data) : (array) $old_data;
         $event_name = $new_data['title'] ?? $old_data['title'] ?? 'Unknown';
         self::log(self::TYPE_EVENT, 'updated', array(
             'object_type' => 'event',
@@ -274,6 +278,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_event_deleted($event_id, $event_data) {
+        $event_data = is_object($event_data) ? get_object_vars($event_data) : (array) $event_data;
         // Handle both object and array
         $title = is_object($event_data) ? ($event_data->title ?? 'Unknown') : ($event_data['title'] ?? 'Unknown');
         self::log(self::TYPE_EVENT, 'deleted', array(
@@ -286,6 +291,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_event_published($event_id, $event_data) {
+        $event_data = is_object($event_data) ? get_object_vars($event_data) : (array) $event_data;
         self::log(self::TYPE_EVENT, 'published', array(
             'object_type' => 'event',
             'object_id' => $event_id,
@@ -299,6 +305,7 @@ class SC_Activity_Logger {
     // ========================================
 
     public static function log_attendee_registered($attendee_id, $attendee_data) {
+        $attendee_data = is_object($attendee_data) ? get_object_vars($attendee_data) : (array) $attendee_data;
         self::log(self::TYPE_ATTENDEE, 'registered', array(
             'object_type' => 'attendee',
             'object_id' => $attendee_id,
@@ -312,6 +319,8 @@ class SC_Activity_Logger {
     }
 
     public static function log_attendee_updated($attendee_id, $old_data, $new_data) {
+        $old_data = is_object($old_data) ? get_object_vars($old_data) : (array) $old_data;
+        $new_data = is_object($new_data) ? get_object_vars($new_data) : (array) $new_data;
         self::log(self::TYPE_ATTENDEE, 'updated', array(
             'object_type' => 'attendee',
             'object_id' => $attendee_id,
@@ -323,6 +332,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_attendee_cancelled($attendee_id, $attendee_data) {
+        $attendee_data = is_object($attendee_data) ? get_object_vars($attendee_data) : (array) $attendee_data;
         self::log(self::TYPE_ATTENDEE, 'cancelled', array(
             'object_type' => 'attendee',
             'object_id' => $attendee_id,
@@ -337,6 +347,7 @@ class SC_Activity_Logger {
     // ========================================
 
     public static function log_checkin($attendee_id, $attendee_data) {
+        $attendee_data = is_object($attendee_data) ? get_object_vars($attendee_data) : (array) $attendee_data;
         self::log(self::TYPE_CHECKIN, 'checked_in', array(
             'object_type' => 'attendee',
             'object_id' => $attendee_id,
@@ -349,6 +360,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_checkout($attendee_id, $attendee_data) {
+        $attendee_data = is_object($attendee_data) ? get_object_vars($attendee_data) : (array) $attendee_data;
         self::log(self::TYPE_CHECKIN, 'checked_out', array(
             'object_type' => 'attendee',
             'object_id' => $attendee_id,
@@ -362,6 +374,7 @@ class SC_Activity_Logger {
     // ========================================
 
     public static function log_payment_completed($transaction_id, $transaction_data) {
+        $transaction_data = is_object($transaction_data) ? get_object_vars($transaction_data) : (array) $transaction_data;
         self::log(self::TYPE_PAYMENT, 'completed', array(
             'object_type' => 'transaction',
             'object_id' => $transaction_id,
@@ -375,6 +388,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_payment_failed($transaction_id, $transaction_data) {
+        $transaction_data = is_object($transaction_data) ? get_object_vars($transaction_data) : (array) $transaction_data;
         self::log(self::TYPE_PAYMENT, 'failed', array(
             'object_type' => 'transaction',
             'object_id' => $transaction_id,
@@ -385,6 +399,7 @@ class SC_Activity_Logger {
     }
 
     public static function log_payment_refunded($transaction_id, $transaction_data) {
+        $transaction_data = is_object($transaction_data) ? get_object_vars($transaction_data) : (array) $transaction_data;
         self::log(self::TYPE_PAYMENT, 'refunded', array(
             'object_type' => 'transaction',
             'object_id' => $transaction_id,

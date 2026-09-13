@@ -383,25 +383,45 @@ class SC_Module_Certificates extends SC_Base_Module {
     }
 
     public function maybe_auto_issue($attendee_id, $checked_in_by) {
-        $attendee = SC_Attendee::get($attendee_id);
-
-        if (!$attendee) {
-            return;
+        // This runs inside a check-in: nothing here may stop the check-in itself.
+        // (It used to call SC_Certificate::get_by_attendee()/create(), which don't
+        // exist, so every dashboard check-in on an auto-issue event ended in a fatal error.)
+        try {
+            $attendee = SC_Attendee::get($attendee_id);
+            if (!$attendee || !empty($attendee->workshop_id)) {
+                return;
+            }
+            $event = SC_Event::get($attendee->event_id);
+            if (!$event || empty($event->enable_certificates) || empty($event->auto_issue_certificate)) {
+                return;
+            }
+            // Conditions a check-in can't satisfy yet are left to the normal certificate flow.
+            if (!empty($event->certificate_require_checkout) || !empty($event->certificate_require_event_ended)) {
+                return;
+            }
+            if (SC_Certificate::get_by_attendee_event($attendee_id, $event->id)) {
+                return;
+            }
+            $template_id = (int) $event->certificate_template_id;
+            if (!$template_id && class_exists('SC_Certificate_Template')) {
+                $default = SC_Certificate_Template::get_default();
+                $template_id = $default ? (int) (is_object($default) ? $default->id : ($default['id'] ?? 0)) : 0;
+            }
+            if (!$template_id) {
+                return;
+            }
+            SC_Certificate::issue(array(
+                'template_id'   => $template_id,
+                'attendee_id'   => (int) $attendee->id,
+                'event_id'      => (int) $event->id,
+                'attendee_name' => $attendee->name,
+                'event_title'   => $event->title,
+                'event_date'    => $event->start_date,
+                'issued_by'     => get_current_user_id(),
+            ));
+        } catch (Throwable $e) {
+            error_log('SC certificates auto-issue skipped: ' . $e->getMessage());
         }
-
-        $event = SC_Event::get($attendee->event_id);
-
-        if (!$event || !$event->auto_issue_certificate) {
-            return;
-        }
-
-        // Check if certificate already issued
-        $existing = SC_Certificate::get_by_attendee($attendee_id);
-        if ($existing) {
-            return;
-        }
-
-        $this->issue_certificate($attendee_id, $event->certificate_template_id);
     }
 
     // Helpers

@@ -59,11 +59,11 @@ class SC_Checkin {
             'attendee_id' => $attendee_id,
             'event_id'    => $attendee->event_id,
             'workshop_id' => $workshop_id ? (int) $workshop_id : null,
-            'checked_by'  => $checked_by,
+            // Table columns are scanned_by / scan_method / device_info.
+            'scanned_by'  => $checked_by,
             'action'      => $action,
-            'method'      => $method,
-            'ip_address'  => self::get_client_ip(),
-            'user_agent'  => isset($_SERVER['HTTP_USER_AGENT']) ? substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : '',
+            'scan_method' => $method,
+            'device_info' => substr(self::get_client_ip() . ' ' . (isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : ''), 0, 255),
             'notes'       => sanitize_text_field($notes),
             'created_at'  => current_time('mysql'),
         );
@@ -132,7 +132,7 @@ class SC_Checkin {
         }
 
         if ($args['method']) {
-            $where[] = 'method = %s';
+            $where[] = 'scan_method = %s';
             $values[] = $args['method'];
         }
 
@@ -148,7 +148,7 @@ class SC_Checkin {
 
         $where_clause = implode(' AND ', $where);
 
-        $allowed_orderby = array('id', 'created_at', 'action', 'method');
+        $allowed_orderby = array('id', 'created_at', 'action', 'scan_method');
         $orderby = in_array($args['orderby'], $allowed_orderby) ? $args['orderby'] : 'created_at';
 
         $order = strtoupper($args['order']) === 'ASC' ? 'ASC' : 'DESC';
@@ -185,9 +185,9 @@ class SC_Checkin {
 
         // Check-ins by method
         $by_method = $wpdb->get_results($wpdb->prepare(
-            "SELECT method, COUNT(*) as count FROM $table
+            "SELECT scan_method AS method, COUNT(*) as count FROM $table
             WHERE event_id = %d AND action = 'check_in'
-            GROUP BY method",
+            GROUP BY scan_method",
             $event_id
         ), OBJECT_K);
 
@@ -202,7 +202,7 @@ class SC_Checkin {
 
         // Unique staff who checked in
         $staff_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT checked_by) FROM $table WHERE event_id = %d AND action = 'check_in'",
+            "SELECT COUNT(DISTINCT scanned_by) FROM $table WHERE event_id = %d AND action = 'check_in'",
             $event_id
         ));
 
@@ -287,6 +287,10 @@ class SC_Checkin {
      * @return object Hydrated log
      */
     private static function hydrate($log) {
+        // Older code reads checked_by / method; the columns are scanned_by / scan_method.
+        $log->checked_by = $log->checked_by ?? ($log->scanned_by ?? null);
+        $log->method = $log->method ?? ($log->scan_method ?? null);
+
         // Action labels
         $action_labels = array(
             'check_in'      => __('Check In', 'sc_events'),
@@ -382,9 +386,9 @@ class SC_Checkin {
      */
     public static function get_checked_by_user($checkin_id) {
         $checkin = self::get($checkin_id);
-        if (!$checkin || !$checkin->checked_by) {
+        if (!$checkin || !($checkin->scanned_by ?? $checkin->checked_by ?? null)) {
             return null;
         }
-        return get_user_by('id', $checkin->checked_by);
+        return get_user_by('id', $checkin->scanned_by ?? $checkin->checked_by);
     }
 }
