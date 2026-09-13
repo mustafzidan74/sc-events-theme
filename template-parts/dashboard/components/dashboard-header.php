@@ -21,8 +21,8 @@ header('Surrogate-Control: no-store');
 
 require_once get_template_directory() . '/inc/admin-dashboard/dashboard-nav.php';
 
-// Pages opt in to chart/date-picker assets by setting these as globals.
-global $load_charts, $load_flatpickr;
+// Pages opt in to chart / date-picker / list-pattern assets by setting these as globals.
+global $load_charts, $load_flatpickr, $load_wd_list;
 
 $current_user  = wp_get_current_user();
 $dashboard_url = home_url('/event-manager-dashboard/');
@@ -97,6 +97,9 @@ $chat_module_enabled = !function_exists('sc_module_active') || sc_module_active(
     <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'frontend/css/wisdom/tokens.css?v=' . $asset_version); ?>">
     <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-shell.css?v=' . $asset_version); ?>">
     <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-components.css?v=' . $asset_version); ?>">
+    <?php if (!empty($load_wd_list)): ?>
+    <link rel="stylesheet" href="<?php echo esc_url($theme_assets . 'dashboard/css/wd-list.css?v=' . $asset_version); ?>">
+    <?php endif; ?>
 
     <?php if ($chat_module_enabled && !$w_bare): ?>
     <script>

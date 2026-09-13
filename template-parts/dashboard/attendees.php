@@ -1,6 +1,9 @@
 <?php
 /**
- * Attendees Management Page
+ * Attendees — the first page on the dashboard list pattern (wd-list.js).
+ *
+ * Rows, tab counts and the CSV export all come from the same filter set in
+ * inc/admin-dashboard/attendees-query.php, so what you see is what you export.
  *
  * @package sc_events
  */
@@ -9,2553 +12,1022 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = sc_t('dashboard_pages.attendees_management', 'Attendees Management');
+global $load_wd_list;
+$load_wd_list = true;
+
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 
-// Get all events for filter dropdown from Custom Tables
-$events = array();
-if (class_exists('SC_Event')) {
-    $events = SC_Event::get_all(array(
-        'status' => array('publish', 'completed'),
-        'limit' => 1000,
-        'orderby' => 'title',
-        'order' => 'ASC'
-    ));
-}
+$events = class_exists('SC_Event') ? SC_Event::get_all(array(
+    'status'  => array('publish', 'completed', 'draft'),
+    'limit'   => 1000,
+    'orderby' => 'start_date',
+    'order'   => 'DESC',
+)) : array();
+
+global $wpdb;
+$workshops = $wpdb->get_results("SELECT id, event_id, title FROM {$wpdb->prefix}sc_workshops ORDER BY start_date ASC, title ASC");
+
+$dashboard_url = home_url('/event-manager-dashboard/');
+
+// JSON for inline <script>: hex-escape < > & ' " so no value can close the tag.
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+
+$t = array(
+    'title'            => sc_t('nav.attendees', 'Attendees'),
+    'subtitle'         => sc_t('dashboard_pages.attendees_subtitle', 'Everyone registered for an event or workshop.'),
+    'add'              => sc_t('dashboard_pages.add_attendee', 'Add attendee'),
+    'import'           => sc_t('dashboard_pages.import', 'Import'),
+    'export'           => sc_t('dashboard_pages.export', 'Export'),
+    'send_email'       => sc_t('dashboard_pages.send_email', 'Send email'),
+    'search'           => sc_t('dashboard_pages.search_attendees_placeholder', 'Search name, email, phone or ticket code'),
+    'all_events'       => sc_t('dashboard_pages.all_events', 'All events'),
+    'all_workshops'    => sc_t('dashboard_pages.all_workshops', 'Event and workshops'),
+    'event_only'       => sc_t('dashboard_pages.event_only', 'Event only (no workshop)'),
+    'any_payment'      => sc_t('dashboard_pages.any_payment', 'Any payment'),
+    'free'             => sc_t('general.free', 'Free'),
+    'coupon'           => sc_t('tickets.discount_code', 'Coupon'),
+    'paid'             => sc_t('general.paid', 'Paid'),
+    'more_filters'     => sc_t('dashboard_pages.more_filters', 'More filters'),
+);
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="block-header">
-                    <h2><?php echo esc_html(sc_t('dashboard_pages.attendees_management', 'Attendees Management')); ?></h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item active"><?php echo esc_html(sc_t('dashboard_pages.attendees_management', 'Attendees Management')); ?></li>
-                    </ul>
-                </div>
 
-                <div>
-                    <a href="<?php echo home_url('/event-manager-dashboard/attendee-add'); ?>" class="btn btn-primary">
-                        <i class="fa fa-plus"></i> <?php echo esc_html(sc_t('dashboard_pages.add_attendee', 'New Attendee')); ?>
-                    </a>
-                    <button type="button" class="btn btn-danger" id="bulk-email-btn">
-                        <i class="fa fa-envelope"></i> <?php echo esc_html(sc_t('dashboard_pages.send_email', 'Send Email')); ?>
-                    </button>
-                    <button type="button" class="btn btn-info" id="import-attendees-btn">
-                        <i class="fa fa-upload"></i> <?php echo esc_html(sc_t('dashboard_pages.import_attendees', 'Import CSV')); ?>
-                    </button>
-                    <button type="button" class="btn btn-warning" id="export-attendees-btn">
-                        <i class="fa fa-download"></i> <?php echo esc_html(sc_t('dashboard_pages.export_csv', 'Export CSV')); ?>
-                    </button>
-                </div>
-            </div>
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html($t['title']); ?><span class="w-page-head__count" data-w-total></span></h1>
+            <p class="w-page-head__sub"><?php echo esc_html($t['subtitle']); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <button type="button" class="btn btn-secondary" id="bulk-email-btn"><i class="fa fa-envelope-o" aria-hidden="true"></i> <?php echo esc_html($t['send_email']); ?></button>
+            <button type="button" class="btn btn-secondary" id="import-attendees-btn"><i class="fa fa-upload" aria-hidden="true"></i> <?php echo esc_html($t['import']); ?></button>
+            <button type="button" class="btn btn-secondary" id="export-attendees-btn"><i class="fa fa-download" aria-hidden="true"></i> <?php echo esc_html($t['export']); ?></button>
+            <a class="btn btn-primary" href="<?php echo esc_url($dashboard_url . 'attendee-add'); ?>"><i class="fa fa-plus" aria-hidden="true"></i> <?php echo esc_html($t['add']); ?></a>
         </div>
     </div>
 
-    <!-- Filters Bar -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <form id="attendees-filters" class="form-inline">
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-event" class="mr-2"><?php echo esc_html(sc_t('events.event', 'Event')); ?>:</label>
-                            <select class="form-control" id="filter-event" name="event_id">
-                                <option value=""><?php echo esc_html(sc_t('dashboard_pages.all_events', 'All Events')); ?></option>
-                                <?php foreach ($events as $event): ?>
-                                    <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <i class="fa fa-spinner fa-spin" id="filter-event-loading" style="display: none; margin-left: 10px;"></i>
-                        </div>
+    <div id="attendees-list">
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr($t['title']); ?>"></div>
 
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-status" class="mr-2"><?php echo esc_html(sc_t('dashboard_pages.status', 'Status')); ?>:</label>
-                            <select class="form-control" id="filter-status" name="status">
-                                <option value=""><?php echo esc_html(sc_t('dashboard_pages.all_statuses', 'All Status')); ?></option>
-                                <option value="success"><?php echo esc_html(sc_t('dashboard_pages.confirmed', 'Confirmed')); ?></option>
-                                <option value="pending"><?php echo esc_html(sc_t('dashboard_pages.pending', 'Pending')); ?></option>
-                                <option value="failed"><?php echo esc_html(sc_t('payments.failed', 'Failed')); ?></option>
-                                <option value="cancelled"><?php echo esc_html(sc_t('general.cancelled', 'Cancelled')); ?></option>
-                            </select>
-                            <i class="fa fa-spinner fa-spin" id="filter-status-loading" style="display: none; margin-left: 10px;"></i>
-                        </div>
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html($t['search']); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr($t['search']); ?>" autocomplete="off">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
 
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-ticket-status" class="mr-2"><?php echo esc_html(sc_t('tickets.ticket_status', 'Ticket Status')); ?>:</label>
-                            <select class="form-control" id="filter-ticket-status" name="ticket_status">
-                                <option value=""><?php echo esc_html(sc_t('general.all', 'All')); ?></option>
-                                <option value="unused"><?php echo esc_html(sc_t('tickets.valid', 'Unused')); ?></option>
-                                <option value="used"><?php echo esc_html(sc_t('tickets.used', 'Used')); ?></option>
-                            </select>
-                            <i class="fa fa-spinner fa-spin" id="filter-ticket-loading" style="display: none; margin-left: 10px;"></i>
-                        </div>
+            <select class="form-control" data-w-filter="event_id" id="filter-event" aria-label="<?php echo esc_attr($t['all_events']); ?>">
+                <option value=""><?php echo esc_html($t['all_events']); ?></option>
+                <?php foreach ($events as $event): ?>
+                    <option value="<?php echo (int) $event->id; ?>"><?php echo esc_html($event->title); ?></option>
+                <?php endforeach; ?>
+            </select>
 
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-payment" class="mr-2"><?php echo esc_html(sc_t('payments.payment', 'Payment')); ?>:</label>
-                            <select class="form-control" id="filter-payment" name="payment_type">
-                                <option value=""><?php echo esc_html(sc_t('general.all', 'All')); ?></option>
-                                <option value="paid"><?php echo esc_html(sc_t('general.paid', 'Paid')); ?></option>
-                                <option value="free"><?php echo esc_html(sc_t('general.free', 'Free')); ?></option>
-                                <option value="coupon"><?php echo esc_html(sc_t('tickets.discount_code', 'Coupon')); ?></option>
-                            </select>
-                            <i class="fa fa-spinner fa-spin" id="filter-payment-loading" style="display: none; margin-left: 10px;"></i>
-                        </div>
+            <select class="form-control" data-w-filter="workshop_id" id="filter-workshop" aria-label="<?php echo esc_attr($t['all_workshops']); ?>" hidden>
+                <option value=""><?php echo esc_html($t['all_workshops']); ?></option>
+                <option value="none"><?php echo esc_html($t['event_only']); ?></option>
+            </select>
 
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-coupon" class="mr-2"><?php echo esc_html(sc_t('tickets.discount_code', 'Coupon')); ?>:</label>
-                            <input type="text" class="form-control" id="filter-coupon" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.coupon_code', 'Coupon code...')); ?>" style="width: 150px;">
-                        </div>
+            <select class="form-control" data-w-filter="payment_type" aria-label="<?php echo esc_attr($t['any_payment']); ?>">
+                <option value=""><?php echo esc_html($t['any_payment']); ?></option>
+                <option value="free"><?php echo esc_html($t['free']); ?></option>
+                <option value="coupon"><?php echo esc_html($t['coupon']); ?></option>
+                <option value="paid"><?php echo esc_html($t['paid']); ?></option>
+            </select>
 
-                        <div class="form-group mb-2">
-                            <input type="text" class="form-control" id="filter-search" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.search_attendees_placeholder', 'Search by name, email, phone, ticket ID...')); ?>" style="width: 300px;">
-                        </div>
+            <!-- Filters set from the "More filters" dialog -->
+            <input type="hidden" data-w-filter="status" id="filter-status">
+            <input type="hidden" data-w-filter="coupon_code" id="filter-coupon">
 
-                        <div class="form-group mb-2 ml-2">
-                            <button type="button" class="btn btn-outline-secondary" id="additional-filters-btn">
-                                <i class="fa fa-sliders"></i>
-                                <?php echo esc_html(sc_t('dashboard_pages.additional_filters', 'Additional Filters')); ?>
-                                <span class="badge badge-primary ml-1" id="af-active-count" style="display:none;">0</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            <div class="w-toolbar__end">
+                <button type="button" class="btn btn-secondary" id="additional-filters-btn">
+                    <i class="fa fa-sliders" aria-hidden="true"></i> <?php echo esc_html($t['more_filters']); ?>
+                    <span class="w-btn-badge" id="af-active-count" hidden>0</span>
+                </button>
             </div>
+        </div>
+
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-bulkbar" data-w-bulk hidden></div>
+
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table>
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
         </div>
     </div>
 
-    <!-- Attendees List -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="attendees-table">
-                            <thead>
-                                <tr>
-                                    <th width="30"><input type="checkbox" id="select-all"></th>
-                                    <th><?php echo esc_html(sc_t('tickets.ticket_code', 'Ticket ID')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.name', 'Name')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.email', 'Email')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.phone', 'Phone')); ?></th>
-                                    <th><?php echo esc_html(sc_t('events.event', 'Event')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.ticket_type', 'Ticket Type')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.status', 'Status')); ?></th>
-                                    <th><?php echo esc_html(sc_t('tickets.ticket_status', 'Ticket Status')); ?></th>
-                                    <th><?php echo esc_html(sc_t('scanner.scan_count', 'Scans')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.check_in_time', 'Last Check-in')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.check_out_time', 'Last Check-out')); ?></th>
-                                    <th><?php echo esc_html(sc_t('tickets.discount_code', 'Coupon Code')); ?></th>
-                                    <th><?php echo esc_html(sc_t('payments.payment', 'Payment')); ?></th>
-                                    <th width="150"><?php echo esc_html(sc_t('dashboard_pages.actions', 'Actions')); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="15" class="text-center py-5">
-                                        <i class="fa fa-spinner fa-spin fa-3x text-muted"></i>
-                                        <p class="mt-3"><?php echo esc_html(sc_t('dashboard_pages.loading', 'Loading attendees...')); ?></p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination Controls -->
-                    <div class="row mt-3" id="attendees-pagination-controls" style="display: none;">
-                        <div class="col-md-6">
-                            <div class="pagination-info">
-                                <span id="attendees-showing-info"></span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <nav>
-                                <ul class="pagination justify-content-end mb-0" id="attendees-pagination">
-                                    <!-- Pagination buttons will be inserted here -->
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-danger btn-sm" id="bulk-delete-btn" disabled>
-                            <i class="fa fa-trash"></i> <?php echo esc_html(sc_t('dashboard_pages.delete', 'Delete Selected')); ?>
-                        </button>
-                        <button type="button" class="btn btn-success btn-sm" id="bulk-checkin-btn" disabled>
-                            <i class="fa fa-check"></i> <?php echo esc_html(sc_t('dashboard_pages.check_in', 'Check-in Selected')); ?>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 </div>
 
-<!-- View Attendee Details Modal -->
-<div class="modal fade" id="viewAttendeeModal" tabindex="-1" role="dialog">
+<!-- View attendee -->
+<div class="modal fade" id="viewAttendeeModal" tabindex="-1" role="dialog" aria-labelledby="viewAttendeeTitle">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-eye"></i> <?php echo esc_html(sc_t('dashboard_pages.attendee_details', 'Attendee Details')); ?>
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewAttendeeTitle"><?php echo esc_html(sc_t('dashboard_pages.attendee_details', 'Attendee details')); ?></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
-            <div class="modal-body" id="attendee-details-content">
-                <!-- Details will be loaded here -->
-            </div>
+            <div class="modal-body" id="attendee-details-content"></div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="print-ticket-btn" style="display: none;">
-                    <i class="fa fa-print"></i> <?php echo esc_html(sc_t('dashboard_pages.print_ticket', 'Print Ticket')); ?>
-                </button>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.close', 'Close')); ?></button>
+                <a class="btn btn-secondary" id="view-edit-link" href="#"><i class="fa fa-pencil" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.edit', 'Edit')); ?></a>
+                <button type="button" class="btn btn-primary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.close', 'Close')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Export CSV Modal -->
-<div class="modal fade" id="exportModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-warning text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-download"></i> <?php echo esc_html(sc_t('dashboard_pages.export_attendees_csv', 'Export Attendees CSV')); ?>
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label><?php echo esc_html(sc_t('dashboard_pages.export_options', 'Export Options')); ?>:</label>
-                    <div class="custom-control custom-radio">
-                        <input type="radio" id="export-all" name="export-option" class="custom-control-input" value="all" checked>
-                        <label class="custom-control-label" for="export-all">
-                            <?php echo esc_html(sc_t('dashboard_pages.export_all_events', 'Export All Events')); ?>
-                        </label>
-                    </div>
-                    <div class="custom-control custom-radio mt-2">
-                        <input type="radio" id="export-event" name="export-option" class="custom-control-input" value="event">
-                        <label class="custom-control-label" for="export-event">
-                            <?php echo esc_html(sc_t('dashboard_pages.export_specific_event', 'Export Specific Event')); ?>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-group" id="export-event-select" style="display: none;">
-                    <label for="export-event-id"><?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select Event')); ?>:</label>
-                    <select class="form-control" id="export-event-id">
-                        <option value=""><?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select Event')); ?></option>
-                        <?php foreach ($events as $event): ?>
-                            <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
-                <button type="button" class="btn btn-warning" id="export-confirm-btn">
-                    <i class="fa fa-download"></i> <?php echo esc_html(sc_t('dashboard_pages.export', 'Export')); ?>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Import CSV Modal -->
-<div class="modal fade" id="importModal" tabindex="-1" role="dialog">
+<!-- Import CSV -->
+<div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-labelledby="importModalTitle">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-upload"></i> <?php echo esc_html(sc_t('dashboard_pages.import_attendees_csv', 'Import Attendees CSV')); ?>
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalTitle"><?php echo esc_html(sc_t('dashboard_pages.import_attendees_csv', 'Import attendees from CSV')); ?></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
             <form id="import-form" enctype="multipart/form-data">
                 <div class="modal-body">
-                    <!-- Step 1: Select Event -->
                     <div class="form-group">
-                        <label for="import-event-id"><strong>1. <?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select Event')); ?></strong> <span class="text-danger">*</span></label>
+                        <label for="import-event-id">1. <?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select event')); ?> <span class="text-danger">*</span></label>
                         <select class="form-control" id="import-event-id" name="event_id" required>
-                            <option value="">-- <?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select Event')); ?> --</option>
+                            <option value="">— <?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select event')); ?> —</option>
                             <?php foreach ($events as $event): ?>
-                                <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
+                                <option value="<?php echo (int) $event->id; ?>"><?php echo esc_html($event->title); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <small class="form-text text-muted"><?php echo esc_html(sc_t('dashboard_pages.choose_event_import', 'Choose the event you want to import attendees for')); ?></small>
                     </div>
 
-                    <!-- Step 2: CSV Format Info (Dynamic based on event) -->
-                    <div id="csv-format-info" style="display: none;">
-                        <div class="alert alert-success">
-                            <strong><i class="fa fa-info-circle"></i> <?php echo esc_html(sc_t('dashboard_pages.required_csv_columns', 'Required CSV Columns')); ?>:</strong>
+                    <div id="csv-format-info" hidden>
+                        <div class="alert alert-secondary">
+                            <strong><?php echo esc_html(sc_t('dashboard_pages.required_csv_columns', 'CSV columns')); ?></strong>
                             <div id="csv-columns-list" class="mt-2"></div>
                         </div>
-
-                        <!-- Additional Information Fields -->
-                        <div id="extra-fields-info" style="display: none;">
-                            <div class="alert alert-warning">
-                                <strong><i class="fa fa-star"></i> <?php echo esc_html(sc_t('dashboard_pages.additional_info_columns', 'Additional Information Columns')); ?>:</strong>
+                        <div id="extra-fields-info" hidden>
+                            <div class="alert alert-secondary">
+                                <strong><?php echo esc_html(sc_t('dashboard_pages.additional_info_columns', 'This event’s extra fields')); ?></strong>
                                 <div id="extra-fields-list" class="mt-2"></div>
                             </div>
                         </div>
-
-                        <!-- CSV Template Download -->
-                        <div class="text-center mb-3">
-                            <button type="button" class="btn btn-sm btn-outline-success" id="download-template-btn">
-                                <i class="fa fa-download"></i> <?php echo esc_html(sc_t('dashboard_pages.download_csv_template', 'Download CSV Template')); ?>
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary mb-3" id="download-template-btn"><i class="fa fa-download" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.download_csv_template', 'Download CSV template')); ?></button>
                     </div>
 
-                    <!-- Step 3: Upload CSV File -->
-                    <div class="form-group" id="file-upload-section" style="display: none;">
-                        <label for="csv-file"><strong>2. <?php echo esc_html(sc_t('dashboard_pages.upload_csv_file', 'Upload CSV File')); ?></strong> <span class="text-danger">*</span></label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" id="csv-file" name="csv_file" accept=".csv" required>
-                            <label class="custom-file-label" for="csv-file"><?php echo esc_html(sc_t('dashboard_pages.choose_csv_file', 'Choose CSV file...')); ?></label>
-                        </div>
-                        <small class="form-text text-muted"><?php echo esc_html(sc_t('dashboard_pages.upload_csv_help', 'Upload your CSV file with attendee data')); ?></small>
+                    <div class="form-group" id="file-upload-section" hidden>
+                        <label for="csv-file">2. <?php echo esc_html(sc_t('dashboard_pages.upload_csv_file', 'CSV file')); ?> <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="csv-file" name="csv_file" accept=".csv" required>
+                        <small class="form-text"><?php echo esc_html(sc_t('dashboard_pages.upload_csv_help', 'Up to 5 MB.')); ?></small>
                     </div>
 
-                    <!-- Step 4: Create Users Option -->
-                    <div class="form-group" id="create-users-section" style="display: none;">
-                        <label><strong>3. <?php echo esc_html(sc_t('dashboard_pages.user_account_options', 'User Account Options')); ?></strong></label>
-                        <div class="card card-body bg-light">
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" id="create-users" name="create_users" value="1">
-                                <label class="custom-control-label" for="create-users">
-                                    <i class="fa fa-user-plus text-success"></i> <?php echo esc_html(sc_t('dashboard_pages.create_wp_accounts', 'Create WordPress user accounts for attendees')); ?>
-                                </label>
-                            </div>
-                            <small class="text-muted">
-                                <i class="fa fa-info-circle"></i> <?php echo esc_html(sc_t('dashboard_pages.when_enabled', 'When enabled')); ?>:
-                                <ul class="mb-0 mt-1">
-                                    <li><?php echo esc_html(sc_t('dashboard_pages.email_as_username', 'Email will be used as username')); ?></li>
-                                    <li><?php echo esc_html(sc_t('dashboard_pages.phone_as_password', 'Phone number will be used as password (normalized to 11 digits starting with 01)')); ?></li>
-                                    <li><?php echo esc_html(sc_t('dashboard_pages.phone_normalization', 'Phone formats like +20, 20, 201, 1xxx will be automatically normalized')); ?></li>
-                                    <li><?php echo esc_html(sc_t('dashboard_pages.existing_users_updated', 'Existing users with same email will be updated with new data')); ?></li>
-                                </ul>
-                            </small>
+                    <div class="form-group" id="create-users-section" hidden>
+                        <label>3. <?php echo esc_html(sc_t('dashboard_pages.user_account_options', 'User accounts')); ?></label>
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="create-users" name="create_users" value="1">
+                            <label class="custom-control-label" for="create-users"><?php echo esc_html(sc_t('dashboard_pages.create_wp_accounts', 'Create a site account for each attendee')); ?></label>
                         </div>
+                        <small class="form-text"><?php echo esc_html(sc_t('dashboard_pages.create_accounts_help', 'Email becomes the username and the phone number (normalised to 01…) the password. Existing accounts with the same email are updated.')); ?></small>
                     </div>
 
-                    <!-- Progress -->
-                    <div id="import-progress" style="display: none;">
-                        <div class="progress">
-                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
-                        </div>
-                        <p class="text-center mt-2"><?php echo esc_html(sc_t('dashboard_pages.importing', 'Importing...')); ?></p>
+                    <div id="import-progress" hidden>
+                        <div class="progress"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div></div>
+                        <p class="text-center mt-2 mb-0"><?php echo esc_html(sc_t('dashboard_pages.importing', 'Importing…')); ?></p>
                     </div>
-
-                    <!-- Results -->
-                    <div id="import-results" style="display: none;"></div>
+                    <div id="import-results" hidden></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
-                    <button type="submit" class="btn btn-info" id="import-submit-btn" disabled>
-                        <i class="fa fa-upload"></i> <?php echo esc_html(sc_t('dashboard_pages.import', 'Import')); ?>
-                    </button>
+                    <button type="submit" class="btn btn-primary" id="import-submit-btn" disabled><i class="fa fa-upload" aria-hidden="true"></i> <?php echo esc_html($t['import']); ?></button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Bulk Email Modal -->
-<div class="modal fade" id="bulkEmailModal" tabindex="-1" role="dialog">
+<!-- Bulk email -->
+<div class="modal fade" id="bulkEmailModal" tabindex="-1" role="dialog" aria-labelledby="bulkEmailTitle">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-envelope"></i> <?php echo esc_html(sc_t('dashboard_pages.send_email_to_attendees', 'Send Email to Attendees')); ?>
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkEmailTitle"><?php echo esc_html(sc_t('dashboard_pages.send_email_to_attendees', 'Send email to attendees')); ?></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
                 <form id="bulk-email-form">
                     <div class="form-group">
-                        <label><?php echo esc_html(sc_t('dashboard_pages.send_to', 'Send To')); ?>:</label>
+                        <label><?php echo esc_html(sc_t('dashboard_pages.send_to', 'Send to')); ?></label>
                         <div class="custom-control custom-radio">
                             <input type="radio" id="email-all" name="email-target" class="custom-control-input" value="all" checked>
-                            <label class="custom-control-label" for="email-all">
-                                <strong><?php echo esc_html(sc_t('dashboard_pages.all_attendees', 'All Attendees')); ?></strong> <span class="text-muted">(<?php echo esc_html(sc_t('dashboard_pages.all_events', 'All Events')); ?>)</span>
-                            </label>
+                            <label class="custom-control-label" for="email-all"><?php echo esc_html(sc_t('dashboard_pages.all_attendees_all_events', 'All attendees of all events')); ?></label>
                         </div>
-                        <div class="custom-control custom-radio mt-2">
+                        <div class="custom-control custom-radio mt-1">
                             <input type="radio" id="email-event" name="email-target" class="custom-control-input" value="event">
-                            <label class="custom-control-label" for="email-event">
-                                <strong><?php echo esc_html(sc_t('dashboard_pages.specific_event', 'Specific Event')); ?></strong>
-                            </label>
+                            <label class="custom-control-label" for="email-event"><?php echo esc_html(sc_t('dashboard_pages.specific_event', 'One event')); ?></label>
                         </div>
                     </div>
-
-                    <div class="form-group" id="email-event-select" style="display: none;">
-                        <label for="email-event-id"><?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select Event')); ?>:</label>
+                    <div class="form-group" id="email-event-select" hidden>
+                        <label for="email-event-id"><?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select event')); ?></label>
                         <select class="form-control" id="email-event-id">
-                            <option value=""><?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select Event')); ?></option>
+                            <option value="">— <?php echo esc_html(sc_t('dashboard_pages.select_event', 'Select event')); ?> —</option>
                             <?php foreach ($events as $event): ?>
-                                <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
+                                <option value="<?php echo (int) $event->id; ?>"><?php echo esc_html($event->title); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-
                     <div class="form-group">
-                        <label for="email-subject"><?php echo esc_html(sc_t('dashboard_pages.email_subject', 'Email Subject')); ?>: <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="email-subject" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.enter_email_subject', 'Enter email subject')); ?>" required>
+                        <label for="email-subject"><?php echo esc_html(sc_t('dashboard_pages.email_subject', 'Subject')); ?> <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="email-subject" required>
                     </div>
-
-                    <div class="form-group">
-                        <label for="email-message"><?php echo esc_html(sc_t('dashboard_pages.email_message', 'Email Message')); ?>: <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="email-message" rows="8" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.enter_message', 'Enter your message...')); ?>" required></textarea>
-                        <small class="form-text text-muted">
-                            <strong><?php echo esc_html(sc_t('dashboard_pages.available_variables', 'Available Variables')); ?>:</strong><br>
-                            <code>{name}</code> - <?php echo esc_html(sc_t('dashboard_pages.attendee_name_var', 'Attendee Name')); ?> |
-                            <code>{email}</code> - <?php echo esc_html(sc_t('dashboard_pages.attendee_email_var', 'Attendee Email')); ?> |
-                            <code>{ticket_id}</code> - <?php echo esc_html(sc_t('dashboard_pages.ticket_id_var', 'Ticket ID')); ?><br>
-                            <code>{event_title}</code> - <?php echo esc_html(sc_t('dashboard_pages.event_title_var', 'Event Title')); ?> |
-                            <code>{event_date}</code> - <?php echo esc_html(sc_t('dashboard_pages.event_date_var', 'Event Date')); ?> |
-                            <code>{event_location}</code> - <?php echo esc_html(sc_t('dashboard_pages.event_location_var', 'Event Location')); ?><br>
-                            <code>{qr}</code> - <?php echo esc_html(sc_t('dashboard_pages.qr_code_var', 'QR Code Image')); ?> |
-                            <code>{download_link}</code> - <?php echo esc_html(sc_t('dashboard_pages.download_link_var', 'Ticket Download Button')); ?> |
-                            <code>{my_account}</code> - <?php echo esc_html(sc_t('dashboard_pages.my_account_var', 'My Account Button')); ?>
-                        </small>
+                    <div class="form-group mb-2">
+                        <label for="email-message"><?php echo esc_html(sc_t('dashboard_pages.email_message', 'Message')); ?> <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="email-message" rows="8" required></textarea>
+                        <small class="form-text"><?php echo esc_html(sc_t('dashboard_pages.available_variables', 'Variables')); ?>: <code>{name}</code> <code>{email}</code> <code>{ticket_id}</code> <code>{event_title}</code> <code>{event_date}</code> <code>{event_location}</code> <code>{qr}</code> <code>{download_link}</code> <code>{my_account}</code></small>
                     </div>
-
-                    <div class="alert alert-info">
-                        <i class="fa fa-info-circle"></i>
-                        <strong><?php echo esc_html(sc_t('dashboard_pages.note', 'Note')); ?>:</strong> <?php echo esc_html(sc_t('dashboard_pages.email_batch_note', 'Emails will be sent in batches to ensure delivery. Please don\'t close this window during sending.')); ?>
-                    </div>
+                    <div class="alert alert-warning mb-0" id="email-delivery-note"><?php echo esc_html(sc_t('dashboard_pages.email_batch_note', 'Emails go out one per second; keep this tab open until it finishes.')); ?></div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
-                <button type="button" class="btn btn-danger" id="send-bulk-email-btn">
-                    <i class="fa fa-paper-plane"></i> <?php echo esc_html(sc_t('dashboard_pages.send_emails', 'Send Emails')); ?>
-                </button>
+                <button type="button" class="btn btn-primary" id="send-bulk-email-btn"><i class="fa fa-paper-plane" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.send_emails', 'Send emails')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Single Email Modal -->
-<div class="modal fade" id="singleEmailModal" tabindex="-1" role="dialog">
+<!-- Single email -->
+<div class="modal fade" id="singleEmailModal" tabindex="-1" role="dialog" aria-labelledby="singleEmailTitle">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-envelope"></i> <?php echo esc_html(sc_t('dashboard_pages.send_email_to', 'Send Email to')); ?> <span id="single-email-name"></span>
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="singleEmailTitle"><?php echo esc_html(sc_t('dashboard_pages.send_email_to', 'Send email to')); ?> <span id="single-email-name"></span></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
                 <form id="single-email-form">
                     <input type="hidden" id="single-email-attendee-id">
-                    <input type="hidden" id="single-email-attendee-email">
-
+                    <p class="mb-3"><span class="text-muted"><?php echo esc_html(sc_t('dashboard_pages.recipient', 'Recipient')); ?>:</span> <strong id="single-email-recipient" class="w-ltr"></strong></p>
                     <div class="form-group">
-                        <label><?php echo esc_html(sc_t('dashboard_pages.recipient', 'Recipient')); ?>:</label>
-                        <p class="form-control-plaintext"><strong id="single-email-recipient"></strong></p>
+                        <label for="single-email-subject"><?php echo esc_html(sc_t('dashboard_pages.email_subject', 'Subject')); ?> <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="single-email-subject" required>
                     </div>
-
-                    <div class="form-group">
-                        <label for="single-email-subject"><?php echo esc_html(sc_t('dashboard_pages.email_subject', 'Email Subject')); ?>: <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="single-email-subject" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.enter_email_subject', 'Enter email subject')); ?>" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="single-email-message"><?php echo esc_html(sc_t('dashboard_pages.email_message', 'Email Message')); ?>: <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="single-email-message" rows="8" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.enter_message', 'Enter your message...')); ?>" required></textarea>
-                        <small class="form-text text-muted">
-                            <strong><?php echo esc_html(sc_t('dashboard_pages.available_variables', 'Available Variables')); ?>:</strong><br>
-                            <code>{name}</code> - <?php echo esc_html(sc_t('dashboard_pages.attendee_name_var', 'Attendee Name')); ?> |
-                            <code>{email}</code> - <?php echo esc_html(sc_t('dashboard_pages.attendee_email_var', 'Attendee Email')); ?> |
-                            <code>{ticket_id}</code> - <?php echo esc_html(sc_t('dashboard_pages.ticket_id_var', 'Ticket ID')); ?><br>
-                            <code>{event_title}</code> - <?php echo esc_html(sc_t('dashboard_pages.event_title_var', 'Event Title')); ?> |
-                            <code>{event_date}</code> - <?php echo esc_html(sc_t('dashboard_pages.event_date_var', 'Event Date')); ?> |
-                            <code>{event_location}</code> - <?php echo esc_html(sc_t('dashboard_pages.event_location_var', 'Event Location')); ?><br>
-                            <code>{qr}</code> - <?php echo esc_html(sc_t('dashboard_pages.qr_code_var', 'QR Code Image')); ?> |
-                            <code>{download_link}</code> - <?php echo esc_html(sc_t('dashboard_pages.download_link_var', 'Ticket Download Button')); ?> |
-                            <code>{my_account}</code> - <?php echo esc_html(sc_t('dashboard_pages.my_account_var', 'My Account Button')); ?>
-                        </small>
+                    <div class="form-group mb-0">
+                        <label for="single-email-message"><?php echo esc_html(sc_t('dashboard_pages.email_message', 'Message')); ?> <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="single-email-message" rows="8" required></textarea>
+                        <small class="form-text"><?php echo esc_html(sc_t('dashboard_pages.available_variables', 'Variables')); ?>: <code>{name}</code> <code>{email}</code> <code>{ticket_id}</code> <code>{event_title}</code> <code>{event_date}</code> <code>{event_location}</code> <code>{qr}</code> <code>{download_link}</code> <code>{my_account}</code></small>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
-                <button type="button" class="btn btn-primary" id="send-single-email-btn">
-                    <i class="fa fa-paper-plane"></i> <?php echo esc_html(sc_t('dashboard_pages.send_email', 'Send Email')); ?>
-                </button>
+                <button type="button" class="btn btn-primary" id="send-single-email-btn"><i class="fa fa-paper-plane" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.send_email', 'Send email')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Email Progress Modal -->
-<div class="modal fade" id="emailProgressModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+<!-- Email progress -->
+<div class="modal fade" id="emailProgressModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" aria-labelledby="emailProgressTitle">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-spinner fa-spin"></i> <?php echo esc_html(sc_t('dashboard_pages.sending_emails', 'Sending Emails...')); ?>
-                </h5>
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailProgressTitle"><?php echo esc_html(sc_t('dashboard_pages.sending_emails', 'Sending emails')); ?></h5>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <strong><?php echo esc_html(sc_t('dashboard_pages.progress', 'Progress')); ?>:</strong> <span id="email-progress-text">0 / 0</span>
-                </div>
-                <div class="progress" style="height: 25px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
-                         id="email-progress-bar"
-                         role="progressbar"
-                         style="width: 0%"
-                         aria-valuenow="0"
-                         aria-valuemin="0"
-                         aria-valuemax="100">
-                        0%
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <small class="text-muted" id="email-current-status"><?php echo esc_html(sc_t('dashboard_pages.preparing_to_send', 'Preparing to send...')); ?></small>
-                </div>
-                <div class="mt-3" id="email-results" style="display: none;">
-                    <div class="alert alert-success mb-2" id="email-success-count" style="display: none;">
-                        <i class="fa fa-check-circle"></i> <strong><?php echo esc_html(sc_t('dashboard_pages.sent', 'Sent')); ?>:</strong> <span>0</span>
-                    </div>
-                    <div class="alert alert-danger mb-0" id="email-failed-count" style="display: none;">
-                        <i class="fa fa-times-circle"></i> <strong><?php echo esc_html(sc_t('payments.failed', 'Failed')); ?>:</strong> <span>0</span>
-                    </div>
+                <p class="mb-2"><strong id="email-progress-text">0 / 0</strong> <span class="text-muted" id="email-current-status"></span></p>
+                <div class="progress"><div class="progress-bar" id="email-progress-bar" role="progressbar" style="width:0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div></div>
+                <div class="mt-3" id="email-results" hidden>
+                    <span class="w-tag w-tag--teal" id="email-success-count" hidden><?php echo esc_html(sc_t('dashboard_pages.sent', 'Sent')); ?>: <span>0</span></span>
+                    <span class="w-tag w-tag--red" id="email-failed-count" hidden><?php echo esc_html(sc_t('payments.failed', 'Failed')); ?>: <span>0</span></span>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="email-progress-close-btn" style="display: none;"><?php echo esc_html(sc_t('dashboard_pages.close', 'Close')); ?></button>
+                <button type="button" class="btn btn-secondary" id="email-progress-close-btn" hidden><?php echo esc_html(sc_t('dashboard_pages.close', 'Close')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Attendance Details Modal -->
-<div class="modal fade" id="attendanceDetailsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-xl" role="document">
+<!-- Attendance history -->
+<div class="modal fade" id="attendanceDetailsModal" tabindex="-1" role="dialog" aria-labelledby="attendanceTitle">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="fa fa-clock-o"></i> <?php echo esc_html(sc_t('dashboard_pages.attendance_details', 'Attendance Details')); ?> - <span id="attendance-attendee-name"></span>
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="attendanceTitle"><?php echo esc_html(sc_t('dashboard_pages.attendance_details', 'Attendance')); ?> · <span id="attendance-attendee-name"></span></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
-                <!-- Loading State -->
-                <div id="attendance-loading" class="text-center py-5">
-                    <i class="fa fa-spinner fa-spin fa-3x"></i>
-                    <p class="mt-3"><?php echo esc_html(sc_t('dashboard_pages.loading_attendance', 'Loading attendance details...')); ?></p>
-                </div>
-
-                <!-- No Tracking Message -->
-                <div id="attendance-no-tracking" class="text-center py-5" style="display: none;">
-                    <i class="fa fa-exclamation-triangle fa-3x text-warning"></i>
-                    <p class="mt-3"><?php echo esc_html(sc_t('dashboard_pages.attendance_not_enabled', 'Attendance tracking is not enabled for this event.')); ?></p>
-                </div>
-
-                <!-- Attendance Content -->
-                <div id="attendance-content" style="display: none;">
-                    <!-- Summary Cards -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body text-center">
-                                    <h3 id="summary-total-time">00:00</h3>
-                                    <small><?php echo esc_html(sc_t('dashboard_pages.total_time', 'Total Time')); ?></small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body text-center">
-                                    <h3><span id="summary-days-attended">0</span> / <span id="summary-total-days">0</span></h3>
-                                    <small><?php echo esc_html(sc_t('dashboard_pages.days_attended', 'Days Attended')); ?></small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-dark">
-                                <div class="card-body text-center">
-                                    <h3 id="summary-missing-checkouts">0</h3>
-                                    <small><?php echo esc_html(sc_t('dashboard_pages.missing_checkouts', 'Missing Check-outs')); ?></small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
-                                <div class="card-body text-center">
-                                    <h3 id="summary-event-name" style="font-size: 14px; margin: 0;">-</h3>
-                                    <small><?php echo esc_html(sc_t('dashboard_pages.event', 'Event')); ?></small>
-                                </div>
-                            </div>
-                        </div>
+                <div id="attendance-loading" class="text-center py-5 text-muted"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.loading_attendance', 'Loading attendance…')); ?></div>
+                <div id="attendance-no-tracking" class="alert alert-secondary" hidden><?php echo esc_html(sc_t('dashboard_pages.attendance_not_enabled', 'Attendance tracking is off for this event, so only the first check-in is recorded.')); ?></div>
+                <div id="attendance-content" hidden>
+                    <div class="row mb-3">
+                        <div class="col-6 col-md-3"><div class="card mb-2"><div class="card-body py-3"><div class="stat-label"><?php echo esc_html(sc_t('dashboard_pages.total_time', 'Total time')); ?></div><div class="stat-value" id="summary-total-time">00:00</div></div></div></div>
+                        <div class="col-6 col-md-3"><div class="card mb-2"><div class="card-body py-3"><div class="stat-label"><?php echo esc_html(sc_t('dashboard_pages.days_attended', 'Days attended')); ?></div><div class="stat-value"><span id="summary-days-attended">0</span> / <span id="summary-total-days">0</span></div></div></div></div>
+                        <div class="col-6 col-md-3"><div class="card mb-2"><div class="card-body py-3"><div class="stat-label"><?php echo esc_html(sc_t('dashboard_pages.missing_checkouts', 'Missing check-outs')); ?></div><div class="stat-value" id="summary-missing-checkouts">0</div></div></div></div>
+                        <div class="col-6 col-md-3"><div class="card mb-2"><div class="card-body py-3"><div class="stat-label"><?php echo esc_html(sc_t('dashboard_pages.event', 'Event')); ?></div><div class="w-truncate font-weight-bold" id="summary-event-name">-</div></div></div></div>
                     </div>
-
-                    <!-- Daily Attendance Table -->
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped" id="attendance-details-table">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th width="150"><?php echo esc_html(sc_t('dashboard_pages.day', 'Day')); ?></th>
-                                    <th><?php echo esc_html(sc_t('dashboard_pages.sessions', 'Sessions')); ?></th>
-                                    <th width="120"><?php echo esc_html(sc_t('dashboard_pages.total_time', 'Total Time')); ?></th>
-                                    <th width="100"><?php echo esc_html(sc_t('dashboard_pages.status', 'Status')); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody id="attendance-details-body">
-                                <!-- Data will be populated here -->
-                            </tbody>
+                        <table class="table table-sm mb-0">
+                            <thead><tr>
+                                <th><?php echo esc_html(sc_t('dashboard_pages.day', 'Day')); ?></th>
+                                <th><?php echo esc_html(sc_t('dashboard_pages.sessions', 'In → out')); ?></th>
+                                <th><?php echo esc_html(sc_t('dashboard_pages.total_time', 'Total')); ?></th>
+                                <th><?php echo esc_html(sc_t('dashboard_pages.status', 'Status')); ?></th>
+                            </tr></thead>
+                            <tbody id="attendance-details-body"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.close', 'Close')); ?></button>
+                <button type="button" class="btn btn-primary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.close', 'Close')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Additional Filters Modal -->
-<div class="modal fade" id="additionalFiltersModal" tabindex="-1" role="dialog" aria-labelledby="additionalFiltersModalLabel">
+<!-- More filters: payment status, coupon, and the event's extra fields -->
+<div class="modal fade" id="additionalFiltersModal" tabindex="-1" role="dialog" aria-labelledby="additionalFiltersTitle">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="additionalFiltersModalLabel">
-                    <i class="fa fa-sliders"></i> <?php echo esc_html(sc_t('dashboard_pages.additional_filters', 'Additional Filters')); ?>
-                </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title" id="additionalFiltersTitle"><?php echo esc_html($t['more_filters']); ?></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="af-event-select" class="font-weight-bold">
-                        <?php echo esc_html(sc_t('dashboard_pages.select_event_first', 'Select the event first')); ?>
-                    </label>
-                    <select class="form-control" id="af-event-select">
-                        <option value="">— <?php echo esc_html(sc_t('dashboard_pages.select_event_first', 'Select the event first')); ?> —</option>
-                        <?php foreach ($events as $event): ?>
-                            <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <i class="fa fa-spinner fa-spin" id="af-fields-loading" style="display:none; margin-left:8px;"></i>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="af-status"><?php echo esc_html(sc_t('dashboard_pages.payment_status', 'Payment status')); ?></label>
+                        <select class="form-control" id="af-status">
+                            <option value=""><?php echo esc_html(sc_t('general.all', 'Any')); ?></option>
+                            <option value="success"><?php echo esc_html(sc_t('dashboard_pages.confirmed', 'Confirmed')); ?></option>
+                            <option value="pending"><?php echo esc_html(sc_t('dashboard_pages.pending', 'Pending')); ?></option>
+                            <option value="failed"><?php echo esc_html(sc_t('payments.failed', 'Failed')); ?></option>
+                            <option value="refunded"><?php echo esc_html(sc_t('payments.refunded', 'Refunded')); ?></option>
+                            <option value="cancelled"><?php echo esc_html(sc_t('general.cancelled', 'Cancelled')); ?></option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="af-coupon"><?php echo esc_html(sc_t('dashboard_pages.coupon_code', 'Coupon code contains')); ?></label>
+                        <input type="text" class="form-control w-ltr" id="af-coupon" autocomplete="off">
+                    </div>
                 </div>
                 <hr>
-                <div id="af-fields-container">
-                    <p class="text-muted text-center py-4">
-                        <i class="fa fa-info-circle"></i>
-                        <?php echo esc_html(sc_t('dashboard_pages.select_event_to_see_fields', 'Choose an event to see its extra fields.')); ?>
-                    </p>
+                <div class="form-group">
+                    <label for="af-event-select"><?php echo esc_html(sc_t('dashboard_pages.extra_fields_of', 'Registration answers for')); ?></label>
+                    <select class="form-control" id="af-event-select">
+                        <option value="">— <?php echo esc_html(sc_t('dashboard_pages.select_event_first', 'Choose an event')); ?> —</option>
+                        <?php foreach ($events as $event): ?>
+                            <option value="<?php echo (int) $event->id; ?>"><?php echo esc_html($event->title); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
+                <div id="af-fields-container"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-link text-danger mr-auto" id="af-clear" style="display:none;">
-                    <i class="fa fa-times"></i> <?php echo esc_html(sc_t('dashboard_pages.clear_filters', 'Clear Filters')); ?>
-                </button>
+                <button type="button" class="btn btn-link mr-auto" id="af-clear"><?php echo esc_html(sc_t('dashboard_pages.clear_filters', 'Clear these filters')); ?></button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
-                <button type="button" class="btn btn-primary" id="af-apply" disabled>
-                    <i class="fa fa-check"></i> <?php echo esc_html(sc_t('dashboard_pages.apply', 'Apply')); ?>
-                </button>
+                <button type="button" class="btn btn-primary" id="af-apply"><?php echo esc_html(sc_t('dashboard_pages.apply', 'Apply')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* User Search Dropdown Styles */
-#existing-user-section {
-    position: relative;
-    z-index: 100;
-}
-.user-search-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    z-index: 99999;
-    background: #fff;
-    border: 2px solid #007bff;
-    border-radius: 8px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
-    max-height: 280px;
-    overflow-y: auto;
-    width: 100%;
-    display: none;
-    margin-top: 5px;
-}
-.user-search-item {
-    padding: 12px 15px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-    transition: background 0.2s;
-    background: #fff;
-}
-.user-search-item:last-child {
-    border-bottom: none;
-}
-.user-search-item:hover,
-.user-search-item:focus {
-    background: #e7f1ff;
-}
-.user-search-item strong {
-    color: #333;
-    display: block;
-    margin-bottom: 3px;
-}
-.user-search-item small {
-    color: #666;
-}
-
-/* User Selection Section - Fix overflow for dropdown */
-div#user-selection-section .card.border-primary {
-    overflow: visible !important;
-}
-div#user-selection-section .card-body {
-    overflow: visible !important;
-}
-#attendeeModal .modal-body {
-    overflow: visible;
-}
-#attendeeModal .modal-content {
-    overflow: visible;
-}
-
-/* Form fields transition */
-#attendee-form-fields {
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-/* Attendance Details Modal Styles */
-#attendanceDetailsModal .card {
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-#attendanceDetailsModal .card h3 {
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-#attendance-details-table .session-item {
-    background: #f8f9fa;
-    border-radius: 5px;
-    padding: 8px 12px;
-    margin: 3px 0;
-    display: inline-block;
-    font-size: 13px;
-}
-#attendance-details-table .session-item .check-in {
-    color: #28a745;
-}
-#attendance-details-table .session-item .check-out {
-    color: #dc3545;
-}
-#attendance-details-table .session-item .duration {
-    color: #6c757d;
-    font-weight: bold;
-}
-#attendance-details-table .auto-checkout {
-    background: #fff3cd;
-    border: 1px dashed #ffc107;
-}
-#attendance-details-table .no-attendance {
-    color: #999;
-    font-style: italic;
-}
-.btn-attendance {
-    background: #17a2b8;
-    color: white;
-}
-.btn-attendance:hover {
-    background: #138496;
-    color: white;
-}
-</style>
-
 <script>
-jQuery(document).ready(function($) {
+jQuery(function ($) {
     'use strict';
 
-    let selectedAttendees = [];
-    let currentPage = 1;
-    let perPage = 20; // Reduced for better performance on slow servers
-    let totalPages = 1;
-    let searchTimeout;
+    var esc = WDList.esc;
+    var ajaxurl = scDashboard.ajaxurl;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var workshops = <?php echo $js(array_map(function ($w) {
+        return array('id' => (int) $w->id, 'event_id' => (int) $w->event_id, 'title' => $w->title);
+    }, $workshops)); ?>;
+    var eventTitles = <?php echo $js(array_reduce($events, function ($carry, $e) {
+        $carry[(int) $e->id] = $e->title;
+        return $carry;
+    }, array())); ?>;
+    var L = <?php echo $js(array(
+        'all'            => sc_t('dashboard_pages.all', 'All'),
+        'checkedIn'      => sc_t('dashboard_pages.checked_in', 'Checked in'),
+        'notCheckedIn'   => sc_t('dashboard_pages.not_checked_in', 'Not checked in'),
+        'noCertificate'  => sc_t('dashboard_pages.checked_in_no_certificate', 'Checked in, no certificate'),
+        'name'           => sc_t('general.name', 'Name'),
+        'ticket'         => sc_t('dashboard_pages.ticket', 'Ticket'),
+        'event'          => sc_t('events.event', 'Event'),
+        'phone'          => sc_t('general.phone', 'Phone'),
+        'checkin'        => sc_t('dashboard_pages.check_in', 'Check-in'),
+        'certificate'    => sc_t('dashboard_pages.certificate', 'Certificate'),
+        'payment'        => sc_t('payments.payment', 'Payment'),
+        'registered'     => sc_t('dashboard_pages.registered', 'Registered'),
+        'notYet'         => sc_t('dashboard_pages.not_yet', 'Not yet'),
+        'issued'         => sc_t('dashboard_pages.issued', 'Issued'),
+        'scans'          => sc_t('scanner.scan_count', 'scans'),
+        'free'           => sc_t('general.free', 'Free'),
+        'coupon'         => sc_t('tickets.discount_code', 'Coupon'),
+        'paid'           => sc_t('general.paid', 'Paid'),
+        'deleted'        => sc_t('dashboard_pages.deleted_event', 'Event deleted'),
+        'view'           => sc_t('dashboard_pages.view', 'View details'),
+        'edit'           => sc_t('dashboard_pages.edit', 'Edit'),
+        'doCheckin'      => sc_t('dashboard_pages.check_in', 'Check in'),
+        'sendEmail'      => sc_t('dashboard_pages.send_email', 'Send email'),
+        'attendance'     => sc_t('dashboard_pages.attendance_history', 'Attendance history'),
+        'printTicket'    => sc_t('dashboard_pages.print_ticket', 'Open ticket'),
+        'delete'         => sc_t('dashboard_pages.delete', 'Delete'),
+        'bulkCheckin'    => sc_t('dashboard_pages.check_in', 'Check in'),
+        'bulkDelete'     => sc_t('dashboard_pages.delete', 'Delete'),
+        'search'         => sc_t('general.search', 'Search'),
+        'workshop'       => sc_t('nav.workshops', 'Workshop'),
+        'eventOnly'      => sc_t('dashboard_pages.event_only', 'Event only (no workshop)'),
+        'status'         => sc_t('dashboard_pages.payment_status', 'Payment status'),
+        'statuses'       => array(
+            'success'   => sc_t('dashboard_pages.confirmed', 'Confirmed'),
+            'pending'   => sc_t('dashboard_pages.pending', 'Pending'),
+            'failed'    => sc_t('payments.failed', 'Failed'),
+            'refunded'  => sc_t('payments.refunded', 'Refunded'),
+            'cancelled' => sc_t('general.cancelled', 'Cancelled'),
+        ),
+        'absent'         => sc_t('dashboard_pages.absent', 'Absent'),
+        'insideNow'      => sc_t('dashboard_pages.inside_now', 'Inside now'),
+        'autoCheckout'   => sc_t('dashboard_pages.auto_checkout', 'Auto check-out'),
+        'autoCheckoutTip'=> sc_t('dashboard_pages.auto_checkout_tip', 'No check-out scan; closed at the event’s end time'),
+        'complete'       => sc_t('dashboard_pages.complete', 'Complete'),
+        'checked'        => sc_t('dashboard_pages.checked', 'Checked'),
+        'notChecked'     => sc_t('dashboard_pages.not_checked', 'Not checked'),
+        'contains'       => sc_t('dashboard_pages.contains_placeholder', 'Contains…'),
+        'notes'          => sc_t('dashboard_pages.notes', 'Notes'),
+        'importDone'     => sc_t('dashboard_pages.import_complete', 'Import complete.'),
+        'importNew'      => sc_t('dashboard_pages.import_new', 'New'),
+        'importUpdated'  => sc_t('dashboard_pages.import_updated', 'Updated'),
+        'importFailed'   => sc_t('dashboard_pages.import_failed', 'Failed'),
+        'accounts'       => sc_t('dashboard_pages.accounts_created', 'Accounts created'),
+        'skipped'        => sc_t('dashboard_pages.skipped', 'skipped'),
+        'answers'        => sc_t('dashboard_pages.registration_answers', 'Registration answers'),
+        'emptyText'      => sc_t('dashboard_pages.no_attendees_yet', 'No one has registered yet. Add someone by hand or import a CSV.'),
+        'confirmCheckin' => sc_t('dashboard_pages.confirm_checkin', 'Mark this attendee as checked in?'),
+        'confirmBulkIn'  => sc_t('dashboard_pages.confirm_bulk_checkin', 'Check in %d attendees?'),
+        'confirmBulkDel' => sc_t('dashboard_pages.confirm_bulk_delete', 'Delete %d attendees? Their tickets, check-ins and certificates go too. This cannot be undone.'),
+        'confirmDelete'  => sc_t('dashboard_pages.confirm_delete_attendee', 'Delete this attendee? Their ticket, check-ins and certificate go too. This cannot be undone.'),
+        'confirmExport'  => sc_t('dashboard_pages.confirm_export', 'Export %s attendees matching the current view to CSV?'),
+        'checkedInOk'    => sc_t('dashboard_pages.checked_in_ok', 'Checked in.'),
+        'deletedOk'      => sc_t('dashboard_pages.deleted_ok', 'Deleted.'),
+        'failed'         => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+        'noTracking'     => sc_t('dashboard_pages.tracking_off', 'Attendance tracking is off for this event'),
+    )); ?>;
 
-    // Active additional (extra-field) filters, scoped to one event.
-    let activeExtraFilters = { event_id: 0, filters: [] };
-
-    // Escape HTML helper function
-    function escapeHtml(text) {
-        if (!text) return '';
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    function fmt(template, n) { return template.replace('%d', WDList.num(n)).replace('%s', WDList.num(n)); }
+    function initials(name) {
+        var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        return ((parts[0] || '?').charAt(0) + (parts.length > 1 ? parts[1].charAt(0) : '')).toUpperCase();
+    }
+    function dateOnly(value) {
+        if (!value) { return ''; }
+        var d = new Date(value.replace(' ', 'T'));
+        return isNaN(d) ? value : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    function timeOnly(value) {
+        if (!value) { return ''; }
+        var d = new Date(value.replace(' ', 'T'));
+        return isNaN(d) ? value : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+    function ajax(data) {
+        return $.ajax({ url: ajaxurl, type: 'POST', data: $.extend({ nonce: scDashboard.nonce }, data) });
     }
 
-    // Parse phone number and set country code and number
-    function parseAndSetPhone(phone, codeSelector, phoneSelector) {
-        if (!phone) {
-            $(codeSelector).val('+20');
-            $(phoneSelector).val('');
-            return;
-        }
+    /* ----------------------------------------------------------- extra filters */
 
-        phone = String(phone).trim();
-        const countryCodes = ['+971', '+966', '+20'];
+    var extraFilters = { event_id: 0, filters: [] };
 
-        for (let code of countryCodes) {
-            if (phone.startsWith(code)) {
-                $(codeSelector).val(code);
-                $(phoneSelector).val(phone.substring(code.length).trim());
-                return;
+    /* ------------------------------------------------------------------ list */
+
+    var ICON = {
+        eye: 'M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+        pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+        check: 'M20 6 9 17l-5-5',
+        mail: 'M3 5h18v14H3zM3 7l9 6 9-6',
+        clock: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
+        ticket: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z',
+        trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14'
+    };
+
+    var list = WDList.create({
+        root: document.getElementById('attendees-list'),
+        action: 'sc_get_attendees_paginated',
+        filters: ['search', 'event_id', 'workshop_id', 'payment_type', 'status', 'coupon_code'],
+        perPage: 25,
+        defaultSort: { orderby: 'created_at', order: 'desc' },
+        tabs: [
+            { key: 'all', label: L.all, countKey: 'all' },
+            { key: 'in', label: L.checkedIn, params: { ticket_status: 'used' }, countKey: 'checked_in' },
+            { key: 'out', label: L.notCheckedIn, params: { ticket_status: 'unused' }, countKey: 'not_checked_in' },
+            { key: 'nocert', label: L.noCertificate, params: { ticket_status: 'used', certificate: 'no' }, countKey: 'checked_in_no_certificate' }
+        ],
+        extraParams: function () {
+            return extraFilters.filters.length ? { extra_filters: JSON.stringify(extraFilters.filters) } : {};
+        },
+        extraFilterCount: function () { return extraFilters.filters.length; },
+        emptyText: L.emptyText,
+        columns: [
+            {
+                label: L.name, sort: 'name',
+                render: function (a) {
+                    return '<div class="w-person"><span class="w-person__avatar" data-tone="' + (a.id % 4) + '" aria-hidden="true">' + esc(initials(a.name)) + '</span>' +
+                        '<span class="w-person__text"><span class="w-person__name">' + esc(a.name) + '</span>' +
+                        '<span class="w-sub w-ltr">' + esc(a.email) + '</span></span></div>';
+                }
+            },
+            {
+                label: L.ticket,
+                render: function (a) {
+                    return '<span class="w-mono w-ltr">' + esc(a.ticket_id) + '</span><span class="w-sub w-truncate">' + esc(a.ticket_name || '') + '</span>';
+                }
+            },
+            {
+                label: L.event,
+                render: function (a) {
+                    return '<span class="w-truncate">' + esc(a.event_title) + (a.event_deleted ? ' <span class="w-tag w-tag--red">' + esc(L.deleted) + '</span>' : '') + '</span>' +
+                        (a.workshop_title ? '<span class="w-sub w-truncate">' + esc(a.workshop_title) + '</span>' : '');
+                }
+            },
+            {
+                label: L.phone, className: 'w-col-xl',
+                render: function (a) { return a.phone ? '<span class="w-ltr">' + esc(a.phone) + '</span>' : '<span class="text-muted">—</span>'; }
+            },
+            {
+                label: L.checkin, sort: 'checked_in_at',
+                render: function (a) {
+                    if (!a.checked_in) { return '<span class="w-state-dot w-state-dot--off">' + esc(L.notYet) + '</span>'; }
+                    var sub = timeOnly(a.checkin_time);
+                    if (a.tracking_enabled && a.scan_count) { sub += (sub ? ' · ' : '') + a.scan_count + ' ' + L.scans; }
+                    return '<span class="w-state-dot w-state-dot--on">' + esc(L.checkedIn) + '</span>' + (sub ? '<span class="w-sub">' + esc(sub) + '</span>' : '');
+                }
+            },
+            {
+                label: L.certificate,
+                render: function (a) { return a.has_certificate ? '<span class="w-tag w-tag--teal">' + esc(L.issued) + '</span>' : '<span class="text-muted">—</span>'; }
+            },
+            {
+                label: L.payment,
+                render: function (a) {
+                    var tag = a.payment_type === 'free' ? '<span class="w-tag">' + esc(L.free) + '</span>'
+                        : a.payment_type === 'coupon' ? '<span class="w-tag w-tag--gold">' + esc(L.coupon) + '</span>'
+                        : '<span class="w-tag w-tag--primary">' + esc(L.paid) + '</span>';
+                    var sub = a.coupon_used ? '<span class="w-sub w-mono w-ltr">' + esc(a.coupon_used) + '</span>' : '';
+                    if (a.status && a.status !== 'success') { sub = '<span class="w-sub">' + esc(a.status) + '</span>' + sub; }
+                    return tag + sub;
+                }
+            },
+            {
+                label: L.registered, sort: 'created_at',
+                render: function (a) { return '<span class="w-ltr" title="' + esc(a.created_at) + '">' + esc(dateOnly(a.created_at)) + '</span>'; }
             }
-        }
-
-        // If no country code found, assume +20 and set the full number
-        $(codeSelector).val('+20');
-        $(phoneSelector).val(phone.replace(/^\+/, ''));
-    }
-
-    // Load attendees with pagination
-    function loadAttendees(page = 1) {
-        currentPage = page;
-
-        const filters = {
-            action: 'sc_get_attendees_paginated',
-            nonce: scDashboard.nonce,
-            page: page,
-            per_page: perPage,
-            event_id: $('#filter-event').val(),
-            status: $('#filter-status').val(),
-            ticket_status: $('#filter-ticket-status').val(),
-            payment_type: $('#filter-payment').val(),
-            coupon_code: $('#filter-coupon').val(),
-            search: $('#filter-search').val()
-        };
-
-        // Apply extra-field filters (scoped to their event).
-        if (activeExtraFilters.filters.length && activeExtraFilters.event_id) {
-            filters.event_id = activeExtraFilters.event_id;
-            filters.extra_filters = JSON.stringify(activeExtraFilters.filters);
-        }
-
-        let retryCount = 0;
-        const maxRetries = 2;
-
-        function doRequest() {
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: filters,
-                timeout: 60000, // 60 second timeout
-                beforeSend: function() {
-                    const tbody = $('#attendees-table tbody');
-                    const retryText = retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : '';
-                    tbody.html('<tr><td colspan="15" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-3">Loading...' + retryText + '</p></td></tr>');
-                }
-            }).done(function(response) {
-                if (response.success) {
-                    renderAttendeesTable(response.data.attendees);
-                    updatePagination(response.data.total, response.data.pages, response.data.current_page);
-                } else {
-                    handleError();
-                }
-            }).fail(function(xhr, status, error) {
-                // Retry on 503 or timeout
-                if ((xhr.status === 503 || status === 'timeout') && retryCount < maxRetries) {
-                    retryCount++;
-                    setTimeout(doRequest, 2000); // Wait 2 seconds before retry
-                } else {
-                    handleError();
-                }
-            }).always(function() {
-                // Hide all loading indicators
-                $('#filter-event-loading, #filter-status-loading, #filter-ticket-loading, #filter-payment-loading').hide();
+        ],
+        rowMenu: function (a) {
+            return [
+                { label: L.view, icon: ICON.eye, onSelect: function () { viewAttendee(a); } },
+                { label: L.edit, icon: ICON.pencil, href: dashboardUrl + 'attendee-edit?id=' + a.id },
+                { label: L.doCheckin, icon: ICON.check, disabled: a.checked_in, onSelect: function () { checkIn(a); } },
+                { label: L.sendEmail, icon: ICON.mail, onSelect: function () { openSingleEmail(a); } },
+                { label: L.attendance, icon: ICON.clock, disabled: !a.tracking_enabled && !a.checked_in, onSelect: function () { openAttendance(a); } },
+                { separator: true },
+                { label: L.delete, icon: ICON.trash, danger: true, onSelect: function () { deleteAttendee(a); } }
+            ];
+        },
+        bulkActions: [
+            { key: 'checkin', label: L.bulkCheckin, icon: ICON.check, run: bulkCheckin },
+            { key: 'delete', label: L.bulkDelete, icon: ICON.trash, danger: true, run: bulkDelete }
+        ],
+        chips: function (state) {
+            var f = state.filters, chips = [];
+            if (f.search) { chips.push({ label: L.search, value: f.search, clear: function (l) { l.setFilter('search', ''); } }); }
+            if (f.event_id) { chips.push({ label: L.event, value: eventTitles[f.event_id] || ('#' + f.event_id), clear: function (l) { clearExtra(); l.setFilters({ event_id: '', workshop_id: '' }); } }); }
+            if (f.workshop_id) {
+                var w = workshops.filter(function (x) { return String(x.id) === String(f.workshop_id); })[0];
+                chips.push({ label: L.workshop, value: f.workshop_id === 'none' ? L.eventOnly : (w ? w.title : '#' + f.workshop_id), clear: function (l) { l.setFilter('workshop_id', ''); } });
+            }
+            if (f.payment_type) { chips.push({ label: L.payment, value: L[f.payment_type] || f.payment_type, clear: function (l) { l.setFilter('payment_type', ''); } }); }
+            if (f.status) { chips.push({ label: L.status, value: L.statuses[f.status] || f.status, clear: function (l) { l.setFilter('status', ''); } }); }
+            if (f.coupon_code) { chips.push({ label: L.coupon, value: f.coupon_code, clear: function (l) { l.setFilter('coupon_code', ''); } }); }
+            extraFilters.filters.forEach(function (x, i) {
+                chips.push({ label: x.label, value: Array.isArray(x.value) ? x.value.join(', ') : x.value, clear: function (l) {
+                    extraFilters.filters.splice(i, 1);
+                    updateMoreBadge();
+                    l.reload();
+                } });
             });
-        }
+            return chips;
+        },
+        onFiltersChange: function (f) {
+            // A workshop from another event no longer applies; drop it before the request goes out.
+            if (!syncWorkshopFilter(f.event_id, f.workshop_id)) { delete f.workshop_id; }
+            // Extra-field answers belong to one event.
+            if (extraFilters.filters.length && String(f.event_id || '') !== String(extraFilters.event_id)) { clearExtra(); }
+            updateMoreBadge(f);
+        },
+        onReset: function () { clearExtra(); }
+    });
 
-        function handleError() {
-            const tbody = $('#attendees-table tbody');
-            tbody.html('<tr><td colspan="15" class="text-center py-4 text-danger">Error loading attendees. <button class="btn btn-sm btn-primary ml-2" onclick="loadAttendees(' + page + ')">Try Again</button></td></tr>');
-        }
-
-        doRequest();
+    /** Fill the workshop filter for the chosen event; false when the current value doesn't belong to it. */
+    function syncWorkshopFilter(eventId, current) {
+        var $sel = $('#filter-workshop');
+        var own = workshops.filter(function (w) { return String(w.event_id) === String(eventId); });
+        var valid = !current || (!!eventId && (current === 'none' || own.some(function (w) { return String(w.id) === String(current); })));
+        $sel.find('option').slice(2).remove();
+        own.forEach(function (w) { $sel.append($('<option>').val(w.id).text(w.title)); });
+        $sel.prop('hidden', !eventId || !own.length);
+        $sel.val(valid && current ? current : '');
+        $sel.toggleClass('is-set', valid && !!current);
+        return valid;
     }
 
-    function renderAttendeesTable(attendees) {
-        const tbody = $('#attendees-table tbody');
-        tbody.empty();
+    function clearExtra() {
+        extraFilters = { event_id: 0, filters: [] };
+        updateMoreBadge();
+    }
 
-        if (!attendees || attendees.length === 0) {
-            tbody.html('<tr><td colspan="15" class="text-center py-4">No attendees found.</td></tr>');
-            $('#attendees-pagination-controls').hide();
-            return;
-        }
+    function updateMoreBadge(f) {
+        f = f || list.state().filters;
+        var n = extraFilters.filters.length + (f.status ? 1 : 0) + (f.coupon_code ? 1 : 0);
+        $('#af-active-count').text(n).prop('hidden', n === 0);
+    }
 
-        attendees.forEach(function(attendee) {
-            const statusBadge = getStatusBadge(attendee.status);
-            const ticketStatusBadge = getTicketStatusBadge(attendee.ticket_status);
-            const paymentBadge = getPaymentBadge(attendee.payment_type);
-            const couponDisplay = attendee.coupon_used ? `<code class="text-primary">${escapeHtml(attendee.coupon_used)}</code>` : '<span class="text-muted">-</span>';
+    /* --------------------------------------------------------------- actions */
 
-            // Attendance tracking columns (only show data if tracking is enabled for the event)
-            let scanCountDisplay = '-';
-            let lastCheckinDisplay = '-';
-            let lastCheckoutDisplay = '-';
-
-            if (attendee.tracking_enabled) {
-                scanCountDisplay = attendee.scan_count > 0
-                    ? `<span class="badge badge-info">${attendee.scan_count}</span>`
-                    : '<span class="badge badge-secondary">0</span>';
-                lastCheckinDisplay = attendee.last_checkin || '-';
-                lastCheckoutDisplay = attendee.last_checkout || '-';
+    function viewAttendee(a) {
+        ajax({ action: 'sc_get_attendee', attendee_id: a.id }).done(function (res) {
+            if (!res.success) { showError(res.data && res.data.message ? res.data.message : L.failed); return; }
+            var d = res.data.attendee;
+            var extra = d.extra_fields;
+            if (typeof extra === 'string') { try { extra = JSON.parse(extra); } catch (e) { extra = {}; } }
+            if (Array.isArray(extra)) {
+                extra = extra.reduce(function (m, x) { if (x && x.label) { m[x.label] = x.value; } return m; }, {});
             }
+            var extraRows = Object.keys(extra || {}).filter(function (k) { return extra[k] !== '' && extra[k] !== null; }).map(function (k) {
+                return '<tr><th scope="row">' + esc(k) + '</th><td>' + esc(Array.isArray(extra[k]) ? extra[k].join(', ') : extra[k]) + '</td></tr>';
+            }).join('');
+            var row = function (label, value) { return '<tr><th scope="row" class="text-muted font-weight-normal" style="width:38%">' + esc(label) + '</th><td>' + value + '</td></tr>'; };
 
-            const row = `
-                <tr>
-                    <td><input type="checkbox" class="attendee-checkbox" value="${attendee.id}"></td>
-                    <td><code>${escapeHtml(attendee.ticket_id)}</code></td>
-                    <td><strong>${escapeHtml(attendee.name)}</strong></td>
-                    <td>${escapeHtml(attendee.email)}</td>
-                    <td>${escapeHtml(attendee.phone || '-')}</td>
-                    <td>${attendee.event_deleted
-                        ? '<span style="color:#e65100;">' + escapeHtml(attendee.event_title) + ' <span class="badge badge-danger" style="font-size:10px;vertical-align:middle;">Deleted</span></span>'
-                        : escapeHtml(attendee.event_title)}</td>
-                    <td>${escapeHtml(attendee.ticket_type || 'General')}</td>
-                    <td>${statusBadge}</td>
-                    <td>${ticketStatusBadge}</td>
-                    <td>${scanCountDisplay}</td>
-                    <td>${lastCheckinDisplay}</td>
-                    <td>${lastCheckoutDisplay}</td>
-                    <td>${couponDisplay}</td>
-                    <td>${paymentBadge}</td>
-                    <td>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-info view-attendee" data-id="${attendee.id}" title="<?php echo esc_attr(sc_t('dashboard_pages.view', 'View')); ?>">
-                                <i class="fa fa-eye"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-info dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="sr-only">Toggle Dropdown</span>
-                            </button>
-                            <div class="dropdown-menu dropdown-menu-right">
-                                <a class="dropdown-item" href="<?php echo home_url('/event-manager-dashboard/attendee-edit'); ?>?id=${attendee.id}"><i class="fa fa-edit mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.edit', 'Edit')); ?></a>
-                                <a class="dropdown-item send-email-attendee" href="javascript:void(0);" data-id="${attendee.id}" data-name="${escapeHtml(attendee.name)}" data-email="${escapeHtml(attendee.email)}"><i class="fa fa-envelope mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.send_email', 'Send Email')); ?></a>
-                                <a class="dropdown-item checkin-attendee" href="javascript:void(0);" data-id="${attendee.id}" ${attendee.ticket_status === 'used' ? 'style="opacity:0.5;pointer-events:none;"' : ''}><i class="fa fa-check text-success mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.check_in', 'Check-in')); ?></a>
-                                <a class="dropdown-item attendance-details" href="javascript:void(0);" data-id="${attendee.id}" data-name="${escapeHtml(attendee.name)}" ${!attendee.tracking_enabled ? 'style="opacity:0.5;pointer-events:none;"' : ''}><i class="fa fa-clock-o mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.attendance_history', 'Attendance History')); ?></a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item text-danger delete-attendee" href="javascript:void(0);" data-id="${attendee.id}"><i class="fa fa-trash mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.delete', 'Delete')); ?></a>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            tbody.append(row);
+            $('#attendee-details-content').html(
+                '<div class="w-person mb-3"><span class="w-person__avatar" data-tone="' + (d.id % 4) + '" style="width:44px;height:44px;font-size:14px">' + esc(initials(d.name)) + '</span>' +
+                '<span class="w-person__text"><span class="w-person__name" style="font-size:17px">' + esc(d.name) + '</span><span class="w-sub w-ltr">' + esc(d.email) + '</span></span></div>' +
+                '<div class="row"><div class="col-md-6"><table class="table table-sm mb-3"><tbody>' +
+                row(L.ticket, '<span class="w-mono w-ltr">' + esc(d.ticket_id) + '</span><span class="w-sub">' + esc(d.ticket_name || '') + '</span>') +
+                row(L.event, esc(d.event_title)) +
+                row(L.phone, d.phone ? '<span class="w-ltr">' + esc(d.phone) + '</span>' : '—') +
+                row(L.registered, esc(d.created_at || '—')) +
+                '</tbody></table></div><div class="col-md-6"><table class="table table-sm mb-3"><tbody>' +
+                row(L.checkin, d.ticket_status === 'used' ? '<span class="w-state-dot w-state-dot--on">' + esc(L.checkedIn) + '</span><span class="w-sub">' + esc(d.checkin_time || '') + '</span>' : '<span class="w-state-dot w-state-dot--off">' + esc(L.notYet) + '</span>') +
+                row(L.payment, esc(d.payment_type) + (d.coupon_used ? ' · <span class="w-mono w-ltr">' + esc(d.coupon_used) + '</span>' : '')) +
+                row(L.status, esc(d.status || '')) +
+                '</tbody></table></div></div>' +
+                (extraRows ? '<h6 class="mb-2">' + esc(L.answers) + '</h6><table class="table table-sm mb-0"><tbody>' + extraRows + '</tbody></table>' : '') +
+                (d.notes ? '<h6 class="mt-3 mb-1">' + esc(L.notes) + '</h6><p class="mb-0">' + esc(d.notes) + '</p>' : '')
+            );
+            $('#view-edit-link').attr('href', dashboardUrl + 'attendee-edit?id=' + d.id);
+            $('#viewAttendeeModal').modal('show');
+        }).fail(function () { showError(L.failed); });
+    }
+
+    function checkIn(a) {
+        showConfirm(L.confirmCheckin).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            ajax({ action: 'sc_checkin_attendee', attendee_id: a.id }).done(function (res) {
+                if (res.success) { showSuccess(L.checkedInOk); list.reload(true); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            }).fail(function () { showError(L.failed); });
         });
     }
 
-    function updatePagination(total, pages, current) {
-        totalPages = pages;
-        currentPage = current;
-
-        // Show pagination controls
-        $('#attendees-pagination-controls').show();
-
-        // Update showing info
-        const start = (current - 1) * perPage + 1;
-        const end = Math.min(current * perPage, total);
-        $('#attendees-showing-info').text('<?php echo esc_js(sc_t('dashboard_pages.showing', 'Showing')); ?> ' + start + '-' + end + ' <?php echo esc_js(sc_t('dashboard_pages.of', 'of')); ?> ' + total);
-
-        // Build pagination buttons
-        const paginationHtml = [];
-
-        // Previous button
-        paginationHtml.push(`
-            <li class="page-item ${current === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current - 1}"><?php echo esc_js(sc_t('dashboard_pages.previous', 'Previous')); ?></a>
-            </li>
-        `);
-
-        // Page numbers
-        const maxButtons = 5;
-        let startPage = Math.max(1, current - Math.floor(maxButtons / 2));
-        let endPage = Math.min(pages, startPage + maxButtons - 1);
-
-        if (endPage - startPage < maxButtons - 1) {
-            startPage = Math.max(1, endPage - maxButtons + 1);
-        }
-
-        if (startPage > 1) {
-            paginationHtml.push(`<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`);
-            if (startPage > 2) {
-                paginationHtml.push(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-            }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml.push(`
-                <li class="page-item ${i === current ? 'active' : ''}">
-                    <a class="page-link" href="#" data-page="${i}">${i}</a>
-                </li>
-            `);
-        }
-
-        if (endPage < pages) {
-            if (endPage < pages - 1) {
-                paginationHtml.push(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-            }
-            paginationHtml.push(`<li class="page-item"><a class="page-link" href="#" data-page="${pages}">${pages}</a></li>`);
-        }
-
-        // Next button
-        paginationHtml.push(`
-            <li class="page-item ${current === pages ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current + 1}"><?php echo esc_js(sc_t('dashboard_pages.next', 'Next')); ?></a>
-            </li>
-        `);
-
-        $('#attendees-pagination').html(paginationHtml.join(''));
+    function deleteAttendee(a) {
+        showDeleteConfirm(L.confirmDelete).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            ajax({ action: 'sc_delete_attendee', attendee_id: a.id }).done(function (res) {
+                if (res.success) { showSuccess(L.deletedOk); list.reload(); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            }).fail(function () { showError(L.failed); });
+        });
     }
 
-    // Pagination click handler
-    $(document).on('click', '#attendees-pagination a.page-link', function(e) {
-        e.preventDefault();
-        const page = parseInt($(this).data('page'));
-        if (page && page !== currentPage && page >= 1 && page <= totalPages) {
-            loadAttendees(page);
-        }
-    });
-
-    function getStatusBadge(status) {
-        const badges = {
-            'success': '<span class="badge badge-success"><?php echo esc_js(sc_t('dashboard_pages.confirmed', 'Confirmed')); ?></span>',
-            'pending': '<span class="badge badge-warning"><?php echo esc_js(sc_t('dashboard_pages.pending', 'Pending')); ?></span>',
-            'failed': '<span class="badge badge-danger"><?php echo esc_js(sc_t('payments.failed', 'Failed')); ?></span>',
-            'refunded': '<span class="badge badge-info"><?php echo esc_js(sc_t('payments.refunded', 'Refunded')); ?></span>',
-            'cancelled': '<span class="badge badge-secondary"><?php echo esc_js(sc_t('general.cancelled', 'Cancelled')); ?></span>'
-        };
-        return badges[status] || '<span class="badge badge-secondary">' + status + '</span>';
+    function bulkCheckin(ids) {
+        showConfirm(fmt(L.confirmBulkIn, ids.length)).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            ajax({ action: 'sc_bulk_checkin_attendees', attendee_ids: ids }).done(function (res) {
+                if (res.success) { showSuccess(res.data && res.data.message ? res.data.message : L.checkedInOk); list.reload(); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            }).fail(function () { showError(L.failed); });
+        });
     }
 
-    function getTicketStatusBadge(status) {
-        const badges = {
-            'unused': '<span class="badge badge-secondary"><?php echo esc_js(sc_t('tickets.valid', 'Unused')); ?></span>',
-            'used': '<span class="badge badge-success"><?php echo esc_js(sc_t('tickets.used', 'Used')); ?></span>'
-        };
-        return badges[status] || '<span class="badge badge-secondary">-</span>';
+    function bulkDelete(ids) {
+        showDeleteConfirm(fmt(L.confirmBulkDel, ids.length)).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            ajax({ action: 'sc_bulk_delete_attendees', attendee_ids: ids }).done(function (res) {
+                if (res.success) { showSuccess(res.data && res.data.message ? res.data.message : L.deletedOk); list.reload(); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            }).fail(function () { showError(L.failed); });
+        });
     }
 
-    function getPaymentBadge(type) {
-        const badges = {
-            'paid': '<span class="badge badge-success"><?php echo esc_js(sc_t('general.paid', 'Paid')); ?></span>',
-            'free': '<span class="badge badge-info"><?php echo esc_js(sc_t('general.free', 'Free')); ?></span>',
-            'coupon': '<span class="badge badge-warning"><?php echo esc_js(sc_t('tickets.discount_code', 'Coupon')); ?></span>'
-        };
-        return badges[type] || '<span class="badge badge-secondary">-</span>';
+    /* ---------------------------------------------------------------- export */
+
+    $('#export-attendees-btn').on('click', function () {
+        var data = list.data();
+        var total = data ? data.total : 0;
+        showConfirm(fmt(L.confirmExport, total)).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            var p = list.params();
+            p.action = 'sc_export_attendees_csv';
+            p.nonce = scDashboard.nonce;
+            window.location.href = ajaxurl + '?' + $.param(p);
+        });
+    });
+
+    /* ----------------------------------------------------------- more filters */
+
+    var afHtml = {
+        choose: '<p class="text-muted mb-0">' + esc(<?php echo $js(sc_t('dashboard_pages.select_event_to_see_fields', 'Choose an event to filter by its registration answers.')); ?>) + '</p>',
+        none: '<p class="text-muted mb-0">' + esc(<?php echo $js(sc_t('dashboard_pages.no_extra_fields', 'This event has no extra registration fields.')); ?>) + '</p>',
+        error: '<p class="text-danger mb-0">' + esc(<?php echo $js(sc_t('dashboard_pages.error_loading_fields', 'Could not load this event’s fields.')); ?>) + '</p>'
+    };
+
+    function parseOptions(options) {
+        if (!options) { return []; }
+        if (Array.isArray(options)) { return options.map(function (o) { return String(o.value || o).trim(); }).filter(Boolean); }
+        return String(options).split(/\r?\n/).map(function (o) { return o.trim(); }).filter(Boolean);
     }
 
-    // Filters change with loading indicator
-    $('#filter-event').on('change', function() {
-        // Extra filters belong to a specific event; a manual event change clears them.
-        // (Programmatic .val() updates from "Apply" do not trigger this handler.)
-        if (activeExtraFilters.filters.length) {
-            clearExtraFilters();
-        }
-        $('#filter-event-loading').show();
-        loadAttendees(1);
-    });
-
-    $('#filter-status').on('change', function() {
-        $('#filter-status-loading').show();
-        loadAttendees(1);
-    });
-
-    $('#filter-ticket-status').on('change', function() {
-        $('#filter-ticket-loading').show();
-        loadAttendees(1);
-    });
-
-    $('#filter-payment').on('change', function() {
-        $('#filter-payment-loading').show();
-        loadAttendees(1);
-    });
-
-    // Coupon filter with debounce
-    let couponTimeout = null;
-    $('#filter-coupon').on('keyup', function() {
-        clearTimeout(couponTimeout);
-        couponTimeout = setTimeout(function() {
-            loadAttendees(1);
-        }, 500);
-    });
-
-    $('#filter-search').on('keyup', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(function() {
-            loadAttendees(1);
-        }, 500);
-    });
-
-    /* =========================================================
-     * Additional (extra-field) filters
-     * ========================================================= */
-    const afAllLabel          = '<?php echo esc_js(sc_t('general.all', 'All')); ?>';
-    const afCheckedLabel      = '<?php echo esc_js(sc_t('dashboard_pages.checked', 'Checked')); ?>';
-    const afNotCheckedLabel   = '<?php echo esc_js(sc_t('dashboard_pages.not_checked', 'Not Checked')); ?>';
-    const afContainsPlaceholder = '<?php echo esc_js(sc_t('dashboard_pages.contains_placeholder', 'Contains...')); ?>';
-    const afChooseEventHtml   = '<p class="text-muted text-center py-4"><i class="fa fa-info-circle"></i> <?php echo esc_js(sc_t('dashboard_pages.select_event_to_see_fields', 'Choose an event to see its extra fields.')); ?></p>';
-    const afNoFieldsHtml      = '<p class="text-muted text-center py-3"><i class="fa fa-info-circle"></i> <?php echo esc_js(sc_t('dashboard_pages.no_extra_fields', 'This event has no extra fields.')); ?></p>';
-    const afErrorHtml         = '<p class="text-danger text-center py-3"><i class="fa fa-exclamation-triangle"></i> <?php echo esc_js(sc_t('dashboard_pages.error_loading_fields', 'Could not load extra fields.')); ?></p>';
-
-    // Split a field's options (newline string, or array) into a clean list.
-    function parseFieldOptions(options) {
-        if (!options) return [];
-        if (Array.isArray(options)) {
-            return options.map(function(o) { return String(o).trim(); }).filter(Boolean);
-        }
-        return String(options).split(/\r?\n/).map(function(o) { return o.trim(); }).filter(Boolean);
-    }
-
-    // Render the extra-field inputs for the chosen event, by type.
-    function renderExtraFilterFields(fields) {
-        if (!fields || !fields.length) {
-            $('#af-fields-container').html(afNoFieldsHtml);
-            $('#af-apply').prop('disabled', true);
-            return;
-        }
-
-        let html = '';
-        fields.forEach(function(field, idx) {
-            const label = field.label || '';
-            const type  = field.type || 'text';
-            const opts  = parseFieldOptions(field.options);
-            const isCheckboxOptions = (type === 'checkbox' && opts.length > 0);
-
-            html += '<div class="form-group row af-field' + (isCheckboxOptions ? ' af-checkbox-options' : '') + '"'
-                 +  ' data-label="' + escapeHtml(label) + '" data-type="' + escapeHtml(type) + '">';
-            html += '<label class="col-sm-4 col-form-label">' + escapeHtml(label) + '</label>';
-            html += '<div class="col-sm-8">';
-
+    function renderExtraFields(fields) {
+        if (!fields || !fields.length) { $('#af-fields-container').html(afHtml.none); return; }
+        var html = '';
+        fields.forEach(function (field, idx) {
+            var type = field.type || field.field_type || 'text';
+            var opts = parseOptions(field.options || field.field_options);
+            var multi = type === 'checkbox' && opts.length > 0;
+            html += '<div class="form-group af-field' + (multi ? ' af-multi' : '') + '" data-label="' + esc(field.label) + '" data-type="' + esc(type) + '">';
+            html += '<label>' + esc(field.label) + '</label>';
             if (type === 'select' || type === 'radio') {
-                html += '<select class="form-control af-value"><option value="">' + escapeHtml(afAllLabel) + '</option>';
-                opts.forEach(function(o) {
-                    html += '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>';
-                });
-                html += '</select>';
+                html += '<select class="form-control af-value"><option value="">' + esc(L.all) + '</option>' + opts.map(function (o) { return '<option value="' + esc(o) + '">' + esc(o) + '</option>'; }).join('') + '</select>';
+            } else if (multi) {
+                html += opts.map(function (o, i) {
+                    return '<div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input af-check" id="af-' + idx + '-' + i + '" value="' + esc(o) + '"><label class="custom-control-label" for="af-' + idx + '-' + i + '">' + esc(o) + '</label></div>';
+                }).join('');
             } else if (type === 'checkbox') {
-                if (opts.length) {
-                    opts.forEach(function(o, i) {
-                        const id = 'af-chk-' + idx + '-' + i;
-                        html += '<div class="form-check">'
-                             +  '<input class="form-check-input af-check" type="checkbox" id="' + id + '" value="' + escapeHtml(o) + '">'
-                             +  '<label class="form-check-label" for="' + id + '">' + escapeHtml(o) + '</label>'
-                             +  '</div>';
-                    });
-                } else {
-                    html += '<select class="form-control af-value">'
-                         +  '<option value="">' + escapeHtml(afAllLabel) + '</option>'
-                         +  '<option value="checked">' + escapeHtml(afCheckedLabel) + '</option>'
-                         +  '<option value="notchecked">' + escapeHtml(afNotCheckedLabel) + '</option>'
-                         +  '</select>';
-                }
+                html += '<select class="form-control af-value"><option value="">' + esc(L.all) + '</option><option value="checked">' + esc(L.checked) + '</option><option value="notchecked">' + esc(L.notChecked) + '</option></select>';
             } else {
-                html += '<input type="text" class="form-control af-value" placeholder="' + escapeHtml(afContainsPlaceholder) + '">';
+                html += '<input type="text" class="form-control af-value" placeholder="' + esc(L.contains) + '">';
             }
-
-            html += '</div></div>';
+            html += '</div>';
         });
-
         $('#af-fields-container').html(html);
-        $('#af-apply').prop('disabled', false);
-    }
-
-    // Re-check / re-fill inputs from previously applied values (same event only).
-    function restoreSavedExtraValues() {
-        activeExtraFilters.filters.forEach(function(f) {
-            const $field = $('#af-fields-container .af-field').filter(function() {
-                return $(this).attr('data-label') === f.label;
+        // Restore values applied earlier for this event.
+        if (String(extraFilters.event_id) === String($('#af-event-select').val())) {
+            extraFilters.filters.forEach(function (x) {
+                var $f = $('#af-fields-container .af-field').filter(function () { return $(this).attr('data-label') === x.label; });
+                if (Array.isArray(x.value)) { $f.find('.af-check').each(function () { this.checked = x.value.indexOf(this.value) > -1; }); }
+                else { $f.find('.af-value').val(x.value); }
             });
-            if (!$field.length) return;
-
-            if (Array.isArray(f.value)) {
-                $field.find('.af-check').each(function() {
-                    if (f.value.indexOf($(this).val()) !== -1) {
-                        $(this).prop('checked', true);
-                    }
-                });
-            } else {
-                $field.find('.af-value').val(f.value);
-            }
-        });
-    }
-
-    // Fetch the event's extra-field definitions and render inputs.
-    function loadExtraFilterFields(eventId) {
-        if (!eventId) {
-            $('#af-fields-container').html(afChooseEventHtml);
-            $('#af-apply').prop('disabled', true);
-            return;
         }
-
-        $('#af-fields-loading').show();
-        $('#af-fields-container').html('');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: { action: 'sc_get_event_extra_fields', nonce: scDashboard.nonce, event_id: eventId }
-        }).done(function(resp) {
-            if (resp && resp.success) {
-                renderExtraFilterFields(resp.data.fields || []);
-                if (String(activeExtraFilters.event_id) === String(eventId)) {
-                    restoreSavedExtraValues();
-                }
-            } else {
-                $('#af-fields-container').html(afErrorHtml);
-                $('#af-apply').prop('disabled', true);
-            }
-        }).fail(function() {
-            $('#af-fields-container').html(afErrorHtml);
-            $('#af-apply').prop('disabled', true);
-        }).always(function() {
-            $('#af-fields-loading').hide();
-        });
     }
 
-    function updateExtraFilterBadge() {
-        const n = activeExtraFilters.filters.length;
-        if (n > 0) {
-            $('#af-active-count').text(n).show();
-            $('#additional-filters-btn').removeClass('btn-outline-secondary').addClass('btn-secondary');
-        } else {
-            $('#af-active-count').hide();
-            $('#additional-filters-btn').removeClass('btn-secondary').addClass('btn-outline-secondary');
-        }
-        $('#af-clear').toggle(n > 0);
+    function loadExtraFields(eventId) {
+        if (!eventId) { $('#af-fields-container').html(afHtml.choose); return; }
+        $('#af-fields-container').html('<p class="text-muted mb-0"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i></p>');
+        ajax({ action: 'sc_get_event_extra_fields', event_id: eventId })
+            .done(function (res) { if (res && res.success) { renderExtraFields(res.data.fields || []); } else { $('#af-fields-container').html(afHtml.error); } })
+            .fail(function () { $('#af-fields-container').html(afHtml.error); });
     }
 
-    function clearExtraFilters() {
-        activeExtraFilters = { event_id: 0, filters: [] };
-        updateExtraFilterBadge();
-    }
-
-    // Open the modal, preselecting the active/current event.
-    $('#additional-filters-btn').on('click', function() {
-        const preselect = String(activeExtraFilters.event_id || $('#filter-event').val() || '');
-        $('#af-event-select').val(preselect);
+    $('#additional-filters-btn').on('click', function () {
+        var f = list.state().filters;
+        $('#af-status').val(f.status || '');
+        $('#af-coupon').val(f.coupon_code || '');
+        var ev = String(extraFilters.event_id || f.event_id || '');
+        $('#af-event-select').val(ev);
+        loadExtraFields(ev);
         $('#additionalFiltersModal').modal('show');
-        loadExtraFilterFields(preselect);
     });
+    $('#af-event-select').on('change', function () { loadExtraFields(this.value); });
 
-    // Event chosen inside the modal -> load its extra fields.
-    $('#af-event-select').on('change', function() {
-        loadExtraFilterFields($(this).val());
-    });
-
-    // Apply the chosen extra filters.
-    $('#af-apply').on('click', function() {
-        const eventId = $('#af-event-select').val();
-        if (!eventId) { return; }
-
-        const filters = [];
-        $('#af-fields-container .af-field').each(function() {
-            const $f    = $(this);
-            const label = $f.attr('data-label');
-            const type  = $f.attr('data-type');
-
-            if ($f.hasClass('af-checkbox-options')) {
-                const vals = [];
-                $f.find('.af-check:checked').each(function() { vals.push($(this).val()); });
-                if (vals.length) {
-                    filters.push({ label: label, type: type, value: vals });
-                }
+    $('#af-apply').on('click', function () {
+        var eventId = $('#af-event-select').val();
+        var filters = [];
+        $('#af-fields-container .af-field').each(function () {
+            var $f = $(this), label = $f.attr('data-label'), type = $f.attr('data-type');
+            if ($f.hasClass('af-multi')) {
+                var vals = $f.find('.af-check:checked').map(function () { return this.value; }).get();
+                if (vals.length) { filters.push({ label: label, type: type, value: vals }); }
             } else {
-                const val = $f.find('.af-value').val();
-                if (val !== '' && val != null) {
-                    filters.push({ label: label, type: type, value: val });
-                }
+                var v = $f.find('.af-value').val();
+                if (v) { filters.push({ label: label, type: type, value: v }); }
             }
         });
-
-        activeExtraFilters = { event_id: eventId, filters: filters };
-
-        // Sync the main event filter (without firing its change handler, which would clear us).
-        $('#filter-event').val(eventId);
-
-        updateExtraFilterBadge();
+        $('#filter-status').val($('#af-status').val());
+        $('#filter-coupon').val($.trim($('#af-coupon').val()));
         $('#additionalFiltersModal').modal('hide');
-        loadAttendees(1);
+
+        extraFilters = filters.length && eventId ? { event_id: eventId, filters: filters } : { event_id: 0, filters: [] };
+        var current = list.state().filters;
+        if (extraFilters.filters.length && String(current.event_id || '') !== String(eventId)) {
+            // Answers belong to one event: switch the event filter to it.
+            $('#filter-event').val(eventId);
+        }
+        // One request with the event, status, coupon and answers together.
+        list.applyControls();
+        updateMoreBadge();
     });
 
-    // Clear all extra filters.
-    $('#af-clear').on('click', function() {
-        clearExtraFilters();
-        $('#af-event-select').val('');
-        $('#af-fields-container').html(afChooseEventHtml);
-        $('#af-apply').prop('disabled', true);
+    $('#af-clear').on('click', function () {
+        clearExtra();
         $('#additionalFiltersModal').modal('hide');
-        loadAttendees(1);
+        list.setFilters({ status: '', coupon_code: '' });
     });
 
-    // Note: Create attendee button is now a link to attendee-add page
+    /* ---------------------------------------------------------------- import */
 
-    // Toggle between existing user and new registration
-    $('input[name="user_type"]').on('change', function() {
-        const userType = $(this).val();
-        if (userType === 'existing') {
-            $('#existing-user-section').slideDown();
-            initUserSearch();
-        } else {
-            $('#existing-user-section').slideUp();
-            clearUserSelection();
-            // Make sure form fields are visible for new registration
-            $('#attendee-form-fields').css({'opacity': '1', 'visibility': 'visible', 'pointer-events': 'auto'});
-        }
-    });
-
-    // Initialize user search with custom autocomplete (no Select2 dependency)
-    let userSearchTimeout = null;
-    let userSearchResults = [];
-
-    function initUserSearch() {
-        // Clear previous search
-        $('#user-search').val('');
-        $('#user-search-dropdown').hide().empty();
-        userSearchResults = [];
-
-        // Show/hide fields below search using opacity (keeps space reserved)
-        function hideFieldsBelowSearch() {
-            $('#attendee-form-fields').css({
-                'opacity': '0',
-                'visibility': 'hidden',
-                'pointer-events': 'none'
-            });
-        }
-
-        function showFieldsBelowSearch() {
-            $('#attendee-form-fields').css({
-                'opacity': '1',
-                'visibility': 'visible',
-                'pointer-events': 'auto'
-            });
-        }
-
-        // On focus - hide fields below
-        $('#user-search').off('focus').on('focus', function() {
-            hideFieldsBelowSearch();
-            if ($(this).val() && userSearchResults.length === 0) {
-                $(this).trigger('input');
-            }
-        });
-
-        // Search on input
-        $('#user-search').off('input').on('input', function() {
-            const searchTerm = $(this).val().trim();
-
-            if (searchTerm.length < 2) {
-                $('#user-search-dropdown').hide().empty();
-                return;
-            }
-
-            clearTimeout(userSearchTimeout);
-            userSearchTimeout = setTimeout(function() {
-                $.ajax({
-                    url: scDashboard.ajaxurl,
-                    type: 'POST',
-                    data: {
-                        action: 'sc_search_users',
-                        nonce: scDashboard.nonce,
-                        search: searchTerm
-                    },
-                    success: function(response) {
-                        if (response.success && response.data && response.data.length > 0) {
-                            userSearchResults = response.data;
-                            let html = '';
-                            response.data.forEach(function(user, index) {
-                                html += `<div class="user-search-item" data-index="${index}">
-                                    <strong>${escapeHtml(user.display_name)}</strong><br>
-                                    <small class="text-muted">${escapeHtml(user.user_email)}</small>
-                                    ${user.phone ? '<br><small class="text-muted"><i class="fa fa-phone"></i> ' + escapeHtml(user.phone) + '</small>' : ''}
-                                </div>`;
-                            });
-                            $('#user-search-dropdown').html(html).show();
-                        } else {
-                            $('#user-search-dropdown').html('<div class="user-search-item text-muted">No users found</div>').show();
-                        }
-                    }
-                });
-            }, 300);
-        });
-
-        // Select user from dropdown
-        $(document).off('click', '.user-search-item').on('click', '.user-search-item', function() {
-            const index = $(this).data('index');
-            if (index !== undefined && userSearchResults[index]) {
-                const user = userSearchResults[index];
-                $('#selected-user-id').val(user.ID);
-                $('#user-search').val(user.display_name + ' (' + user.user_email + ')');
-                $('#attendee-name').val(user.display_name).prop('readonly', true);
-                $('#attendee-email').val(user.user_email).prop('readonly', true);
-
-                // Parse phone - remove country code
-                let phone = user.phone || '';
-                phone = phone.replace(/^\+?\d{1,3}/, '').replace(/\D/g, '');
-                $('#attendee-phone').val(phone).prop('readonly', true);
-
-                $('#selected-user-display').html('<strong>' + escapeHtml(user.display_name) + '</strong> - ' + escapeHtml(user.user_email));
-                $('#selected-user-info').slideDown();
-                $('#user-search-dropdown').hide().empty();
-
-                // Show fields again after selection
-                showFieldsBelowSearch();
-            }
-        });
-
-        // Hide dropdown on click outside and show fields
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#user-search, #user-search-dropdown').length) {
-                $('#user-search-dropdown').hide();
-                // Show fields if user clicked outside without selecting
-                if ($('#selected-user-id').val() || $('input[name="user_type"]:checked').val() === 'new') {
-                    showFieldsBelowSearch();
-                } else if (!$('#user-search').is(':focus')) {
-                    showFieldsBelowSearch();
-                }
-            }
-        });
-
-        // On blur - show fields if no dropdown visible
-        $('#user-search').off('blur').on('blur', function() {
-            setTimeout(function() {
-                if (!$('#user-search-dropdown').is(':visible')) {
-                    showFieldsBelowSearch();
-                }
-            }, 200);
-        });
-    }
-
-    // Clear user selection
-    function clearUserSelection() {
-        $('#selected-user-id').val('');
-        $('#user-search').val('');
-        $('#attendee-name, #attendee-email, #attendee-phone').val('').prop('readonly', false);
-        $('#selected-user-info').hide();
-        $('#user-search-dropdown').hide().empty();
-        userSearchResults = [];
-        $('#attendee-form-fields').show(); // Make sure fields are visible
-    }
-
-    // Load tickets when event is selected
-    $('#attendee-event').on('change', function() {
-        const eventId = $(this).val();
-        if (!eventId) {
-            $('#attendee-ticket-name').html('<option value="">Select Event First</option>');
-            $('#attendee-extra-fields-container').hide();
-            return;
-        }
-
-        // Load tickets
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_tickets_by_event',
-                nonce: scDashboard.nonce,
-                event_id: eventId
-            }
-        }).done(function(response) {
-            if (response.success && response.data.tickets) {
-                let options = '<option value="">Select Ticket Name</option>';
-                response.data.tickets.forEach(function(ticket) {
-                    options += `<option value="${escapeHtml(ticket.name)}" data-price="${ticket.price}" data-slug="${escapeHtml(ticket.slug)}">${escapeHtml(ticket.name)} - ${ticket.price}</option>`;
-                });
-                $('#attendee-ticket-name').html(options);
-
-                // If editing attendee, select the ticket
-                if (window.editingAttendee && window.editingAttendee.ticket_name) {
-                    $('#attendee-ticket-name').val(window.editingAttendee.ticket_name).trigger('change');
-                    $('#attendee-ticket-slug').val(window.editingAttendee.ticket_slug || '');
-                    delete window.editingAttendee; // Clear after use
-                }
-            }
-        });
-
-        // Load extra fields for the event
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_event_extra_fields',
-                nonce: scDashboard.nonce,
-                event_id: eventId
-            }
-        }).done(function(response) {
-            if (response.success && response.data.fields && response.data.fields.length > 0) {
-                buildExtraFieldsForm(response.data.fields);
-                $('#attendee-extra-fields-container').show();
-            } else {
-                $('#attendee-extra-fields-container').hide();
-            }
-        });
-    });
-
-    // Auto-populate ticket price when ticket is selected
-    $('#attendee-ticket-name').on('change', function() {
-        const selectedOption = $(this).find('option:selected');
-        const price = selectedOption.data('price') || '0';
-        const slug = selectedOption.data('slug') || '';
-
-        $('#attendee-ticket-price').val(price);
-        $('#attendee-ticket-slug').val(slug);
-    });
-
-    // Function to build extra fields form
-    function buildExtraFieldsForm(fields, existingData) {
-        const container = $('#attendee-extra-fields-list');
-        container.empty();
-
-        fields.forEach(function(field) {
-            if (!field.show_attendee_form) return;
-
-            // Normalize field_type (handle both 'type' and 'field_type' properties)
-            if (!field.field_type && field.type) {
-                field.field_type = field.type;
-            }
-
-            const fieldValue = existingData && existingData[field.label] ? existingData[field.label] : '';
-
-            let fieldHtml = '<div class="form-group">';
-            fieldHtml += '<label for="extra_field_' + field.id + '">' + escapeHtml(field.label);
-            if (field.required) {
-                fieldHtml += ' <span class="text-danger">*</span>';
-            }
-            fieldHtml += '</label>';
-
-            // Helper function to get options from field (handles different formats)
-            function getFieldOptions(field) {
-                // Check field_options first (Eventin format)
-                if (field.field_options && Array.isArray(field.field_options)) {
-                    return field.field_options.map(function(opt) { return opt.value || opt; });
-                }
-                // Check options property
-                if (field.options) {
-                    if (Array.isArray(field.options)) {
-                        return field.options;
-                    } else if (typeof field.options === 'string' && field.options.length > 0) {
-                        // String format (newline or comma separated)
-                        return field.options.split(/[\n,]+/).map(function(o) { return o.trim(); }).filter(function(o) { return o.length > 0; });
-                    }
-                }
-                return [];
-            }
-
-            const fieldOptions = getFieldOptions(field);
-
-            if (field.field_type === 'select') {
-                fieldHtml += '<select class="form-control extra-field" id="extra_field_' + field.id + '" name="extra_fields[' + escapeHtml(field.label) + ']" ' + (field.required ? 'required' : '') + '>';
-                fieldHtml += '<option value="">Select...</option>';
-                fieldOptions.forEach(function(optValue) {
-                    const selected = (fieldValue === optValue) ? 'selected' : '';
-                    fieldHtml += '<option value="' + escapeHtml(optValue) + '" ' + selected + '>' + escapeHtml(optValue) + '</option>';
-                });
-                fieldHtml += '</select>';
-            } else if (field.field_type === 'textarea') {
-                fieldHtml += '<textarea class="form-control extra-field" id="extra_field_' + field.id + '" name="extra_fields[' + escapeHtml(field.label) + ']" rows="3" ' + (field.required ? 'required' : '') + '>' + escapeHtml(fieldValue) + '</textarea>';
-            } else if (field.field_type === 'checkbox') {
-                const checkedValues = fieldValue ? fieldValue.split(', ') : [];
-                fieldOptions.forEach(function(optValue, idx) {
-                    const checked = checkedValues.includes(optValue) ? 'checked' : '';
-                    fieldHtml += '<div class="custom-control custom-checkbox">';
-                    fieldHtml += '<input class="custom-control-input extra-field-checkbox" type="checkbox" id="extra_field_' + field.id + '_' + idx + '" name="extra_fields[' + escapeHtml(field.label) + '][]" value="' + escapeHtml(optValue) + '" ' + checked + '>';
-                    fieldHtml += '<label class="custom-control-label" for="extra_field_' + field.id + '_' + idx + '">' + escapeHtml(optValue) + '</label>';
-                    fieldHtml += '</div>';
-                });
-            } else if (field.field_type === 'radio') {
-                fieldOptions.forEach(function(optValue, idx) {
-                    const checked = (fieldValue === optValue) ? 'checked' : '';
-                    fieldHtml += '<div class="custom-control custom-radio">';
-                    fieldHtml += '<input class="custom-control-input extra-field" type="radio" id="extra_field_' + field.id + '_' + idx + '" name="extra_fields[' + escapeHtml(field.label) + ']" value="' + escapeHtml(optValue) + '" ' + checked + ' ' + (field.required ? 'required' : '') + '>';
-                    fieldHtml += '<label class="custom-control-label" for="extra_field_' + field.id + '_' + idx + '">' + escapeHtml(optValue) + '</label>';
-                    fieldHtml += '</div>';
-                });
-            } else {
-                const inputType = field.field_type || 'text';
-                fieldHtml += '<input type="' + inputType + '" class="form-control extra-field" id="extra_field_' + field.id + '" name="extra_fields[' + escapeHtml(field.label) + ']" value="' + escapeHtml(fieldValue) + '" ' + (field.required ? 'required' : '') + '>';
-            }
-
-            fieldHtml += '</div>';
-            container.append(fieldHtml);
-        });
-    }
-
-    // Save attendee
-    $('#attendee-form').on('submit', function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-        formData.append('action', 'sc_save_attendee');
-        formData.append('nonce', scDashboard.nonce);
-
-        const btn = $('#save-attendee-btn');
-        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false
-        }).done(function(response) {
-            if (response.success) {
-                try {
-                    if (typeof $.fn.modal !== 'undefined') {
-                        $('#attendeeModal').modal('hide');
-                    } else {
-                        $('#attendeeModal').removeClass('show').css('display', 'none');
-                        $('body').removeClass('modal-open');
-                        $('.modal-backdrop').remove();
-                    }
-                } catch (e) {
-                    $('#attendeeModal').removeClass('show').css('display', 'none');
-                    $('body').removeClass('modal-open');
-                    $('.modal-backdrop').remove();
-                }
-                loadAttendees();
-                showSuccess('Attendee saved successfully!');
-            } else {
-                showError(response.data.message || 'Error saving attendee');
-            }
-        }).always(function() {
-            btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Attendee');
-        });
-    });
-
-    // View attendee
-    $(document).on('click', '.view-attendee', function() {
-        const attendeeId = $(this).data('id');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_attendee',
-                nonce: scDashboard.nonce,
-                attendee_id: attendeeId
-            }
-        }).done(function(response) {
-            if (response.success) {
-                const a = response.data.attendee;
-
-                // Generate QR code data
-                const qrData = `ATTENDEE:${a.id}|TICKET:${escapeHtml(a.ticket_id)}|NAME:${escapeHtml(a.name)}|EMAIL:${escapeHtml(a.email)}|EVENT:${a.event_id}`;
-
-                const html = `
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Ticket ID:</strong> <code>${escapeHtml(a.ticket_id)}</code></p>
-                                    <p><strong>Name:</strong> ${escapeHtml(a.name)}</p>
-                                    <p><strong>Email:</strong> ${escapeHtml(a.email)}</p>
-                                    <p><strong>Phone:</strong> ${escapeHtml(a.phone || '-')}</p>
-                                    <p><strong>Event:</strong> ${escapeHtml(a.event_title)}</p>
-                                    <p><strong>Ticket Name:</strong> ${escapeHtml(a.ticket_name || 'General')}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>Status:</strong> ${getStatusBadge(a.status)}</p>
-                                    <p><strong>Ticket Status:</strong> ${getTicketStatusBadge(a.ticket_status)}</p>
-                                    <p><strong>Payment Type:</strong> ${getPaymentBadge(a.payment_type)}</p>
-                                    <p><strong>Coupon Used:</strong> ${a.coupon_used ? '<span class="badge badge-success">' + escapeHtml(a.coupon_used) + '</span>' : '-'}</p>
-                                    <p><strong>Check-in Time:</strong> ${a.checkin_time || '-'}</p>
-                                    <p><strong>Created:</strong> ${a.created_at || '-'}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-center">
-                            <div style="border: 2px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9;">
-                                <h6 class="mb-3">Ticket QR Code</h6>
-                                <img id="attendee-qr-image" src="" alt="QR Code" style="max-width: 200px; height: auto; margin: 0 auto; display: block; border: 1px solid #ccc; padding: 5px; background: white;">
-                                <p class="mt-2 mb-0" style="font-size: 11px; color: #666;">Scan to verify ticket</p>
-                            </div>
-                        </div>
-                    </div>
-                    ${a.notes ? '<div class="mt-3"><strong>Notes:</strong><p>' + escapeHtml(a.notes) + '</p></div>' : ''}
-                `;
-                $('#attendee-details-content').html(html);
-
-                // Show and setup print ticket button
-                const token = a.token || '';
-                const printUrl = '<?php echo esc_url(home_url('/ticket-view/')); ?>?attendee_id=' + a.id + '&token=' + token;
-                $('#print-ticket-btn').attr('data-print-url', printUrl).show();
-
-                // Generate QR Code using QRCode.toDataURL (same as Eventin Pro)
-                setTimeout(function() {
-                    if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
-                        const qrImage = document.getElementById('attendee-qr-image');
-                        const verifyUrl = scDashboard.dashboardUrl + 'attendees?action=verify&id=' + a.id + '&ticket=' + encodeURIComponent(a.ticket_id);
-
-                        if (qrImage) {
-                            QRCode.toDataURL(verifyUrl, function(err, url) {
-                                if (!err && url) {
-                                    qrImage.src = url;
-                                } else {
-                                    console.error('QR Code generation error:', err);
-                                    $(qrImage).replaceWith('<div style="color: #999; padding: 20px;">Could not generate QR code</div>');
-                                }
-                            });
-                        }
-                    } else {
-                        console.error('QRCode library not loaded');
-                        const qrImage = document.getElementById('attendee-qr-image');
-                        if (qrImage) {
-                            $(qrImage).replaceWith('<div style="color: #999; padding: 20px;">QR Code library not available</div>');
-                        }
-                    }
-                }, 100);
-
-                try {
-                    if (typeof $.fn.modal !== 'undefined') {
-                        $('#viewAttendeeModal').modal('show');
-                    } else {
-                        $('#viewAttendeeModal').addClass('show').css('display', 'block');
-                        $('body').addClass('modal-open').append('<div class="modal-backdrop fade show"></div>');
-                    }
-                } catch (e) {
-                    $('#viewAttendeeModal').addClass('show').css('display', 'block');
-                    $('body').addClass('modal-open').append('<div class="modal-backdrop fade show"></div>');
-                }
-            }
-        });
-    });
-
-    // Print ticket button handler
-    $(document).on('click', '#print-ticket-btn', function() {
-        const printUrl = $(this).attr('data-print-url');
-        if (printUrl) {
-            window.open(printUrl, '_blank');
-        }
-    });
-
-    // Note: Edit attendee button is now a link to attendee-edit page
-
-    // Check-in attendee
-    $(document).on('click', '.checkin-attendee', function() {
-        const attendeeId = $(this).data('id');
-        const btn = $(this);
-
-        showConfirm('Mark this attendee as checked-in?').then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            btn.prop('disabled', true);
-
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'sc_checkin_attendee',
-                    nonce: scDashboard.nonce,
-                    attendee_id: attendeeId
-                }
-            }).done(function(response) {
-                if (response.success) {
-                    loadAttendees();
-                    showSuccess('Attendee checked-in successfully!');
-                } else {
-                    showError(response.data.message || 'Error checking-in attendee');
-                    btn.prop('disabled', false);
-                }
-            });
-        });
-    });
-
-    // Delete attendee
-    $(document).on('click', '.delete-attendee', function() {
-        showDeleteConfirm().then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            const attendeeId = $(this).data('id');
-            const btn = $(this);
-            btn.prop('disabled', true);
-
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'sc_delete_attendee',
-                    nonce: scDashboard.nonce,
-                    attendee_id: attendeeId
-                }
-            }).done(function(response) {
-                if (response.success) {
-                    loadAttendees();
-                } else {
-                    showError(response.data.message || 'Error deleting attendee');
-                    btn.prop('disabled', false);
-                }
-            });
-        });
-    });
-
-    // Select all
-    $('#select-all').on('change', function() {
-        $('.attendee-checkbox').prop('checked', $(this).prop('checked'));
-        updateBulkButtons();
-    });
-
-    $(document).on('change', '.attendee-checkbox', function() {
-        updateBulkButtons();
-    });
-
-    function updateBulkButtons() {
-        const checked = $('.attendee-checkbox:checked').length;
-        $('#bulk-delete-btn, #bulk-checkin-btn').prop('disabled', checked === 0);
-    }
-
-    // Bulk delete
-    $('#bulk-delete-btn').on('click', function() {
-        const ids = $('.attendee-checkbox:checked').map(function() {
-            return $(this).val();
-        }).get();
-
-        if (ids.length === 0) {
-            return;
-        }
-
-        showConfirm(`Delete ${ids.length} attendee(s)?`).then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'sc_bulk_delete_attendees',
-                    nonce: scDashboard.nonce,
-                    attendee_ids: ids
-                }
-            }).done(function(response) {
-                if (response.success) {
-                    loadAttendees();
-                    showSuccess(`${ids.length} attendee(s) deleted successfully!`);
-                }
-            });
-        });
-    });
-
-    // Bulk check-in
-    $('#bulk-checkin-btn').on('click', function() {
-        const ids = $('.attendee-checkbox:checked').map(function() {
-            return $(this).val();
-        }).get();
-
-        if (ids.length === 0) {
-            return;
-        }
-
-        showConfirm(`Check-in ${ids.length} attendee(s)?`).then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            $.ajax({
-                url: scDashboard.ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'sc_bulk_checkin_attendees',
-                    nonce: scDashboard.nonce,
-                    attendee_ids: ids
-                }
-            }).done(function(response) {
-                if (response.success) {
-                    loadAttendees();
-                    showSuccess(`${ids.length} attendee(s) checked-in successfully!`);
-                }
-            });
-        });
-    });
-
-    // Export CSV - show modal
-    $('#export-attendees-btn').on('click', function() {
-        try {
-            if (typeof $.fn.modal !== 'undefined') {
-                $('#exportModal').modal('show');
-            } else {
-                $('#exportModal').addClass('show').css('display', 'block');
-                $('body').addClass('modal-open').append('<div class="modal-backdrop fade show"></div>');
-            }
-        } catch (e) {
-            $('#exportModal').addClass('show').css('display', 'block');
-            $('body').addClass('modal-open').append('<div class="modal-backdrop fade show"></div>');
-        }
-    });
-
-    // Handle export option radio change
-    $('input[name="export-option"]').on('change', function() {
-        if ($(this).val() === 'event') {
-            $('#export-event-select').show();
-        } else {
-            $('#export-event-select').hide();
-        }
-    });
-
-    // Export confirm
-    $('#export-confirm-btn').on('click', function() {
-        const exportOption = $('input[name="export-option"]:checked').val();
-        let eventId = '';
-
-        if (exportOption === 'event') {
-            eventId = $('#export-event-id').val();
-            if (!eventId) {
-                showError('Please select an event');
-                return;
-            }
-        }
-
-        const filters = {
-            event_id: eventId,
-            status: $('#filter-status').val(),
-            ticket_status: $('#filter-ticket-status').val(),
-            payment_type: $('#filter-payment').val(),
-            search: $('#filter-search').val()
-        };
-
-        const queryString = $.param(filters);
-        window.location.href = scDashboard.ajaxurl + '?action=sc_export_attendees_csv&nonce=' + scDashboard.nonce + '&' + queryString;
-
-        // Close modal
-        try {
-            if (typeof $.fn.modal !== 'undefined') {
-                $('#exportModal').modal('hide');
-            } else {
-                $('#exportModal').removeClass('show').css('display', 'none');
-                $('body').removeClass('modal-open');
-                $('.modal-backdrop').remove();
-            }
-        } catch (e) {
-            $('#exportModal').removeClass('show').css('display', 'none');
-            $('body').removeClass('modal-open');
-            $('.modal-backdrop').remove();
-        }
-    });
-
-    // Import CSV - Open Modal
-    $('#import-attendees-btn').on('click', function() {
-        // Reset form
+    $('#import-attendees-btn').on('click', function () {
         $('#import-form')[0].reset();
-        $('#csv-format-info').hide();
-        $('#file-upload-section').hide();
-        $('#import-results').hide();
+        $('#csv-format-info, #file-upload-section, #create-users-section, #import-results, #import-progress').prop('hidden', true);
         $('#import-submit-btn').prop('disabled', true);
-
-        try {
-            if (typeof $.fn.modal !== 'undefined') {
-                $('#importModal').modal('show');
-            } else {
-                $('#importModal').addClass('show').css('display', 'block');
-                $('body').addClass('modal-open').append('<div class="modal-backdrop fade show"></div>');
-            }
-        } catch (e) {
-            $('#importModal').addClass('show').css('display', 'block');
-            $('body').addClass('modal-open').append('<div class="modal-backdrop fade show"></div>');
-        }
+        $('#importModal').modal('show');
     });
 
-    // Import Event Selection - Load CSV Format
-    $('#import-event-id').on('change', function() {
-        const eventId = $(this).val();
-
-        if (!eventId) {
-            $('#csv-format-info').hide();
-            $('#file-upload-section').hide();
-            $('#create-users-section').hide();
-            $('#import-submit-btn').prop('disabled', true);
-            return;
-        }
-
-        // Get event extra fields
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_event_extra_fields',
-                nonce: scDashboard.nonce,
-                event_id: eventId
-            }
-        }).done(function(response) {
-            if (response.success) {
-                const fields = response.data.fields || [];
-
-                // Build required columns list
-                let columnsList = `
-                    <ul class="list-unstyled mb-0" style="column-count: 2;">
-                        <li><code>Name</code> <span class="text-danger">*</span></li>
-                        <li><code>Email</code> <span class="text-danger">*</span></li>
-                        <li><code>Phone</code></li>
-                        <li><code>Ticket Name</code></li>
-                        <li><code>Status</code> (approved/pending)</li>
-                        <li><code>Ticket Status</code> (used/unused)</li>
-                        <li><code>Payment Type</code> (free/coupon/woocommerce)</li>
-                        <li><code>Coupon Code</code></li>
-                    </ul>
-                `;
-                $('#csv-columns-list').html(columnsList);
-
-                // Build extra fields list if exist
-                if (fields.length > 0) {
-                    let extraFieldsList = '<ul class="list-unstyled mb-0" style="column-count: 2;">';
-                    fields.forEach(function(field) {
-                        // Show all extra fields (show_attendee_form defaults to true if not set)
-                        if (field.show_attendee_form !== false) {
-                            const required = field.required ? ' <span class="text-danger">*</span>' : '';
-                            extraFieldsList += `<li><code>${escapeHtml(field.label)}</code>${required}</li>`;
-                        }
-                    });
-                    extraFieldsList += '</ul>';
-                    $('#extra-fields-list').html(extraFieldsList);
-                    $('#extra-fields-info').show();
-                } else {
-                    $('#extra-fields-info').hide();
-                }
-
-                // Store fields for template generation
-                window.importEventExtraFields = fields;
-
-                $('#csv-format-info').show();
-                $('#file-upload-section').show();
-                $('#create-users-section').show();
-            }
+    $('#import-event-id').on('change', function () {
+        var eventId = this.value;
+        $('#csv-format-info, #file-upload-section, #create-users-section').prop('hidden', !eventId);
+        $('#import-submit-btn').prop('disabled', true);
+        if (!eventId) { return; }
+        ajax({ action: 'sc_get_event_extra_fields', event_id: eventId }).done(function (res) {
+            if (!res.success) { return; }
+            var fields = (res.data.fields || []).filter(function (f) { return f.show_attendee_form !== false; });
+            var cols = ['Name *', 'Email *', 'Phone', 'Ticket Name', 'Payment Status (success / failed)', 'Ticket Status (used / unused)', 'Payment Type (free / coupon)', 'Coupon Code'];
+            $('#csv-columns-list').html(cols.map(function (c) { return '<code class="mr-2">' + esc(c) + '</code>'; }).join(''));
+            $('#extra-fields-list').html(fields.map(function (f) { return '<code class="mr-2">' + esc(f.label) + (f.required ? ' *' : '') + '</code>'; }).join(''));
+            $('#extra-fields-info').prop('hidden', !fields.length);
+            window.importEventExtraFields = fields;
         });
     });
 
-    // Download CSV Template
-    $('#download-template-btn').on('click', function() {
-        const eventId = $('#import-event-id').val();
-        if (!eventId) return;
-
-        // Build CSV template
-        // Payment Status: success or failed
-        let headers = ['Name', 'Email', 'Phone', 'Ticket Name', 'Payment Status', 'Ticket Status', 'Payment Type', 'Coupon Code'];
-
-        // Add extra fields
-        if (window.importEventExtraFields) {
-            window.importEventExtraFields.forEach(function(field) {
-                // Include all extra fields (show_attendee_form defaults to true if not set)
-                if (field.show_attendee_form !== false) {
-                    headers.push(field.label);
-                }
-            });
-        }
-
-        // Create CSV content with proper escaping for Excel compatibility
-        // Wrap headers in quotes and escape any internal quotes
-        const escapeCSV = function(value) {
-            if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-                return '"' + value.replace(/"/g, '""') + '"';
-            }
-            return value;
-        };
-
-        // Tell Excel to use comma as separator (for all locales)
-        let csvContent = 'sep=,\r\n';
-        csvContent += headers.map(escapeCSV).join(',') + '\r\n';
-        // Add example row with sample data (Payment Status: success or failed)
-        let exampleRow = ['John Doe', 'john@example.com', '01234567890', 'General', 'success', 'unused', 'free', ''];
-        // Add empty values for extra fields
-        if (window.importEventExtraFields) {
-            window.importEventExtraFields.forEach(function(field) {
-                // Include all extra fields (show_attendee_form defaults to true if not set)
-                if (field.show_attendee_form !== false) {
-                    exampleRow.push('');
-                }
-            });
-        }
-        csvContent += exampleRow.map(escapeCSV).join(',') + '\r\n';
-
-        // Add UTF-8 BOM for Excel compatibility
-        const BOM = '\uFEFF';
-        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'attendees_template.csv');
-        link.style.visibility = 'hidden';
+    $('#download-template-btn').on('click', function () {
+        var headers = ['Name', 'Email', 'Phone', 'Ticket Name', 'Payment Status', 'Ticket Status', 'Payment Type', 'Coupon Code'];
+        var example = ['John Doe', 'john@example.com', '01234567890', 'General', 'success', 'unused', 'free', ''];
+        (window.importEventExtraFields || []).forEach(function (f) { headers.push(f.label); example.push(''); });
+        var cell = function (v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+        var csv = 'sep=,\r\n' + headers.map(cell).join(',') + '\r\n' + example.map(cell).join(',') + '\r\n';
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }));
+        link.download = 'attendees_template.csv';
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        link.remove();
     });
 
-    // File input label update
-    $('#csv-file').on('change', function() {
-        const fileName = $(this).val().split('\\').pop();
-        $(this).next('.custom-file-label').html(fileName);
-        $('#import-submit-btn').prop('disabled', false);
-    });
+    $('#csv-file').on('change', function () { $('#import-submit-btn').prop('disabled', !this.files.length); });
 
-    // Import Form Submit
-    $('#import-form').on('submit', function(e) {
+    $('#import-form').on('submit', function (e) {
         e.preventDefault();
-
-        const eventId = $('#import-event-id').val();
-        if (!eventId) {
-            showError('Please select an event');
-            return;
-        }
-
-        const formData = new FormData(this);
-        formData.append('action', 'sc_import_attendees_csv');
-        formData.append('nonce', scDashboard.nonce);
-
-        $('#import-progress').show();
+        var fd = new FormData(this);
+        fd.append('action', 'sc_import_attendees_csv');
+        fd.append('nonce', scDashboard.nonce);
+        $('#import-progress').prop('hidden', false);
+        $('#import-results').prop('hidden', true);
         $('#import-submit-btn').prop('disabled', true);
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false
-        }).done(function(response) {
-            $('#import-progress').hide();
-            if (response.success) {
-                const results = response.data;
-
-                // Build attendees info
-                let attendeesInfo = `New Attendees: ${results.success_count}`;
-                if (results.updated_count > 0) {
-                    attendeesInfo += `<br>Updated Attendees: ${results.updated_count}`;
-                }
-                attendeesInfo += `<br>Failed: ${results.failed_count}`;
-
-                // Build users info
-                let usersInfo = '';
-                if (results.users_created !== undefined) {
-                    usersInfo = `<br><br><strong>Users:</strong><br>New Users: ${results.users_created}`;
-                    if (results.users_skipped > 0) {
-                        usersInfo += `<br>Skipped (existing): ${results.users_skipped}`;
-                    }
-                }
-
-                $('#import-results').html(`
-                    <div class="alert alert-success">
-                        <strong>Import Complete!</strong><br><br>
-                        <strong>Attendees:</strong><br>
-                        ${attendeesInfo}${usersInfo}
-                        ${results.errors.length > 0 ? '<br><br><strong>Errors:</strong><br>' + results.errors.join('<br>') : ''}
-                    </div>
-                `).show();
-                loadAttendees();
+        $.ajax({ url: ajaxurl, type: 'POST', data: fd, processData: false, contentType: false }).done(function (res) {
+            if (res.success) {
+                var r = res.data;
+                var lines = [L.importNew + ': ' + r.success_count, L.importUpdated + ': ' + (r.updated_count || 0), L.importFailed + ': ' + r.failed_count];
+                if (r.users_created !== undefined) { lines.push(L.accounts + ': ' + r.users_created + (r.users_skipped ? ', ' + L.skipped + ': ' + r.users_skipped : '')); }
+                $('#import-results').html('<div class="alert alert-success mb-0"><strong>' + esc(L.importDone) + '</strong><br>' + lines.map(esc).join('<br>') +
+                    (r.errors && r.errors.length ? '<hr class="my-2">' + r.errors.map(esc).join('<br>') : '') + '</div>').prop('hidden', false);
+                list.reload();
             } else {
-                $('#import-results').html(`<div class="alert alert-danger">${response.data.message || 'Import failed'}</div>`).show();
+                $('#import-results').html('<div class="alert alert-danger mb-0">' + esc(res.data && res.data.message ? res.data.message : L.failed) + '</div>').prop('hidden', false);
             }
-        }).always(function() {
+        }).fail(function () {
+            $('#import-results').html('<div class="alert alert-danger mb-0">' + esc(L.failed) + '</div>').prop('hidden', false);
+        }).always(function () {
+            $('#import-progress').prop('hidden', true);
             $('#import-submit-btn').prop('disabled', false);
         });
     });
 
-    // ============================================
-    // EMAIL FUNCTIONALITY
-    // ============================================
+    /* ----------------------------------------------------------------- email */
 
-    // Show/hide event selector based on email target
-    $('input[name="email-target"]').on('change', function() {
-        if ($(this).val() === 'event') {
-            $('#email-event-select').slideDown();
-        } else {
-            $('#email-event-select').slideUp();
-        }
-    });
+    $('input[name="email-target"]').on('change', function () { $('#email-event-select').prop('hidden', this.value !== 'event'); });
 
-    // Open bulk email modal
-    $('#bulk-email-btn').on('click', function() {
+    $('#bulk-email-btn').on('click', function () {
+        var ev = list.state().filters.event_id;
+        if (ev) { $('#email-event').prop('checked', true); $('#email-event-id').val(ev); $('#email-event-select').prop('hidden', false); }
         $('#bulkEmailModal').modal('show');
     });
 
-    // Open single email modal
-    $(document).on('click', '.send-email-attendee', function() {
-        const attendeeId = $(this).data('id');
-        const attendeeName = $(this).data('name');
-        const attendeeEmail = $(this).data('email');
-
-        $('#single-email-attendee-id').val(attendeeId);
-        $('#single-email-attendee-email').val(attendeeEmail);
-        $('#single-email-name').text(attendeeName);
-        $('#single-email-recipient').text(attendeeName + ' (' + attendeeEmail + ')');
-
+    function openSingleEmail(a) {
+        $('#single-email-attendee-id').val(a.id);
+        $('#single-email-name').text(a.name);
+        $('#single-email-recipient').text(a.name + ' <' + a.email + '>');
         $('#singleEmailModal').modal('show');
-    });
-
-    // Send bulk emails
-    $('#send-bulk-email-btn').on('click', function() {
-        const target = $('input[name="email-target"]:checked').val();
-        const eventId = $('#email-event-id').val();
-        const subject = $('#email-subject').val().trim();
-        const message = $('#email-message').val().trim();
-
-        // Validation
-        if (!subject) {
-            showDashboardAlert('error', 'Please enter email subject');
-            return;
-        }
-
-        if (!message) {
-            showDashboardAlert('error', 'Please enter email message');
-            return;
-        }
-
-        if (target === 'event' && !eventId) {
-            showDashboardAlert('error', 'Please select an event');
-            return;
-        }
-
-        // Close bulk email modal
-        $('#bulkEmailModal').modal('hide');
-
-        // Start sending process
-        sendBulkEmails(target, eventId, subject, message);
-    });
-
-    // Send single email
-    $('#send-single-email-btn').on('click', function() {
-        const attendeeId = $('#single-email-attendee-id').val();
-        const subject = $('#single-email-subject').val().trim();
-        const message = $('#single-email-message').val().trim();
-
-        // Validation
-        if (!subject) {
-            showDashboardAlert('error', 'Please enter email subject');
-            return;
-        }
-
-        if (!message) {
-            showDashboardAlert('error', 'Please enter email message');
-            return;
-        }
-
-        // Close single email modal
-        $('#singleEmailModal').modal('hide');
-
-        // Show progress modal
-        $('#emailProgressModal').modal('show');
-        updateEmailProgress(0, 1, 'Sending email...');
-
-        // Send email
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_send_attendee_email',
-                nonce: scDashboard.nonce,
-                attendee_id: attendeeId,
-                subject: subject,
-                message: message
-            }
-        }).done(function(response) {
-            if (response.success) {
-                updateEmailProgress(1, 1, 'Email sent successfully!');
-                showEmailResults(1, 0);
-            } else {
-                updateEmailProgress(1, 1, 'Failed to send email');
-                showEmailResults(0, 1);
-                showDashboardAlert('error', response.data.message || 'Failed to send email');
-            }
-        }).fail(function() {
-            updateEmailProgress(1, 1, 'Connection error');
-            showEmailResults(0, 1);
-            showDashboardAlert('error', 'Connection error. Please try again.');
-        });
-    });
-
-    // Bulk email sender with queue system
-    function sendBulkEmails(target, eventId, subject, message) {
-        // Show progress modal
-        $('#emailProgressModal').modal('show');
-        updateEmailProgress(0, 0, 'Fetching attendees...');
-
-        // Get attendees list
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_bulk_email_attendees',
-                nonce: scDashboard.nonce,
-                target: target,
-                event_id: eventId
-            }
-        }).done(function(response) {
-            if (response.success && response.data.attendees.length > 0) {
-                const attendees = response.data.attendees;
-                const total = attendees.length;
-                let sent = 0;
-                let failed = 0;
-                let current = 0;
-
-                updateEmailProgress(0, total, `Sending to ${total} attendee(s)...`);
-
-                // Send emails one by one with delay
-                function sendNext() {
-                    if (current >= total) {
-                        // All done
-                        updateEmailProgress(total, total, 'All emails processed!');
-                        showEmailResults(sent, failed);
-                        return;
-                    }
-
-                    const attendee = attendees[current];
-                    updateEmailProgress(current, total, `Sending to ${attendee.name}...`);
-
-                    $.ajax({
-                        url: scDashboard.ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'sc_send_attendee_email',
-                            nonce: scDashboard.nonce,
-                            attendee_id: attendee.id,
-                            subject: subject,
-                            message: message
-                        }
-                    }).done(function(emailResponse) {
-                        if (emailResponse.success) {
-                            sent++;
-                        } else {
-                            failed++;
-                        }
-                    }).fail(function() {
-                        failed++;
-                    }).always(function() {
-                        current++;
-                        updateEmailProgress(current, total, `Sent ${current} of ${total}...`);
-                        showEmailResults(sent, failed);
-
-                        // Send next after 1 second delay (to avoid server overload)
-                        setTimeout(sendNext, 1000);
-                    });
-                }
-
-                // Start sending
-                sendNext();
-            } else {
-                $('#emailProgressModal').modal('hide');
-                showDashboardAlert('error', 'No attendees found for the selected criteria');
-            }
-        }).fail(function() {
-            $('#emailProgressModal').modal('hide');
-            showDashboardAlert('error', 'Failed to fetch attendees. Please try again.');
-        });
     }
 
-    // Update email progress
-    function updateEmailProgress(current, total, status) {
-        const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-
+    function progress(current, total, status) {
+        var pct = total ? Math.round(current / total * 100) : 0;
         $('#email-progress-text').text(current + ' / ' + total);
-        $('#email-progress-bar').css('width', percent + '%')
-                                .attr('aria-valuenow', percent)
-                                .text(percent + '%');
-        $('#email-current-status').text(status);
+        $('#email-progress-bar').css('width', pct + '%').attr('aria-valuenow', pct);
+        $('#email-current-status').text(status || '');
     }
-
-    // Show email results
-    function showEmailResults(sent, failed) {
-        $('#email-results').show();
-
-        if (sent > 0) {
-            $('#email-success-count').show().find('span').text(sent);
-        }
-
-        if (failed > 0) {
-            $('#email-failed-count').show().find('span').text(failed);
-        }
-
-        // Show close button
-        $('#email-progress-close-btn').show();
+    function results(sent, failed) {
+        $('#email-results').prop('hidden', false);
+        $('#email-success-count').prop('hidden', !sent).find('span').text(sent);
+        $('#email-failed-count').prop('hidden', !failed).find('span').text(failed);
     }
+    function finished() { $('#email-progress-close-btn').prop('hidden', false); }
 
-    // Close progress modal
-    $('#email-progress-close-btn').on('click', function() {
-        // Reset modal
-        $('#email-results').hide();
-        $('#email-success-count, #email-failed-count').hide().find('span').text('0');
-        $('#email-progress-close-btn').hide();
+    $('#send-single-email-btn').on('click', function () {
+        var subject = $.trim($('#single-email-subject').val()), message = $.trim($('#single-email-message').val());
+        if (!subject || !message) { showError(<?php echo $js(sc_t('validation.fill_required', 'Enter a subject and a message.')); ?>); return; }
+        $('#singleEmailModal').modal('hide');
+        $('#emailProgressModal').modal('show');
+        progress(0, 1, '');
+        ajax({ action: 'sc_send_attendee_email', attendee_id: $('#single-email-attendee-id').val(), subject: subject, message: message })
+            .done(function (res) { progress(1, 1, ''); results(res.success ? 1 : 0, res.success ? 0 : 1); if (!res.success) { showError(res.data && res.data.message ? res.data.message : L.failed); } })
+            .fail(function () { progress(1, 1, ''); results(0, 1); })
+            .always(finished);
+    });
 
+    $('#send-bulk-email-btn').on('click', function () {
+        var target = $('input[name="email-target"]:checked').val();
+        var eventId = $('#email-event-id').val();
+        var subject = $.trim($('#email-subject').val()), message = $.trim($('#email-message').val());
+        if (!subject || !message || (target === 'event' && !eventId)) { showError(<?php echo $js(sc_t('validation.fill_required', 'Enter a subject and a message, and pick the event.')); ?>); return; }
+        $('#bulkEmailModal').modal('hide');
+        $('#emailProgressModal').modal('show');
+        progress(0, 0, '');
+        ajax({ action: 'sc_get_bulk_email_attendees', target: target, event_id: eventId }).done(function (res) {
+            var people = res.success ? res.data.attendees : [];
+            if (!people.length) { $('#emailProgressModal').modal('hide'); showError(<?php echo $js(sc_t('dashboard_pages.no_recipients', 'No attendees match.')); ?>); return; }
+            var i = 0, sent = 0, failed = 0;
+            (function next() {
+                if (i >= people.length) { progress(people.length, people.length, ''); results(sent, failed); finished(); return; }
+                progress(i, people.length, people[i].name);
+                ajax({ action: 'sc_send_attendee_email', attendee_id: people[i].id, subject: subject, message: message })
+                    .done(function (r) { if (r.success) { sent++; } else { failed++; } })
+                    .fail(function () { failed++; })
+                    .always(function () { i++; results(sent, failed); setTimeout(next, 1000); });
+            })();
+        }).fail(function () { $('#emailProgressModal').modal('hide'); showError(L.failed); });
+    });
+
+    $('#email-progress-close-btn').on('click', function () {
         $('#emailProgressModal').modal('hide');
-
-        // Clear forms
+        $('#email-results, #email-progress-close-btn').prop('hidden', true);
         $('#bulk-email-form')[0].reset();
         $('#single-email-form')[0].reset();
-        $('#email-event-select').hide();
+        $('#email-event-select').prop('hidden', true);
     });
 
-    // ============================================
-    // END EMAIL FUNCTIONALITY
-    // ============================================
+    /* ------------------------------------------------------------ attendance */
 
-    // Close modal handler
-    $('[data-dismiss="modal"]').on('click', function() {
-        const modal = $(this).closest('.modal');
-        try {
-            if (typeof $.fn.modal !== 'undefined') {
-                modal.modal('hide');
-            } else {
-                modal.removeClass('show').css('display', 'none');
-                $('body').removeClass('modal-open');
-                $('.modal-backdrop').remove();
-            }
-        } catch (e) {
-            modal.removeClass('show').css('display', 'none');
-            $('body').removeClass('modal-open');
-            $('.modal-backdrop').remove();
-        }
-    });
-
-    // ============================================
-    // ATTENDANCE DETAILS FUNCTIONALITY
-    // ============================================
-
-    // Open Attendance Details Modal
-    $(document).on('click', '.attendance-details', function() {
-        const attendeeId = $(this).data('id');
-        const attendeeName = $(this).data('name');
-
-        // Set attendee name in modal
-        $('#attendance-attendee-name').text(attendeeName);
-
-        // Show loading, hide content
-        $('#attendance-loading').show();
-        $('#attendance-no-tracking').hide();
-        $('#attendance-content').hide();
-
-        // Open modal
+    function openAttendance(a) {
+        $('#attendance-attendee-name').text(a.name);
+        $('#attendance-loading').prop('hidden', false);
+        $('#attendance-no-tracking, #attendance-content').prop('hidden', true);
         $('#attendanceDetailsModal').modal('show');
 
-        // Fetch attendance details
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_attendance_details',
-                nonce: scDashboard.nonce,
-                attendee_id: attendeeId
-            }
-        }).done(function(response) {
-            $('#attendance-loading').hide();
-
-            if (response.success) {
-                const data = response.data;
-
-                // Check if tracking is enabled
-                if (!data.event.tracking_enabled) {
-                    $('#attendance-no-tracking').show();
-                    return;
-                }
-
-                // Show content
-                $('#attendance-content').show();
-
-                // Update summary cards
-                $('#summary-total-time').text(data.summary.total_duration_formatted);
-                $('#summary-days-attended').text(data.summary.days_attended);
-                $('#summary-total-days').text(data.summary.total_event_days);
-                $('#summary-missing-checkouts').text(data.summary.days_without_checkout);
-                $('#summary-event-name').text(data.attendee.event_name);
-
-                // Build daily attendance table
-                const tbody = $('#attendance-details-body');
-                tbody.empty();
-
-                data.daily_attendance.forEach(function(day) {
-                    let sessionsHtml = '';
-
-                    if (day.sessions.length === 0) {
-                        sessionsHtml = '<span class="no-attendance">No attendance recorded</span>';
-                    } else {
-                        day.sessions.forEach(function(session, idx) {
-                            const autoClass = session.auto_checkout ? 'auto-checkout' : '';
-                            sessionsHtml += `
-                                <div class="session-item ${autoClass}">
-                                    <span class="check-in"><i class="fa fa-sign-in"></i> ${session.check_in_time}</span>
-                                    &nbsp;→&nbsp;
-                                    <span class="check-out"><i class="fa fa-sign-out"></i> ${session.check_out_time || '-'}</span>
-                                    &nbsp;|&nbsp;
-                                    <span class="duration"><i class="fa fa-clock-o"></i> ${session.duration_formatted}</span>
-                                </div>
-                            `;
-                        });
-                    }
-
-                    // Status badge
-                    let statusBadge = '';
-                    if (!day.has_attendance) {
-                        statusBadge = '<span class="badge badge-secondary">Absent</span>';
-                    } else if (day.missing_checkout) {
-                        statusBadge = '<span class="badge badge-warning" title="Auto check-out applied">Auto Check-out</span>';
-                    } else {
-                        statusBadge = '<span class="badge badge-success">Complete</span>';
-                    }
-
-                    const row = `
-                        <tr>
-                            <td><strong>${day.date_formatted}</strong></td>
-                            <td>${sessionsHtml}</td>
-                            <td class="text-center"><strong>${day.total_duration_formatted}</strong></td>
-                            <td class="text-center">${statusBadge}</td>
-                        </tr>
-                    `;
-                    tbody.append(row);
-                });
-
-            } else {
-                showDashboardAlert('error', response.data.message || 'Failed to load attendance details');
-                $('#attendanceDetailsModal').modal('hide');
-            }
-        }).fail(function() {
-            $('#attendance-loading').hide();
-            showDashboardAlert('error', 'Connection error. Please try again.');
+        ajax({ action: 'sc_get_attendance_details', attendee_id: a.id }).done(function (res) {
+            $('#attendance-loading').prop('hidden', true);
+            if (!res.success) { $('#attendanceDetailsModal').modal('hide'); showError(res.data && res.data.message ? res.data.message : L.failed); return; }
+            var d = res.data;
+            $('#attendance-no-tracking').prop('hidden', d.event.tracking_enabled);
+            $('#attendance-content').prop('hidden', false);
+            $('#summary-total-time').text(d.summary.total_duration_formatted);
+            $('#summary-days-attended').text(d.summary.days_attended);
+            $('#summary-total-days').text(d.summary.total_event_days);
+            $('#summary-missing-checkouts').text(d.summary.days_without_checkout);
+            $('#summary-event-name').text(d.attendee.event_name);
+            $('#attendance-details-body').html(d.daily_attendance.map(function (day) {
+                var sessions = day.sessions.length
+                    ? day.sessions.map(function (s) { return '<span class="d-block w-ltr">' + esc(s.check_in_time) + ' → ' + esc(s.check_out_time || '—') + ' <span class="text-muted">(' + esc(s.duration_formatted) + ')</span></span>'; }).join('')
+                    : '<span class="text-muted">—</span>';
+                var status = !day.has_attendance ? '<span class="w-tag">' + esc(L.absent) + '</span>'
+                    : day.still_checked_in ? '<span class="w-tag w-tag--teal">' + esc(L.insideNow) + '</span>'
+                    : day.missing_checkout ? '<span class="w-tag w-tag--gold" title="' + esc(L.autoCheckoutTip) + '">' + esc(L.autoCheckout) + '</span>'
+                    : '<span class="w-tag w-tag--teal">' + esc(L.complete) + '</span>';
+                return '<tr><td>' + esc(day.date_formatted) + '</td><td>' + sessions + '</td><td class="w-ltr">' + esc(day.total_duration_formatted) + '</td><td>' + status + '</td></tr>';
+            }).join(''));
+        }).fail(function () {
             $('#attendanceDetailsModal').modal('hide');
+            showError(L.failed);
         });
-    });
-
-    // ============================================
-    // END ATTENDANCE DETAILS FUNCTIONALITY
-    // ============================================
-
-    // Initial load
-    loadAttendees(1);
+    }
 });
 </script>
 

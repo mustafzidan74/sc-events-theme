@@ -9,7 +9,7 @@
  * @package sc_events
  */
 
-global $load_charts, $load_flatpickr;
+global $load_charts, $load_flatpickr, $load_wd_list;
 $admin_assets  = get_template_directory_uri() . '/assets/admin-dashboard/';
 $theme_assets  = get_template_directory_uri() . '/assets/';
 $asset_version = defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1';
@@ -52,6 +52,9 @@ if (function_exists('sc_print_modules_js_object')) {
 ?>
 <script src="<?php echo esc_url($admin_assets . 'js/dashboard-init.js?v=' . $asset_version); ?>"></script>
 <script src="<?php echo esc_url($theme_assets . 'dashboard/js/wd-shell.js?v=' . $asset_version); ?>"></script>
+<?php if (!empty($load_wd_list)): ?>
+<script src="<?php echo esc_url($theme_assets . 'dashboard/js/wd-list.js?v=' . $asset_version); ?>"></script>
+<?php endif; ?>
 
 <?php wp_footer(); ?>
 </body>
