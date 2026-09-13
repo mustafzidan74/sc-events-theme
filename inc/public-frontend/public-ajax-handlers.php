@@ -1045,8 +1045,9 @@ function sc_find_coupon($code, $event_id = 0, $ticket_type = 'general') {
             // Not an exact match, continue searching
         } else {
             // Check expiry (meta key without underscore prefix)
-            $expiry = get_post_meta($coupon->ID, 'expiry_date', true);
-            if (!empty($expiry) && strtotime($expiry) < time()) {
+            // A date-only expiry is valid through the end of that day (site time).
+            $expiry = trim((string) get_post_meta($coupon->ID, 'expiry_date', true));
+            if ($expiry !== '' && (strlen($expiry) <= 10 ? $expiry < current_time('Y-m-d') : $expiry < current_time('mysql'))) {
                 return false;
             }
 

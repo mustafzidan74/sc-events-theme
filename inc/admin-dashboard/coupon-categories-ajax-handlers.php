@@ -33,7 +33,12 @@ add_action('wp_ajax_sc_get_coupon_categories', 'sc_get_coupon_categories');
 function sc_get_coupon_categories() {
     sc_coupon_cat_verify_request();
 
-    $cats = SC_Coupon_Category::get_all(array('with_counts' => true));
+    $cats = SC_Coupon_Category::get_all();
+    $counts = sc_coupon_category_counts();
+    foreach ($cats as $cat) {
+        $cat->coupon_count = $counts[(int) $cat->id]['total'] ?? 0;
+        $cat->used_count = $counts[(int) $cat->id]['used'] ?? 0;
+    }
 
     wp_send_json_success(array('categories' => $cats));
 }
@@ -98,16 +103,23 @@ function sc_save_coupon_category() {
     sc_coupon_cat_verify_request();
 
     $id   = isset($_POST['id']) ? intval($_POST['id']) : 0;
+    $post = wp_unslash($_POST);
     $data = array(
-        'name'        => isset($_POST['name']) ? $_POST['name'] : '',
-        'slug'        => isset($_POST['slug']) ? $_POST['slug'] : '',
-        'description' => isset($_POST['description']) ? $_POST['description'] : '',
-        'color'       => isset($_POST['color']) ? $_POST['color'] : '#7c1314',
-        'sort_order'  => isset($_POST['sort_order']) ? $_POST['sort_order'] : 0,
+        'name'        => isset($post['name']) ? trim((string) $post['name']) : '',
+        'description' => isset($post['description']) ? (string) $post['description'] : '',
+        'color'       => isset($post['color']) ? (string) $post['color'] : '#7c1314',
+        'sort_order'  => isset($post['sort_order']) ? (int) $post['sort_order'] : 0,
     );
+    // Slug only when sent, so renaming keeps the existing one.
+    if (!empty($post['slug'])) {
+        $data['slug'] = (string) $post['slug'];
+    }
 
-    if (empty($data['name'])) {
-        wp_send_json_error(array('message' => __('Category name is required.', 'sc_events')));
+    if ($data['name'] === '') {
+        wp_send_json_error(array('message' => __('Category name is required.', 'sc_events'), 'errors' => array('name' => __('Enter a name.', 'sc_events'))));
+    }
+    if (function_exists('sc_coupons_bump_cache')) {
+        sc_coupons_bump_cache();
     }
 
     if ($id) {
@@ -154,6 +166,9 @@ function sc_delete_coupon_category() {
     );
 
     $result = SC_Coupon_Category::delete($id);
+    if (function_exists('sc_coupons_bump_cache')) {
+        sc_coupons_bump_cache();
+    }
 
     if (is_wp_error($result)) {
         wp_send_json_error(array('message' => $result->get_error_message()));
@@ -166,4 +181,26 @@ function sc_delete_coupon_category() {
     wp_send_json_success(array(
         'message' => __('Category deleted. Its coupons were moved to General.', 'sc_events'),
     ));
+}
+
+/**
+ * Coupons per category from sc_coupon posts (no category = General).
+ *
+ * @return array category_id => ['total' => n, 'used' => n]
+ */
+function sc_coupon_category_counts() {
+    global $wpdb;
+    $rows = $wpdb->get_results("SELECT COALESCE(NULLIF(NULLIF(c.meta_value, ''), '0'), " . (int) SC_Coupon_Category::DEFAULT_ID . ") AS cat, COUNT(*) AS total, SUM(COALESCE(CAST(u.meta_value AS UNSIGNED), 0) > 0) AS used
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} c ON c.post_id = p.ID AND c.meta_key = 'category_id'
+        LEFT JOIN {$wpdb->postmeta} u ON u.post_id = p.ID AND u.meta_key = 'usage_count'
+        WHERE p.post_type = 'sc_coupon' AND p.post_status IN ('publish', 'draft')
+        GROUP BY cat");
+    $out = array();
+    foreach ($rows as $r) {
+        $id = (int) $r->cat ?: SC_Coupon_Category::DEFAULT_ID;
+        $out[$id]['total'] = ($out[$id]['total'] ?? 0) + (int) $r->total;
+        $out[$id]['used'] = ($out[$id]['used'] ?? 0) + (int) $r->used;
+    }
+    return $out;
 }

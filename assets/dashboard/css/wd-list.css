@@ -697,3 +697,14 @@
 .w-person__avatar--img { object-fit: cover; background: var(--w-surface-2); }
 .w-dash .w-toolbar .w-toolbar__date { flex: 0 0 170px; max-width: 170px; }
 @media (max-width: 767.98px) { .w-dash .w-toolbar .w-toolbar__date { flex: 1 1 calc(50% - 4px); max-width: none; } }
+
+/* Inline copy button and colour swatch (coupons) */
+.w-dash .w-copy {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0; margin-inline-start: 2px; vertical-align: middle;
+  border: 0; border-radius: var(--w-radius-sm, 6px); background: transparent; color: var(--w-text-muted); cursor: pointer;
+}
+.w-dash .w-copy:hover { background: var(--w-surface-2); color: var(--w-text); }
+.w-dash .w-copy:focus-visible { box-shadow: var(--w-focus-ring); outline: 0; }
+.w-swatch { display: inline-block; width: 10px; height: 10px; margin-inline-end: 6px; border-radius: 50%; vertical-align: baseline; }
+.w-codecell { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }

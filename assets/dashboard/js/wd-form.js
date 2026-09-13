@@ -253,6 +253,7 @@
             if (opts.onSuccess) { opts.onSuccess(res.data || {}, api); }
             return res;
           }
+          if (res && res.cancelled) { return res; } // submit() stopped at a confirm step
           var data = (res && res.data) || {};
           if (data.errors && typeof data.errors === 'object') {
             showErrors(Object.keys(data.errors).map(function (k) { return { field: k, message: data.errors[k] }; }));

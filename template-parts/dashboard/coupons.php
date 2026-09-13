@@ -1,7 +1,9 @@
 <?php
 /**
- * Dashboard Discount & Coupons Page
- * With Server-Side AJAX Pagination for performance
+ * Coupons — list pattern over sc_get_coupons_paginated.
+ *
+ * Codes are sc_coupon posts; the tab counts, rows and CSV export share the
+ * filters in inc/admin-dashboard/coupons-query.php.
  *
  * @package sc_events
  */
@@ -10,1234 +12,422 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Translations - load early for permission check
-$t_no_permission = sc_t('dashboard_pages.no_permission', 'You do not have permission to access this page.');
-
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-    wp_die($t_no_permission);
+    wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = sc_t('dashboard_pages.discount_coupons', 'Discount & Coupons');
-$load_flatpickr = true;
-get_template_part('template-parts/dashboard/components/dashboard', 'header');
+global $wpdb, $load_wd_list;
+$load_wd_list = true;
 
-// Translations
+$events = $wpdb->get_results("SELECT id, title FROM {$wpdb->prefix}sc_events WHERE status IN ('publish', 'completed', 'draft') ORDER BY start_date DESC LIMIT 200");
+$categories = SC_Coupon_Category::get_all();
+$dashboard_url = home_url('/event-manager-dashboard/');
+$currency = get_option('sc_currency_code', 'EGP');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
 $t = array(
-    'discount_coupons' => sc_t('dashboard_pages.discount_coupons', 'Discount & Coupons'),
-    'coupons' => sc_t('nav.coupons', 'Coupons'),
-    'delete_selected' => sc_t('dashboard_pages.delete_selected', 'Delete Selected'),
-    'delete_all' => sc_t('dashboard_pages.delete_all', 'Delete All'),
-    'import' => sc_t('dashboard_pages.import', 'Import'),
-    'export' => sc_t('dashboard_pages.export', 'Export'),
-    'create' => sc_t('dashboard_pages.create', 'Create'),
-    'total_coupons' => sc_t('dashboard_pages.total_coupons', 'Total Coupons'),
-    'active_coupons' => sc_t('dashboard_pages.active_coupons', 'Active Coupons'),
-    'expired_coupons' => sc_t('dashboard_pages.expired_coupons', 'Expired Coupons'),
-    'total_uses' => sc_t('dashboard_pages.total_uses', 'Total Uses'),
-    'search_coupons' => sc_t('dashboard_pages.search_coupons', 'Search coupons...'),
-    'all_events' => sc_t('dashboard_pages.all_events', 'All Events'),
-    'all_types' => sc_t('dashboard_pages.all_types', 'All Types'),
-    'percentage' => sc_t('dashboard_pages.percentage', 'Percentage'),
-    'fixed' => sc_t('dashboard_pages.fixed', 'Fixed'),
-    'all_status' => sc_t('dashboard_pages.all_status', 'All Status'),
-    'active' => sc_t('dashboard_pages.active', 'Active'),
-    'expired' => sc_t('dashboard_pages.expired', 'Expired'),
-    'coupon_code' => sc_t('dashboard_pages.coupon_code', 'Coupon Code'),
-    'discount' => sc_t('dashboard_pages.discount', 'Discount'),
-    'event' => sc_t('dashboard_pages.event', 'Event'),
-    'usage' => sc_t('dashboard_pages.usage', 'Usage'),
-    'expiry' => sc_t('dashboard_pages.expiry', 'Expiry'),
-    'actions' => sc_t('dashboard_pages.actions', 'Actions'),
-    'loading' => sc_t('dashboard_pages.loading', 'Loading...'),
-    'status' => sc_t('dashboard_pages.status', 'Status'),
-    'per_page' => sc_t('dashboard_pages.per_page', 'per page'),
-    'fully_used' => sc_t('dashboard_pages.fully_used', 'Fully Used'),
-    'no_permission' => sc_t('dashboard_pages.no_permission', 'You do not have permission to access this page.'),
-    // Import Modal
-    'import_coupons_csv' => sc_t('dashboard_pages.import_coupons_csv', 'Import Coupons from CSV'),
-    'step1_download_template' => sc_t('dashboard_pages.step1_download_template', 'Step 1: Download Template'),
-    'download_template_desc' => sc_t('dashboard_pages.download_template_desc', 'Download the CSV template and fill it with your coupon data:'),
-    'download_csv_template' => sc_t('dashboard_pages.download_csv_template', 'Download CSV Template'),
-    'csv_columns' => sc_t('dashboard_pages.csv_columns', 'CSV Columns'),
-    'column' => sc_t('dashboard_pages.column', 'Column'),
-    'required' => sc_t('dashboard_pages.required', 'Required'),
-    'description' => sc_t('dashboard_pages.description', 'Description'),
-    'example' => sc_t('dashboard_pages.example', 'Example'),
-    'yes' => sc_t('dashboard_pages.yes', 'Yes'),
-    'no' => sc_t('dashboard_pages.no', 'No'),
-    'unique_coupon_code' => sc_t('dashboard_pages.unique_coupon_code', 'Unique coupon code'),
-    'discount_type_desc' => sc_t('dashboard_pages.discount_type_desc', 'percentage, fixed, or free'),
-    'discount_amount' => sc_t('dashboard_pages.discount_amount', 'Discount amount'),
-    'max_uses_desc' => sc_t('dashboard_pages.max_uses_desc', 'Max uses (0 = unlimited)'),
-    'expiration_date_format' => sc_t('dashboard_pages.expiration_date_format', 'Expiration date (YYYY-MM-DD)'),
-    'step2_select_event' => sc_t('dashboard_pages.step2_select_event', 'Step 2: Select Target Event'),
-    'apply_imported_to' => sc_t('dashboard_pages.apply_imported_to', 'Apply imported coupons to:'),
-    'all_events_no_restriction' => sc_t('dashboard_pages.all_events_no_restriction', 'All Events (No restriction)'),
-    'all_imported_assigned' => sc_t('dashboard_pages.all_imported_assigned', 'All imported coupons will be assigned to this event'),
-    'step3_upload_file' => sc_t('dashboard_pages.step3_upload_file', 'Step 3: Upload CSV File'),
-    'select_csv_file' => sc_t('dashboard_pages.select_csv_file', 'Select your CSV file:'),
-    'choose_file' => sc_t('dashboard_pages.choose_file', 'Choose file...'),
-    'accepted_formats' => sc_t('dashboard_pages.accepted_formats', 'Accepted formats: .csv, .txt (First row should be the header)'),
-    'file_preview' => sc_t('dashboard_pages.file_preview', 'File Preview (first 5 rows):'),
-    'cancel' => sc_t('dashboard_pages.cancel', 'Cancel'),
-    'import_coupons' => sc_t('dashboard_pages.import_coupons', 'Import Coupons'),
-    // Export Modal
-    'export_coupons' => sc_t('dashboard_pages.export_coupons', 'Export Coupons'),
-    'export_coupons_for' => sc_t('dashboard_pages.export_coupons_for', 'Export coupons for:'),
-    'filter_by_status' => sc_t('dashboard_pages.filter_by_status', 'Filter by status:'),
-    'active_only' => sc_t('dashboard_pages.active_only', 'Active Only'),
-    'expired_only' => sc_t('dashboard_pages.expired_only', 'Expired Only'),
-    'fully_used_only' => sc_t('dashboard_pages.fully_used_only', 'Fully Used Only'),
-    'export_info' => sc_t('dashboard_pages.export_info', 'The exported file will include: Code, Discount, Event, Usage, Expiry Date, and Status'),
-    'download_csv' => sc_t('dashboard_pages.download_csv', 'Download CSV'),
-    // JavaScript translations
-    'loading_coupons' => sc_t('dashboard_pages.loading_coupons', 'Loading coupons...'),
-    'error_loading_coupons' => sc_t('dashboard_pages.error_loading_coupons', 'Error loading coupons'),
-    'connection_error' => sc_t('dashboard_pages.connection_error', 'Connection error. Please try again.'),
-    'no_coupons_found' => sc_t('dashboard_pages.no_coupons_found', 'No coupons found.'),
-    'free_100' => sc_t('dashboard_pages.free_100', '100% (Free)'),
-    'limit_reached' => sc_t('dashboard_pages.limit_reached', 'Limit Reached'),
-    'event_deleted' => sc_t('dashboard_pages.event_deleted', 'Event Deleted'),
-    'no_expiry' => sc_t('dashboard_pages.no_expiry', 'No Expiry'),
-    'showing_x_to_y_of_z' => sc_t('dashboard_pages.showing_x_to_y_of_z', 'Showing %s to %s of %s coupons'),
-    'delete_coupon_title' => sc_t('dashboard_pages.delete_coupon_title', 'Delete Coupon?'),
-    'delete_coupon_confirm' => sc_t('dashboard_pages.delete_coupon_confirm', 'Are you sure you want to delete this coupon?'),
-    'yes_delete' => sc_t('dashboard_pages.yes_delete', 'Yes, Delete'),
-    'deleted' => sc_t('dashboard_pages.deleted', 'Deleted!'),
-    'coupon_deleted' => sc_t('dashboard_pages.coupon_deleted', 'Coupon has been deleted.'),
-    'error' => sc_t('dashboard_pages.error', 'Error'),
-    'error_deleting_coupon' => sc_t('dashboard_pages.error_deleting_coupon', 'Error deleting coupon'),
-    'delete_selected_title' => sc_t('dashboard_pages.delete_selected_title', 'Delete Selected Coupons?'),
-    'delete_selected_confirm' => sc_t('dashboard_pages.delete_selected_confirm', 'Are you sure you want to delete %s selected coupons?'),
-    'yes_delete_all' => sc_t('dashboard_pages.yes_delete_all', 'Yes, Delete All'),
-    'deleting' => sc_t('dashboard_pages.deleting', 'Deleting...'),
-    'selected_deleted' => sc_t('dashboard_pages.selected_deleted', 'Selected coupons have been deleted.'),
-    'error_deleting_coupons' => sc_t('dashboard_pages.error_deleting_coupons', 'Error deleting coupons'),
-    'delete_all_title' => sc_t('dashboard_pages.delete_all_title', 'Delete ALL Coupons?'),
-    'delete_all_warning' => sc_t('dashboard_pages.delete_all_warning', 'This will permanently delete ALL coupons!'),
-    'action_cannot_undone' => sc_t('dashboard_pages.action_cannot_undone', 'This action cannot be undone.'),
-    'type_delete_confirm' => sc_t('dashboard_pages.type_delete_confirm', 'Type DELETE to confirm'),
-    'please_type_delete' => sc_t('dashboard_pages.please_type_delete', 'Please type DELETE to confirm'),
-    'deleting_all' => sc_t('dashboard_pages.deleting_all', 'Deleting All Coupons...'),
-    'all_deleted' => sc_t('dashboard_pages.all_deleted', 'All coupons have been deleted.'),
-    'no_file_selected' => sc_t('dashboard_pages.no_file_selected', 'No File Selected'),
-    'select_csv_to_import' => sc_t('dashboard_pages.select_csv_to_import', 'Please select a CSV file to import.'),
-    'importing' => sc_t('dashboard_pages.importing', 'Importing...'),
-    'import_complete' => sc_t('dashboard_pages.import_complete', 'Import Complete!'),
-    'import_failed' => sc_t('dashboard_pages.import_failed', 'Import Failed'),
-    'error_importing' => sc_t('dashboard_pages.error_importing', 'Error importing coupons'),
-    'template_downloaded' => sc_t('dashboard_pages.template_downloaded', 'Template Downloaded!'),
-    'fill_template_upload' => sc_t('dashboard_pages.fill_template_upload', 'Fill the template with your coupon data and upload it.'),
-    'exporting' => sc_t('dashboard_pages.exporting', 'Exporting...'),
-    'export_complete' => sc_t('dashboard_pages.export_complete', 'Export Complete!'),
-    'exported_x_coupons' => sc_t('dashboard_pages.exported_x_coupons', 'Exported %s coupons.'),
-    'export_failed' => sc_t('dashboard_pages.export_failed', 'Export Failed'),
-    'error_exporting' => sc_t('dashboard_pages.error_exporting', 'Error exporting coupons'),
-    'failed_read_file' => sc_t('dashboard_pages.failed_read_file', 'Failed to read the file.'),
+    'title'      => sc_t('dashboard_pages.coupons_management', 'Coupons'),
+    'subtitle'   => sc_t('dashboard_pages.coupons_subtitle', 'Codes people enter when they register. Each code works until it reaches its usage limit or expiry date.'),
+    'search'     => sc_t('dashboard_pages.search_code', 'Search code'),
+    'all_events' => sc_t('dashboard_pages.all_events', 'All events'),
+    'every_event'=> sc_t('dashboard_pages.valid_every_event', 'Valid for every event'),
+    'all_cats'   => sc_t('dashboard_pages.all_categories', 'All categories'),
 );
 
-// Get counts efficiently using SQL
-global $wpdb;
-$total_coupons = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_status = 'publish'");
-
-// Get active/expired counts
-$today = current_time('Y-m-d');
-$active_coupons = (int) $wpdb->get_var($wpdb->prepare("
-    SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
-    LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = 'expiry_date'
-    WHERE p.post_type = 'sc_coupon' AND p.post_status = 'publish'
-    AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value >= %s)
-", $today));
-$expired_coupons = $total_coupons - $active_coupons;
-
-// Get total usage count
-$total_usage = (int) $wpdb->get_var("
-    SELECT COALESCE(SUM(CAST(pm.meta_value AS UNSIGNED)), 0) FROM {$wpdb->posts} p
-    LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = 'usage_count'
-    WHERE p.post_type = 'sc_coupon' AND p.post_status = 'publish'
-");
-
-// Get all events for dropdowns from sc_events custom table
-$sc_events_table = $wpdb->prefix . 'sc_events';
-$events = $wpdb->get_results("SELECT id, title, start_date FROM $sc_events_table WHERE status = 'publish' ORDER BY title ASC");
-
-// Get all coupon categories for filter/import dropdowns
-$coupon_categories = class_exists('SC_Coupon_Category') ? SC_Coupon_Category::get_all() : array();
+get_template_part('template-parts/dashboard/components/dashboard', 'header');
+get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
-<?php get_template_part('template-parts/dashboard/components/dashboard', 'sidebar'); ?>
-
-<!-- main page content body part -->
 <div id="main-content">
-    <div class="container-fluid">
-        <div class="block-header">
-            <div class="row">
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <h2><?php echo $t['discount_coupons']; ?></h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item active"><?php echo $t['coupons']; ?></li>
-                    </ul>
-                </div>
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <div class="d-flex flex-row-reverse">
-                        <div class="page_action d-flex flex-wrap">
-                            <button class="btn btn-danger mr-2 mb-1" id="bulk-delete-btn" disabled>
-                                <i class="fa fa-trash"></i> <?php echo $t['delete_selected']; ?>
-                            </button>
-                            <button class="btn btn-warning mr-2 mb-1" id="delete-all-btn">
-                                <i class="fa fa-trash-o"></i> <?php echo $t['delete_all']; ?>
-                            </button>
-                            <button class="btn btn-info mr-2 mb-1" data-toggle="modal" data-target="#importCouponsModal">
-                                <i class="fa fa-upload"></i> <?php echo $t['import']; ?>
-                            </button>
-                            <button class="btn btn-success mr-2 mb-1" data-toggle="modal" data-target="#exportCouponsModal">
-                                <i class="fa fa-download"></i> <?php echo $t['export']; ?>
-                            </button>
-                            <a href="<?php echo home_url('/event-manager-dashboard/coupon-create'); ?>" class="btn btn-primary mb-1">
-                                <i class="fa fa-plus"></i> <?php echo $t['create']; ?>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="container-fluid">
+
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html($t['title']); ?><span class="w-page-head__count" data-w-total></span></h1>
+            <p class="w-page-head__sub"><?php echo esc_html($t['subtitle']); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-secondary" href="<?php echo esc_url($dashboard_url . 'coupon-categories'); ?>"><?php echo esc_html(sc_t('dashboard_pages.coupon_categories', 'Categories')); ?></a>
+            <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#importModal"><i class="fa fa-upload" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.import', 'Import')); ?></button>
+            <button type="button" class="btn btn-secondary" id="export-btn"><i class="fa fa-download" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.export', 'Export')); ?></button>
+            <button type="button" class="btn btn-secondary" id="recount-btn"><i class="fa fa-refresh" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.recount_uses', 'Recount uses')); ?></button>
+            <a class="btn btn-secondary" href="<?php echo esc_url($dashboard_url . 'coupon-create?mode=generate'); ?>"><?php echo esc_html(sc_t('dashboard_pages.generate_codes', 'Generate codes')); ?></a>
+            <a class="btn btn-primary" href="<?php echo esc_url($dashboard_url . 'coupon-create'); ?>"><i class="fa fa-plus" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.new_coupon', 'New coupon')); ?></a>
+        </div>
+    </div>
+
+    <div id="coupons-list">
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr($t['title']); ?>"></div>
+
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html($t['search']); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control w-ltr" data-w-filter="search" placeholder="<?php echo esc_attr($t['search']); ?>" autocomplete="off" spellcheck="false">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
+            <select class="form-control" data-w-filter="event_id" aria-label="<?php echo esc_attr($t['all_events']); ?>">
+                <option value=""><?php echo esc_html($t['all_events']); ?></option>
+                <option value="none"><?php echo esc_html($t['every_event']); ?></option>
+                <?php foreach ($events as $ev): ?>
+                    <option value="<?php echo (int) $ev->id; ?>"><?php echo esc_html($ev->title); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <select class="form-control" data-w-filter="category_id" aria-label="<?php echo esc_attr($t['all_cats']); ?>">
+                <option value=""><?php echo esc_html($t['all_cats']); ?></option>
+                <?php foreach ($categories as $cat): ?>
+                    <option value="<?php echo (int) $cat->id; ?>"><?php echo esc_html($cat->name); ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
-        <!-- Statistics -->
-        <div class="row clearfix">
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="card info-box-2 hover-zoom-effect">
-                    <div class="icon"><i class="fa fa-ticket bg-blue"></i></div>
-                    <div class="content">
-                        <div class="text"><?php echo $t['total_coupons']; ?></div>
-                        <div class="number" id="stat-total"><?php echo number_format($total_coupons); ?></div>
-                    </div>
-                </div>
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-bulkbar" data-w-bulk hidden></div>
+
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table>
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
             </div>
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="card info-box-2 hover-zoom-effect">
-                    <div class="icon"><i class="fa fa-check-circle bg-green"></i></div>
-                    <div class="content">
-                        <div class="text"><?php echo $t['active_coupons']; ?></div>
-                        <div class="number" id="stat-active"><?php echo number_format($active_coupons); ?></div>
-                    </div>
-                </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<div class="modal fade" id="categoryModal" tabindex="-1" role="dialog" aria-labelledby="category-title">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="category-title"><?php echo esc_html(sc_t('dashboard_pages.move_to_category', 'Move to category')); ?></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="card info-box-2 hover-zoom-effect">
-                    <div class="icon"><i class="fa fa-clock-o bg-orange"></i></div>
-                    <div class="content">
-                        <div class="text"><?php echo $t['expired_coupons']; ?></div>
-                        <div class="number" id="stat-expired"><?php echo number_format($expired_coupons); ?></div>
-                    </div>
-                </div>
+            <div class="modal-body">
+                <label for="move-category" class="w-field__label"><?php echo esc_html(sc_t('dashboard_pages.category', 'Category')); ?></label>
+                <select class="form-control" id="move-category">
+                    <?php foreach ($categories as $cat): ?>
+                        <option value="<?php echo (int) $cat->id; ?>"><?php echo esc_html($cat->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="card info-box-2 hover-zoom-effect">
-                    <div class="icon"><i class="fa fa-users bg-cyan"></i></div>
-                    <div class="content">
-                        <div class="text"><?php echo $t['total_uses']; ?></div>
-                        <div class="number" id="stat-usage"><?php echo number_format($total_usage); ?></div>
-                    </div>
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
+                <button type="button" class="btn btn-primary" id="move-category-go"><?php echo esc_html(sc_t('dashboard_pages.move', 'Move')); ?></button>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Coupons Table -->
-        <div class="card">
-            <div class="header">
-                <h2><?php echo $t['coupons']; ?></h2>
+<div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-labelledby="import-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="import-form" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title" id="import-title"><?php echo esc_html(sc_t('dashboard_pages.import_coupons', 'Import coupons')); ?></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
-            <div class="body">
-                <!-- Search and Filter -->
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <div class="input-group">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"><i class="fa fa-search"></i></span>
-                            </div>
-                            <input type="text" class="form-control" id="coupon-search" placeholder="<?php echo $t['search_coupons']; ?>">
-                        </div>
+            <div class="modal-body">
+                <div class="w-fields">
+                    <div class="w-field">
+                        <label for="import-file"><?php echo esc_html(sc_t('dashboard_pages.csv_file', 'CSV file')); ?></label>
+                        <input type="file" class="form-control" id="import-file" accept=".csv,text/csv">
+                        <p class="w-field__help"><?php echo esc_html(sc_t('dashboard_pages.coupon_csv_help', 'Columns: code, discount_type (free, percentage or fixed), discount_value, usage_limit, expiry_date (YYYY-MM-DD). Only the code is required — the rest default to free, single use, no expiry. Codes that already exist are skipped.')); ?></p>
+                        <button type="button" class="btn btn-link p-0" id="template-btn"><?php echo esc_html(sc_t('dashboard_pages.download_template', 'Download a template')); ?></button>
                     </div>
-                    <div class="col-md-2">
-                        <select class="form-control" id="event-filter">
-                            <option value=""><?php echo $t['all_events']; ?></option>
-                            <?php foreach ($events as $event): ?>
-                                <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
+                    <div class="w-field">
+                        <label for="import-event"><?php echo esc_html(sc_t('dashboard_pages.valid_for', 'Valid for')); ?></label>
+                        <select class="form-control" id="import-event">
+                            <option value="0"><?php echo esc_html($t['every_event']); ?></option>
+                            <?php foreach ($events as $ev): ?>
+                                <option value="<?php echo (int) $ev->id; ?>"><?php echo esc_html($ev->title); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <select class="form-control" id="category-filter">
-                            <option value=""><?php echo esc_html(sc_t('dashboard_pages.all_categories', 'All Categories')); ?></option>
-                            <?php foreach ($coupon_categories as $cat): ?>
+                    <div class="w-field">
+                        <label for="import-category"><?php echo esc_html(sc_t('dashboard_pages.category', 'Category')); ?></label>
+                        <select class="form-control" id="import-category">
+                            <?php foreach ($categories as $cat): ?>
                                 <option value="<?php echo (int) $cat->id; ?>"><?php echo esc_html($cat->name); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <select class="form-control" id="status-filter">
-                            <option value=""><?php echo $t['all_status']; ?></option>
-                            <option value="active"><?php echo $t['active']; ?></option>
-                            <option value="expired"><?php echo $t['expired']; ?></option>
-                            <option value="used"><?php echo $t['fully_used']; ?></option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select class="form-control" id="per-page-select">
-                            <option value="25">25 <?php echo $t['per_page']; ?></option>
-                            <option value="50" selected>50 <?php echo $t['per_page']; ?></option>
-                            <option value="100">100 <?php echo $t['per_page']; ?></option>
-                            <option value="200">200 <?php echo $t['per_page']; ?></option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="table-responsive" id="coupons-table-container">
-                    <table class="table table-hover table-custom spacing5" id="coupons-table">
-                        <thead>
-                            <tr>
-                                <th width="50">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="select-all-coupons">
-                                        <label class="custom-control-label" for="select-all-coupons"></label>
-                                    </div>
-                                </th>
-                                <th><?php echo $t['coupon_code']; ?></th>
-                                <th><?php echo $t['discount']; ?></th>
-                                <th><?php echo $t['event']; ?></th>
-                                <th><?php echo esc_html(sc_t('dashboard_pages.category', 'Category')); ?></th>
-                                <th><?php echo $t['usage']; ?></th>
-                                <th><?php echo $t['expiry']; ?></th>
-                                <th><?php echo $t['status']; ?></th>
-                                <th><?php echo $t['actions']; ?></th>
-                            </tr>
-                        </thead>
-                        <tbody id="coupons-tbody">
-                            <tr>
-                                <td colspan="9" class="text-center text-muted py-5">
-                                    <i class="fa fa-spinner fa-spin" style="font-size: 24px;"></i>
-                                    <p class="mt-2"><?php echo $t['loading']; ?></p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <div class="card-footer">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <div class="pagination-info">
-                                <span id="pagination-info-text">Loading...</span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <nav aria-label="Coupons pagination">
-                                <ul class="pagination justify-content-end mb-0" id="coupons-pagination">
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<!-- Import Coupons Modal -->
-<div class="modal fade" id="importCouponsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fa fa-upload"></i> <?php echo $t['import_coupons_csv']; ?></h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <!-- Step 1: Download Template -->
-                <div class="card mb-3">
-                    <div class="card-header bg-info text-white py-2">
-                        <i class="fa fa-download"></i> <?php echo $t['step1_download_template']; ?>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-2"><?php echo $t['download_template_desc']; ?></p>
-                        <button type="button" class="btn btn-outline-info btn-sm" id="download-template-btn">
-                            <i class="fa fa-file-excel-o"></i> <?php echo $t['download_csv_template']; ?>
-                        </button>
-                        <div class="mt-3">
-                            <h6><i class="fa fa-info-circle"></i> <?php echo $t['csv_columns']; ?>:</h6>
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th><?php echo $t['column']; ?></th>
-                                        <th><?php echo $t['required']; ?></th>
-                                        <th><?php echo $t['description']; ?></th>
-                                        <th><?php echo $t['example']; ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr><td><code>code</code></td><td><span class="text-danger"><?php echo $t['yes']; ?></span></td><td><?php echo $t['unique_coupon_code']; ?></td><td>SUMMER2024</td></tr>
-                                    <tr><td><code>discount_type</code></td><td><span class="text-danger"><?php echo $t['yes']; ?></span></td><td><?php echo $t['discount_type_desc']; ?></td><td>percentage</td></tr>
-                                    <tr><td><code>discount_value</code></td><td><span class="text-danger"><?php echo $t['yes']; ?></span></td><td><?php echo $t['discount_amount']; ?></td><td>20</td></tr>
-                                    <tr><td><code>usage_limit</code></td><td><?php echo $t['no']; ?></td><td><?php echo $t['max_uses_desc']; ?></td><td>100</td></tr>
-                                    <tr><td><code>expiry_date</code></td><td><?php echo $t['no']; ?></td><td><?php echo $t['expiration_date_format']; ?></td><td>2025-12-31</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 2: Select Event -->
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white py-2">
-                        <i class="fa fa-calendar"></i> <?php echo $t['step2_select_event']; ?>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-group mb-3">
-                            <label for="import-event-id"><?php echo $t['apply_imported_to']; ?></label>
-                            <select class="form-control" id="import-event-id">
-                                <option value="0"><?php echo $t['all_events_no_restriction']; ?></option>
-                                <?php foreach ($events as $event): ?>
-                                    <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small class="text-muted"><?php echo $t['all_imported_assigned']; ?></small>
-                        </div>
-
-                        <div class="form-group mb-0">
-                            <label for="import-category-id"><i class="fa fa-folder mr-1"></i> <?php echo esc_html(sc_t('dashboard_pages.category', 'Category')); ?></label>
-                            <select class="form-control" id="import-category-id">
-                                <?php foreach ($coupon_categories as $cat): ?>
-                                    <option value="<?php echo (int) $cat->id; ?>" <?php selected((int) $cat->id, 1); ?>><?php echo esc_html($cat->name); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small class="text-muted"><?php echo esc_html(sc_t('dashboard_pages.coupon_category_hint_import', 'All imported coupons will be assigned to this category')); ?></small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 3: Upload File -->
-                <div class="card">
-                    <div class="card-header bg-success text-white py-2">
-                        <i class="fa fa-file"></i> <?php echo $t['step3_upload_file']; ?>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-group mb-0">
-                            <label for="import-csv-file"><?php echo $t['select_csv_file']; ?></label>
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="import-csv-file" accept=".csv,.txt">
-                                <label class="custom-file-label" for="import-csv-file"><?php echo $t['choose_file']; ?></label>
-                            </div>
-                            <small class="text-muted d-block mt-2"><?php echo $t['accepted_formats']; ?></small>
-                            <div id="file-preview" class="mt-3" style="display:none;">
-                                <label><?php echo $t['file_preview']; ?></label>
-                                <pre class="bg-light p-2 border rounded" id="csv-preview-content" style="max-height: 150px; overflow: auto; font-size: 12px;"></pre>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo $t['cancel']; ?></button>
-                <button type="button" class="btn btn-success" id="import-coupons-btn">
-                    <i class="fa fa-upload"></i> <?php echo $t['import_coupons']; ?>
-                </button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
+                <button type="submit" class="btn btn-primary" id="import-go"><?php echo esc_html(sc_t('dashboard_pages.import', 'Import')); ?></button>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Export Coupons Modal -->
-<div class="modal fade" id="exportCouponsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fa fa-download"></i> <?php echo $t['export_coupons']; ?></h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="export-event-filter"><?php echo $t['export_coupons_for']; ?></label>
-                    <select class="form-control" id="export-event-filter">
-                        <option value="all"><?php echo $t['all_events']; ?></option>
-                        <?php foreach ($events as $event): ?>
-                            <option value="<?php echo $event->id; ?>"><?php echo esc_html($event->title); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="export-status-filter"><?php echo $t['filter_by_status']; ?></label>
-                    <select class="form-control" id="export-status-filter">
-                        <option value="all"><?php echo $t['all_status']; ?></option>
-                        <option value="active"><?php echo $t['active_only']; ?></option>
-                        <option value="expired"><?php echo $t['expired_only']; ?></option>
-                        <option value="used"><?php echo $t['fully_used_only']; ?></option>
-                    </select>
-                </div>
-                <div class="alert alert-info mb-0">
-                    <i class="fa fa-info-circle"></i> <?php echo $t['export_info']; ?>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo $t['cancel']; ?></button>
-                <button type="button" class="btn btn-success" id="do-export-btn">
-                    <i class="fa fa-download"></i> <?php echo $t['download_csv']; ?>
-                </button>
-            </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-var couponsTranslations = {
-    loading_coupons: '<?php echo esc_js($t['loading_coupons']); ?>',
-    error_loading_coupons: '<?php echo esc_js($t['error_loading_coupons']); ?>',
-    connection_error: '<?php echo esc_js($t['connection_error']); ?>',
-    no_coupons_found: '<?php echo esc_js($t['no_coupons_found']); ?>',
-    free_100: '<?php echo esc_js($t['free_100']); ?>',
-    expired: '<?php echo esc_js($t['expired']); ?>',
-    limit_reached: '<?php echo esc_js($t['limit_reached']); ?>',
-    active: '<?php echo esc_js($t['active']); ?>',
-    all_events: '<?php echo esc_js($t['all_events']); ?>',
-    event_deleted: '<?php echo esc_js($t['event_deleted']); ?>',
-    no_expiry: '<?php echo esc_js($t['no_expiry']); ?>',
-    showing_x_to_y_of_z: '<?php echo esc_js($t['showing_x_to_y_of_z']); ?>',
-    delete_coupon_title: '<?php echo esc_js($t['delete_coupon_title']); ?>',
-    delete_coupon_confirm: '<?php echo esc_js($t['delete_coupon_confirm']); ?>',
-    yes_delete: '<?php echo esc_js($t['yes_delete']); ?>',
-    cancel: '<?php echo esc_js($t['cancel']); ?>',
-    deleted: '<?php echo esc_js($t['deleted']); ?>',
-    coupon_deleted: '<?php echo esc_js($t['coupon_deleted']); ?>',
-    error: '<?php echo esc_js($t['error']); ?>',
-    error_deleting_coupon: '<?php echo esc_js($t['error_deleting_coupon']); ?>',
-    delete_selected_title: '<?php echo esc_js($t['delete_selected_title']); ?>',
-    delete_selected_confirm: '<?php echo esc_js($t['delete_selected_confirm']); ?>',
-    yes_delete_all: '<?php echo esc_js($t['yes_delete_all']); ?>',
-    deleting: '<?php echo esc_js($t['deleting']); ?>',
-    selected_deleted: '<?php echo esc_js($t['selected_deleted']); ?>',
-    error_deleting_coupons: '<?php echo esc_js($t['error_deleting_coupons']); ?>',
-    delete_all_title: '<?php echo esc_js($t['delete_all_title']); ?>',
-    delete_all_warning: '<?php echo esc_js($t['delete_all_warning']); ?>',
-    action_cannot_undone: '<?php echo esc_js($t['action_cannot_undone']); ?>',
-    type_delete_confirm: '<?php echo esc_js($t['type_delete_confirm']); ?>',
-    please_type_delete: '<?php echo esc_js($t['please_type_delete']); ?>',
-    deleting_all: '<?php echo esc_js($t['deleting_all']); ?>',
-    all_deleted: '<?php echo esc_js($t['all_deleted']); ?>',
-    no_file_selected: '<?php echo esc_js($t['no_file_selected']); ?>',
-    select_csv_to_import: '<?php echo esc_js($t['select_csv_to_import']); ?>',
-    importing: '<?php echo esc_js($t['importing']); ?>',
-    import_complete: '<?php echo esc_js($t['import_complete']); ?>',
-    import_failed: '<?php echo esc_js($t['import_failed']); ?>',
-    error_importing: '<?php echo esc_js($t['error_importing']); ?>',
-    template_downloaded: '<?php echo esc_js($t['template_downloaded']); ?>',
-    fill_template_upload: '<?php echo esc_js($t['fill_template_upload']); ?>',
-    exporting: '<?php echo esc_js($t['exporting']); ?>',
-    export_complete: '<?php echo esc_js($t['export_complete']); ?>',
-    exported_x_coupons: '<?php echo esc_js($t['exported_x_coupons']); ?>',
-    export_failed: '<?php echo esc_js($t['export_failed']); ?>',
-    error_exporting: '<?php echo esc_js($t['error_exporting']); ?>',
-    failed_read_file: '<?php echo esc_js($t['failed_read_file']); ?>',
-    choose_file: '<?php echo esc_js($t['choose_file']); ?>'
-};
+jQuery(function ($) {
+    'use strict';
 
-jQuery(function($) {
-    // Fix modal backdrop not being removed on close
-    $('.modal').on('hidden.bs.modal', function () {
-        $('body').removeClass('modal-open');
-        $('.modal-backdrop').remove();
-    });
+    var esc = WDList.esc;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var currency = <?php echo $js($currency); ?>;
+    var eventTitles = <?php echo $js(array_reduce($events, function ($c, $e) { $c[(int) $e->id] = $e->title; return $c; }, array())); ?>;
+    var categoryNames = <?php echo $js(array_reduce($categories, function ($c, $k) { $c[(int) $k->id] = $k->name; return $c; }, array())); ?>;
+    var L = <?php echo $js(array(
+        'all'          => sc_t('dashboard_pages.all', 'All'),
+        'unused'       => sc_t('dashboard_pages.unused', 'Unused'),
+        'used'         => sc_t('dashboard_pages.used', 'Used'),
+        'full'         => sc_t('dashboard_pages.limit_reached', 'Limit reached'),
+        'expired'      => sc_t('dashboard_pages.expired', 'Expired'),
+        'inactive'     => sc_t('dashboard_pages.inactive', 'Inactive'),
+        'active'       => sc_t('dashboard_pages.active', 'Active'),
+        'code'         => sc_t('dashboard_pages.code', 'Code'),
+        'discount'     => sc_t('dashboard_pages.discount', 'Discount'),
+        'validFor'     => sc_t('dashboard_pages.valid_for', 'Valid for'),
+        'everyEvent'   => sc_t('dashboard_pages.every_event', 'Every event'),
+        'category'     => sc_t('dashboard_pages.category', 'Category'),
+        'uses'         => sc_t('dashboard_pages.uses', 'Uses'),
+        'usedBy'       => sc_t('dashboard_pages.used_by', 'Used by'),
+        'expires'      => sc_t('dashboard_pages.expires', 'Expires'),
+        'status'       => sc_t('dashboard_pages.status', 'Status'),
+        'free'         => sc_t('dashboard_pages.free_100', 'Free (100%)'),
+        'off'          => sc_t('dashboard_pages.n_off', '%s off'),
+        'unlimited'    => sc_t('dashboard_pages.unlimited', 'Unlimited'),
+        'general'      => sc_t('dashboard_pages.general_tickets_only', 'General tickets only'),
+        'competitor'   => sc_t('dashboard_pages.competitor_tickets_only', 'Competitor tickets only'),
+        'more'         => sc_t('dashboard_pages.n_more', '+%d more'),
+        'edit'         => sc_t('dashboard_pages.edit', 'Edit'),
+        'copy'         => sc_t('dashboard_pages.copy_code', 'Copy code'),
+        'copied'       => sc_t('dashboard_pages.copied', 'Copied %s'),
+        'registrations'=> sc_t('dashboard_pages.see_registrations', 'See registrations'),
+        'activate'     => sc_t('dashboard_pages.activate', 'Activate'),
+        'deactivate'   => sc_t('dashboard_pages.deactivate', 'Deactivate'),
+        'move'         => sc_t('dashboard_pages.move_to_category', 'Move to category'),
+        'delete'       => sc_t('dashboard_pages.delete', 'Delete'),
+        'search'       => sc_t('general.search', 'Search'),
+        'event'        => sc_t('events.event', 'Event'),
+        'emptyText'    => sc_t('dashboard_pages.no_coupons', 'No coupons yet. Create one, generate a batch or import a CSV.'),
+        'confirmDelete'=> sc_t('dashboard_pages.confirm_delete_coupons', 'Delete %d coupons? Anyone holding these codes can no longer register with them. People who already registered keep their registration. This cannot be undone.'),
+        'confirmDeleteOne' => sc_t('dashboard_pages.confirm_delete_coupon', 'Delete %s? Anyone holding this code can no longer register with it. This cannot be undone.'),
+        'confirmDeactivate' => sc_t('dashboard_pages.confirm_deactivate_coupons', 'Deactivate %d coupons? They stop working at registration until you activate them again.'),
+        'confirmExport'=> sc_t('dashboard_pages.confirm_export_coupons', 'Export %s coupons matching the current view to CSV?'),
+        'confirmRecount' => sc_t('dashboard_pages.confirm_recount', 'Recount uses from registrations? Each coupon’s use count is set to the number of active registrations that hold its code. Codes whose registrations were cancelled become usable again; codes shared by several people are marked as used up.'),
+        'chooseFile'   => sc_t('dashboard_pages.choose_csv', 'Choose a CSV file first.'),
+        'importing'    => sc_t('dashboard_pages.importing', 'Importing…'),
+        'working'      => sc_t('dashboard_pages.working', 'Working…'),
+        'failed'       => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
 
-    // State
-    let currentPage = 1;
-    let perPage = 50;
-    let searchQuery = '';
-    let eventFilter = '';
-    let categoryFilter = '';
-    let statusFilter = '';
-    let isLoading = false;
-    let searchTimeout = null;
-    const selectedCoupons = new Set();
+    function post(data) {
+        return $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: $.extend({ nonce: scDashboard.nonce }, data) });
+    }
+    function bulk(op, ids, extra) {
+        return post($.extend({ action: 'sc_bulk_coupons', op: op, ids: ids }, extra || {}))
+            .done(function (res) {
+                if (res.success) { showSuccess(res.data.message); list.reload(); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            })
+            .fail(function () { showError(L.failed); });
+    }
+    function confirmDelete(ids, code) {
+        showDeleteConfirm(code ? L.confirmDeleteOne.replace('%s', code) : L.confirmDelete.replace('%d', ids.length)).then(function (r) {
+            if (r.isConfirmed) { bulk('delete', ids); }
+        });
+    }
+    function money(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + currency; }
+    function discount(c) {
+        if (c.discount_type === 'percentage') { return c.discount_value >= 100 ? L.free : L.off.replace('%s', Number(c.discount_value) + '%'); }
+        return L.off.replace('%s', money(c.discount_value));
+    }
+    function copy(code) {
+        var done = function () { showSuccess(L.copied.replace('%s', code)); };
+        if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(code).then(done, function () { fallbackCopy(code); done(); }); }
+        else { fallbackCopy(code); done(); }
+    }
+    function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e) { /* nothing else to try */ }
+        document.body.removeChild(ta);
+    }
 
-    // Initialize
-    loadCoupons();
+    var ICON = {
+        pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+        copy: 'M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1',
+        users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+        on: 'M20 6 9 17l-5-5',
+        off: 'M18.4 5.6 5.6 18.4M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
+        folder: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
+        trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14'
+    };
+    var STATE_TAG = {
+        active: '<span class="w-tag w-tag--teal">' + esc(L.active) + '</span>',
+        inactive: '<span class="w-tag">' + esc(L.inactive) + '</span>',
+        expired: '<span class="w-tag w-tag--gold">' + esc(L.expired) + '</span>',
+        full: '<span class="w-tag w-tag--primary">' + esc(L.full) + '</span>'
+    };
 
-    // ===============================
-    // Load Coupons via AJAX
-    // ===============================
-    function loadCoupons() {
-        if (isLoading) return;
-        isLoading = true;
-
-        $('#coupons-tbody').html('<tr><td colspan="9" class="text-center py-4"><i class="fa fa-spinner fa-spin" style="font-size: 24px;"></i><p class="mt-2 mb-0">' + couponsTranslations.loading_coupons + '</p></td></tr>');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_coupons_paginated',
-                nonce: scDashboard.nonce,
-                page: currentPage,
-                per_page: perPage,
-                search: searchQuery,
-                event_id: eventFilter,
-                category_id: categoryFilter,
-                status: statusFilter
-            },
-            success: function(response) {
-                isLoading = false;
-
-                if (response.success) {
-                    renderCoupons(response.data.coupons);
-                    renderPagination(response.data.total, response.data.pages, response.data.current_page);
-                    updatePaginationInfo(response.data);
-                } else {
-                    $('#coupons-tbody').html('<tr><td colspan="9" class="text-center text-danger py-5">' + couponsTranslations.error_loading_coupons + '</td></tr>');
+    var list = WDList.create({
+        root: document.getElementById('coupons-list'),
+        action: 'sc_get_coupons_paginated',
+        rowsKey: 'rows',
+        filters: ['search', 'event_id', 'category_id'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        defaultSort: { orderby: 'created', order: 'desc' },
+        tabs: [
+            { key: 'all', label: L.all, params: { view: 'all' }, countKey: 'all' },
+            { key: 'unused', label: L.unused, params: { view: 'unused' }, countKey: 'unused' },
+            { key: 'used', label: L.used, params: { view: 'used' }, countKey: 'used' },
+            { key: 'full', label: L.full, params: { view: 'full' }, countKey: 'full' },
+            { key: 'expired', label: L.expired, params: { view: 'expired' }, countKey: 'expired' },
+            { key: 'inactive', label: L.inactive, params: { view: 'inactive' }, countKey: 'inactive' }
+        ],
+        emptyText: L.emptyText,
+        columns: [
+            {
+                label: L.code, sort: 'code',
+                render: function (c) {
+                    return '<div class="w-stack"><span class="w-codecell"><a class="w-row-title w-mono w-ltr" href="' + esc(dashboardUrl + 'coupon-edit?id=' + c.id) + '">' + esc(c.code) + '</a> ' +
+                        '<button type="button" class="w-copy" data-copy="' + esc(c.code) + '" aria-label="' + esc(L.copy + ' ' + c.code) + '" title="' + esc(L.copy) + '">' + WDList.icon(ICON.copy, 14) + '</button></span>' +
+                        (c.note ? '<span class="w-sub w-truncate">' + esc(c.note) + '</span>' : '') + '</div>';
                 }
             },
-            error: function() {
-                isLoading = false;
-                $('#coupons-loading').hide();
-                $('#coupons-tbody').html('<tr><td colspan="9" class="text-center text-danger py-5">' + couponsTranslations.connection_error + '</td></tr>');
+            {
+                label: L.discount,
+                render: function (c) { return '<span class="w-nowrap">' + esc(discount(c)) + '</span>'; }
+            },
+            {
+                label: L.validFor,
+                render: function (c) {
+                    var main = c.event_id ? '<span class="w-truncate">' + esc(c.event_title || ('#' + c.event_id)) + '</span>' : '<span class="text-muted">' + esc(L.everyEvent) + '</span>';
+                    return '<div class="w-stack">' + main + (c.ticket_filter !== 'all' ? '<span class="w-sub">' + esc(L[c.ticket_filter]) + '</span>' : '') + '</div>';
+                }
+            },
+            {
+                label: L.category, className: 'w-col-xl',
+                render: function (c) {
+                    return '<span class="w-nowrap"><span class="w-swatch" style="background:' + esc(c.category_color) + '" aria-hidden="true"></span>' + esc(c.category) + '</span>';
+                }
+            },
+            {
+                label: L.uses, sort: 'uses',
+                render: function (c) {
+                    if (!c.usage_limit) { return '<div class="w-stack"><span class="w-num">' + WDList.num(c.usage_count) + '</span><span class="w-sub">' + esc(L.unlimited) + '</span></div>'; }
+                    var pct = Math.min(100, Math.round(c.usage_count / c.usage_limit * 100));
+                    return '<div class="w-stack"><span class="w-num w-nowrap">' + WDList.num(c.usage_count) + ' / ' + WDList.num(c.usage_limit) + '</span>' +
+                        (c.usage_limit > 1 ? '<span class="w-bar" role="img" aria-label="' + pct + '%"><span class="w-bar__fill' + (pct >= 100 ? ' is-full' : '') + '" style="width:' + pct + '%"></span></span>' : '') + '</div>';
+                }
+            },
+            {
+                label: L.usedBy,
+                render: function (c) {
+                    if (!c.used_by_total) { return '<span class="text-muted">—</span>'; }
+                    var names = c.used_by.map(function (a) { return '<a href="' + esc(dashboardUrl + 'attendee-edit?id=' + a.id) + '" class="w-truncate">' + esc(a.name) + '</a>'; }).join('');
+                    var more = c.used_by_total > c.used_by.length
+                        ? '<a class="w-sub" href="' + esc(dashboardUrl + 'attendees?coupon_code=' + encodeURIComponent(c.code)) + '">' + esc(L.more.replace('%d', c.used_by_total - c.used_by.length)) + '</a>' : '';
+                    return '<div class="w-stack">' + names + more + '</div>';
+                }
+            },
+            {
+                label: L.expires, className: 'w-col-xl',
+                render: function (c) { return c.expiry_date ? '<span class="w-nowrap">' + esc(new Date(c.expiry_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })) + '</span>' : '<span class="text-muted">—</span>'; }
+            },
+            {
+                label: L.status,
+                render: function (c) { return STATE_TAG[c.state] || ''; }
             }
+        ],
+        rowMenu: function (c) {
+            return [
+                { label: L.edit, icon: ICON.pencil, href: dashboardUrl + 'coupon-edit?id=' + c.id },
+                { label: L.copy, icon: ICON.copy, onSelect: function () { copy(c.code); } },
+                { label: L.registrations, icon: ICON.users, href: dashboardUrl + 'attendees?coupon_code=' + encodeURIComponent(c.code), disabled: !c.used_by_total },
+                c.state === 'inactive'
+                    ? { label: L.activate, icon: ICON.on, onSelect: function () { bulk('activate', [c.id]); } }
+                    : { label: L.deactivate, icon: ICON.off, onSelect: function () { bulk('deactivate', [c.id]); } },
+                { separator: true },
+                { label: L.delete, icon: ICON.trash, danger: true, onSelect: function () { confirmDelete([c.id], c.code); } }
+            ];
+        },
+        bulkActions: [
+            { key: 'activate', label: L.activate, icon: ICON.on, run: function (ids) { bulk('activate', ids); } },
+            {
+                key: 'deactivate', label: L.deactivate, icon: ICON.off,
+                run: function (ids) { showConfirm(L.confirmDeactivate.replace('%d', ids.length)).then(function (r) { if (r.isConfirmed) { bulk('deactivate', ids); } }); }
+            },
+            { key: 'category', label: L.move, icon: ICON.folder, run: function (ids) { moveIds = ids; $('#categoryModal').modal('show'); } },
+            { key: 'delete', label: L.delete, icon: ICON.trash, danger: true, run: function (ids) { confirmDelete(ids); } }
+        ],
+        chips: function (state) {
+            var f = state.filters, chips = [];
+            if (f.search) { chips.push({ label: L.search, value: f.search, clear: function (l) { l.setFilter('search', ''); } }); }
+            if (f.event_id) { chips.push({ label: L.validFor, value: f.event_id === 'none' ? L.everyEvent : (eventTitles[f.event_id] || ('#' + f.event_id)), clear: function (l) { l.setFilter('event_id', ''); } }); }
+            if (f.category_id) { chips.push({ label: L.category, value: categoryNames[f.category_id] || ('#' + f.category_id), clear: function (l) { l.setFilter('category_id', ''); } }); }
+            return chips;
+        }
+    });
+
+    $('#coupons-list').on('click', '[data-copy]', function (e) { e.preventDefault(); copy(this.getAttribute('data-copy')); });
+
+    var moveIds = [];
+    $('#move-category-go').on('click', function () {
+        var $b = $(this).prop('disabled', true);
+        bulk('category', moveIds, { category_id: $('#move-category').val() }).always(function () { $b.prop('disabled', false); $('#categoryModal').modal('hide'); });
+    });
+
+    $('#export-btn').on('click', function () {
+        var data = list.data();
+        showConfirm(L.confirmExport.replace('%s', WDList.num(data ? data.total : 0))).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            var p = list.params();
+            p.action = 'sc_export_coupons_csv';
+            p.nonce = scDashboard.nonce;
+            window.location.href = scDashboard.ajaxurl + '?' + $.param(p);
         });
-    }
+    });
 
-    function renderCoupons(coupons) {
-        if (!coupons || coupons.length === 0) {
-            $('#coupons-tbody').html(`
-                <tr>
-                    <td colspan="9" class="text-center text-muted py-5">
-                        <i class="fa fa-ticket" style="font-size: 48px; opacity: 0.3;"></i>
-                        <p class="mt-2">` + couponsTranslations.no_coupons_found + `</p>
-                    </td>
-                </tr>
-            `);
-            return;
-        }
-
-        let html = '';
-        coupons.forEach(function(coupon) {
-            const isChecked = selectedCoupons.has(String(coupon.id)) ? 'checked' : '';
-
-            // Discount display - use dynamic currency
-            let discountText = '';
-            if (coupon.discount_type === 'percentage') {
-                discountText = coupon.discount_value + '%';
-            } else if (coupon.discount_type === 'fixed') {
-                discountText = coupon.discount_value + ' <?php echo sc_get_currency_symbol(); ?>';
-            } else {
-                discountText = couponsTranslations.free_100;
-            }
-
-            // Status badge
-            let statusBadge = '';
-            if (coupon.status === 'expired') {
-                statusBadge = '<span class="badge badge-danger">' + couponsTranslations.expired + '</span>';
-            } else if (coupon.status === 'used') {
-                statusBadge = '<span class="badge badge-warning">' + couponsTranslations.limit_reached + '</span>';
-            } else {
-                statusBadge = '<span class="badge badge-success">' + couponsTranslations.active + '</span>';
-            }
-
-            // Event display
-            let eventDisplay = '';
-            if (coupon.event_title) {
-                eventDisplay = '<span class="text-primary">' + escapeHtml(coupon.event_title) + '</span>';
-            } else if (coupon.event_id == 0) {
-                eventDisplay = '<span class="badge badge-info">' + couponsTranslations.all_events + '</span>';
-            } else {
-                eventDisplay = '<span class="text-muted">' + couponsTranslations.event_deleted + '</span>';
-            }
-
-            // Category badge
-            const catName = coupon.category_name || 'General';
-            const catColor = coupon.category_color || '#7c1314';
-            const categoryBadge = '<span class="badge" style="background:' + escapeHtml(catColor) + ';color:#fff;">' + escapeHtml(catName) + '</span>';
-
-            html += `
-                <tr>
-                    <td>
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input coupon-checkbox" id="coupon-${coupon.id}" value="${coupon.id}" ${isChecked}>
-                            <label class="custom-control-label" for="coupon-${coupon.id}"></label>
-                        </div>
-                    </td>
-                    <td><strong>${escapeHtml(coupon.code)}</strong></td>
-                    <td>${discountText}</td>
-                    <td>${eventDisplay}</td>
-                    <td>${categoryBadge}</td>
-                    <td><span class="badge badge-secondary">${coupon.usage_count} / ${coupon.usage_limit || '∞'}</span></td>
-                    <td>${coupon.expiry_date || couponsTranslations.no_expiry}</td>
-                    <td>${statusBadge}</td>
-                    <td>
-                        <div class="btn-group">
-                            <a href="<?php echo home_url('/event-manager-dashboard/coupon-edit'); ?>?id=${coupon.id}" class="btn btn-sm btn-primary" title="<?php echo esc_attr(sc_t('dashboard_pages.edit', 'Edit')); ?>">
-                                <i class="fa fa-edit"></i>
-                            </a>
-                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="sr-only">Toggle Dropdown</span>
-                            </button>
-                            <div class="dropdown-menu dropdown-menu-right">
-                                <a class="dropdown-item" href="<?php echo home_url('/event-manager-dashboard/coupon-edit'); ?>?id=${coupon.id}"><i class="fa fa-edit mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.edit', 'Edit')); ?></a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item text-danger delete-coupon" href="javascript:void(0);" data-id="${coupon.id}"><i class="fa fa-trash mr-2"></i> <?php echo esc_js(sc_t('dashboard_pages.delete', 'Delete')); ?></a>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
+    $('#recount-btn').on('click', function () {
+        showConfirm(L.confirmRecount).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            var $b = $('#recount-btn').prop('disabled', true);
+            post({ action: 'sc_sync_coupon_usage' }).done(function (res) {
+                if (res.success) { showSuccess(res.data.message); list.reload(); } else { showError(res.data && res.data.message || L.failed); }
+            }).fail(function () { showError(L.failed); }).always(function () { $b.prop('disabled', false); });
         });
+    });
 
-        $('#coupons-tbody').html(html);
-        updateBulkButton();
-        syncSelectAllCheckbox();
-    }
+    $('#template-btn').on('click', function () {
+        var csv = 'code,discount_type,discount_value,usage_limit,expiry_date\r\nWELCOME2026,free,,1,\r\nHALFPRICE,percentage,50,100,2026-12-31\r\n';
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = 'coupons-template.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
 
-    function renderPagination(total, pages, current) {
-        if (pages <= 1) {
-            $('#coupons-pagination').html('');
-            return;
-        }
-
-        let html = '';
-
-        // Previous
-        html += `<li class="page-item ${current <= 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${current - 1}">«</a>
-        </li>`;
-
-        // Page numbers (show max 7 pages)
-        let startPage = Math.max(1, current - 3);
-        let endPage = Math.min(pages, startPage + 6);
-
-        if (endPage - startPage < 6) {
-            startPage = Math.max(1, endPage - 6);
-        }
-
-        if (startPage > 1) {
-            html += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
-            if (startPage > 2) {
-                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-            }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            html += `<li class="page-item ${i === current ? 'active' : ''}">
-                <a class="page-link" href="#" data-page="${i}">${i}</a>
-            </li>`;
-        }
-
-        if (endPage < pages) {
-            if (endPage < pages - 1) {
-                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-            }
-            html += `<li class="page-item"><a class="page-link" href="#" data-page="${pages}">${pages}</a></li>`;
-        }
-
-        // Next
-        html += `<li class="page-item ${current >= pages ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${current + 1}">»</a>
-        </li>`;
-
-        $('#coupons-pagination').html(html);
-    }
-
-    function updatePaginationInfo(data) {
-        const start = ((data.current_page - 1) * perPage) + 1;
-        const end = Math.min(data.current_page * perPage, data.total);
-        var text = couponsTranslations.showing_x_to_y_of_z.replace('%s', start).replace('%s', end).replace('%s', data.total);
-        $('#pagination-info-text').text(text);
-    }
-
-    // ===============================
-    // Event Handlers
-    // ===============================
-
-    // Pagination click
-    $(document).on('click', '#coupons-pagination .page-link', function(e) {
+    $('#import-form').on('submit', function (e) {
         e.preventDefault();
-        const page = $(this).data('page');
-        if (page && page !== currentPage) {
-            currentPage = page;
-            loadCoupons();
-        }
-    });
-
-    // Search
-    $('#coupon-search').on('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(function() {
-            searchQuery = $('#coupon-search').val();
-            currentPage = 1;
-            loadCoupons();
-        }, 500);
-    });
-
-    // Event filter
-    $('#event-filter').on('change', function() {
-        eventFilter = $(this).val();
-        currentPage = 1;
-        loadCoupons();
-    });
-
-    // Category filter
-    $('#category-filter').on('change', function() {
-        categoryFilter = $(this).val();
-        currentPage = 1;
-        loadCoupons();
-    });
-
-    // Status filter
-    $('#status-filter').on('change', function() {
-        statusFilter = $(this).val();
-        currentPage = 1;
-        loadCoupons();
-    });
-
-    // Per page
-    $('#per-page-select').on('change', function() {
-        perPage = parseInt($(this).val());
-        currentPage = 1;
-        loadCoupons();
-    });
-
-    // ===============================
-    // Checkbox handling
-    // ===============================
-
-    function updateBulkButton() {
-        $('#bulk-delete-btn').prop('disabled', selectedCoupons.size === 0);
-    }
-
-    function syncSelectAllCheckbox() {
-        const checkboxes = $('.coupon-checkbox');
-        if (checkboxes.length === 0) {
-            $('#select-all-coupons').prop('checked', false);
-            return;
-        }
-        const allChecked = checkboxes.length === checkboxes.filter(':checked').length;
-        $('#select-all-coupons').prop('checked', allChecked);
-    }
-
-    $('#select-all-coupons').on('change', function() {
-        const isChecked = $(this).prop('checked');
-        $('.coupon-checkbox').each(function() {
-            const id = String($(this).val());
-            $(this).prop('checked', isChecked);
-            if (isChecked) {
-                selectedCoupons.add(id);
-            } else {
-                selectedCoupons.delete(id);
-            }
-        });
-        updateBulkButton();
-    });
-
-    $(document).on('change', '.coupon-checkbox', function() {
-        const id = String($(this).val());
-        if ($(this).prop('checked')) {
-            selectedCoupons.add(id);
-        } else {
-            selectedCoupons.delete(id);
-        }
-        updateBulkButton();
-        syncSelectAllCheckbox();
-    });
-
-    // ===============================
-    // Delete coupon
-    // ===============================
-
-    $(document).on('click', '.delete-coupon', function() {
-        const id = $(this).data('id');
-
-        Swal.fire({
-            title: couponsTranslations.delete_coupon_title,
-            text: couponsTranslations.delete_coupon_confirm,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: couponsTranslations.yes_delete,
-            cancelButtonText: couponsTranslations.cancel
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: scDashboard.ajaxurl,
-                    type: 'POST',
-                    data: {
-                        action: 'delete_coupon',
-                        nonce: scDashboard.nonce,
-                        coupon_id: id
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            selectedCoupons.delete(String(id));
-                            loadCoupons();
-                            Swal.fire({
-                                icon: 'success',
-                                title: couponsTranslations.deleted,
-                                text: couponsTranslations.coupon_deleted,
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: couponsTranslations.error,
-                                text: couponsTranslations.error_deleting_coupon
-                            });
-                        }
-                    }
-                });
-            }
-        });
-    });
-
-    // Bulk delete
-    $('#bulk-delete-btn').on('click', function() {
-        if (selectedCoupons.size === 0) return;
-
-        Swal.fire({
-            title: couponsTranslations.delete_selected_title,
-            text: couponsTranslations.delete_selected_confirm.replace('%s', selectedCoupons.size),
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: couponsTranslations.yes_delete_all,
-            cancelButtonText: couponsTranslations.cancel
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: couponsTranslations.deleting,
-                    allowOutsideClick: false,
-                    showConfirmButton: false,
-                    didOpen: () => { Swal.showLoading(); }
-                });
-
-                $.ajax({
-                    url: scDashboard.ajaxurl,
-                    type: 'POST',
-                    data: {
-                        action: 'bulk_delete_coupons',
-                        nonce: scDashboard.nonce,
-                        coupon_ids: Array.from(selectedCoupons)
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            selectedCoupons.clear();
-                            loadCoupons();
-                            Swal.fire({
-                                icon: 'success',
-                                title: couponsTranslations.deleted,
-                                text: couponsTranslations.selected_deleted,
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: couponsTranslations.error,
-                                text: response.data?.message || couponsTranslations.error_deleting_coupons
-                            });
-                        }
-                    }
-                });
-            }
-        });
-    });
-
-    // Delete all
-    $('#delete-all-btn').on('click', function() {
-        Swal.fire({
-            title: couponsTranslations.delete_all_title,
-            html: '<p class="text-danger"><strong>' + couponsTranslations.delete_all_warning + '</strong></p><p>' + couponsTranslations.action_cannot_undone + '</p>',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: couponsTranslations.yes_delete_all,
-            cancelButtonText: couponsTranslations.cancel,
-            input: 'text',
-            inputPlaceholder: couponsTranslations.type_delete_confirm,
-            inputValidator: (value) => {
-                if (value !== 'DELETE') {
-                    return couponsTranslations.please_type_delete;
-                }
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: couponsTranslations.deleting_all,
-                    allowOutsideClick: false,
-                    showConfirmButton: false,
-                    didOpen: () => { Swal.showLoading(); }
-                });
-
-                $.ajax({
-                    url: scDashboard.ajaxurl,
-                    type: 'POST',
-                    data: {
-                        action: 'delete_all_coupons',
-                        nonce: scDashboard.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            selectedCoupons.clear();
-                            loadCoupons();
-                            $('#stat-total').text('0');
-                            $('#stat-active').text('0');
-                            $('#stat-expired').text('0');
-                            Swal.fire({
-                                icon: 'success',
-                                title: couponsTranslations.deleted,
-                                text: couponsTranslations.all_deleted,
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: couponsTranslations.error,
-                                text: response.data?.message || couponsTranslations.error_deleting_coupons
-                            });
-                        }
-                    }
-                });
-            }
-        });
-    });
-
-    // ===============================
-    // Import Coupons - File Upload
-    // ===============================
-
-    let importCsvData = '';
-
-    // Handle file selection
-    $('#import-csv-file').on('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) {
-            importCsvData = '';
-            $('#file-preview').hide();
-            $(this).next('.custom-file-label').text('Choose file...');
-            return;
-        }
-
-        $(this).next('.custom-file-label').text(file.name);
-
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            importCsvData = event.target.result;
-
-            // Show preview
-            const lines = importCsvData.split('\n').slice(0, 5);
-            $('#csv-preview-content').text(lines.join('\n'));
-            $('#file-preview').show();
+        var file = document.getElementById('import-file').files[0];
+        if (!file) { showError(L.chooseFile); return; }
+        var $b = $('#import-go').prop('disabled', true).text(L.importing);
+        var reader = new FileReader();
+        reader.onload = function () {
+            post({ action: 'import_coupons', csv_data: String(reader.result).replace(/^﻿/, ''), event_id: $('#import-event').val(), category_id: $('#import-category').val() })
+                .done(function (res) {
+                    if (res.success) { $('#importModal').modal('hide'); showSuccess(res.data.message); list.reload(); document.getElementById('import-form').reset(); }
+                    else { showError(res.data && res.data.message || L.failed); }
+                })
+                .fail(function () { showError(L.failed); })
+                .always(function () { $b.prop('disabled', false).text(<?php echo $js(sc_t('dashboard_pages.import', 'Import')); ?>); });
         };
-        reader.onerror = function() {
-            Swal.fire({
-                icon: 'error',
-                title: couponsTranslations.error,
-                text: couponsTranslations.failed_read_file
-            });
-        };
+        reader.onerror = function () { $b.prop('disabled', false); showError(L.failed); };
         reader.readAsText(file);
     });
-
-    // Import button click
-    $('#import-coupons-btn').on('click', function() {
-        const eventId = $('#import-event-id').val();
-        const categoryId = $('#import-category-id').val() || 1;
-
-        if (!importCsvData) {
-            Swal.fire({
-                icon: 'warning',
-                title: couponsTranslations.no_file_selected,
-                text: couponsTranslations.select_csv_to_import
-            });
-            return;
-        }
-
-        Swal.fire({
-            title: couponsTranslations.importing,
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'import_coupons',
-                nonce: scDashboard.nonce,
-                csv_data: importCsvData,
-                event_id: eventId,
-                category_id: categoryId
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#importCouponsModal').modal('hide');
-                    // Reset file input
-                    $('#import-csv-file').val('');
-                    $('#import-csv-file').next('.custom-file-label').text(couponsTranslations.choose_file);
-                    $('#file-preview').hide();
-                    importCsvData = '';
-                    loadCoupons();
-                    Swal.fire({
-                        icon: 'success',
-                        title: couponsTranslations.import_complete,
-                        text: response.data.message
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: couponsTranslations.import_failed,
-                        text: response.data?.message || couponsTranslations.error_importing
-                    });
-                }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: couponsTranslations.error,
-                    text: couponsTranslations.connection_error
-                });
-            }
-        });
-    });
-
-    // Reset on modal close
-    $('#importCouponsModal').on('hidden.bs.modal', function() {
-        $('#import-csv-file').val('');
-        $('#import-csv-file').next('.custom-file-label').text(couponsTranslations.choose_file);
-        $('#file-preview').hide();
-        importCsvData = '';
-    });
-
-    // ===============================
-    // Download CSV Template
-    // ===============================
-
-    $('#download-template-btn').on('click', function() {
-        const templateCSV = 'code,discount_type,discount_value,usage_limit,expiry_date\nSUMMER20,percentage,20,100,2025-12-31\nVIP50,fixed,50,10,\nFREE100,free,0,1,2025-06-30';
-
-        const blob = new Blob(['\ufeff' + templateCSV], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'coupons_import_template.csv';
-        link.click();
-
-        Swal.fire({
-            icon: 'success',
-            title: couponsTranslations.template_downloaded,
-            text: couponsTranslations.fill_template_upload,
-            timer: 2000,
-            showConfirmButton: false
-        });
-    });
-
-    // ===============================
-    // Export Coupons
-    // ===============================
-
-    $('#do-export-btn').on('click', function() {
-        const exportEventId = $('#export-event-filter').val();
-        const exportStatus = $('#export-status-filter').val();
-
-        $('#exportCouponsModal').modal('hide');
-
-        Swal.fire({
-            title: couponsTranslations.exporting,
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'export_coupons_ajax',
-                nonce: scDashboard.nonce,
-                export_event_id: exportEventId,
-                export_status: exportStatus
-            },
-            success: function(response) {
-                Swal.close();
-                if (response.success) {
-                    // Download CSV
-                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = response.data.filename;
-                    link.click();
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: couponsTranslations.export_complete,
-                        text: couponsTranslations.exported_x_coupons.replace('%s', response.data.count),
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: couponsTranslations.export_failed,
-                        text: response.data?.message || couponsTranslations.error_exporting
-                    });
-                }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: couponsTranslations.error,
-                    text: couponsTranslations.connection_error
-                });
-            }
-        });
-    });
-
-    // ===============================
-    // Create Coupon
-    // ===============================
-
-    $('#discount-type').on('change', function() {
-        const type = $(this).val();
-        if (type === 'free') {
-            $('#discount-value-group').hide();
-            $('#discount-value').prop('required', false);
-        } else {
-            $('#discount-value-group').show();
-            $('#discount-value').prop('required', true);
-            if (type === 'percentage') {
-                $('#discount-value-hint').text('Enter percentage (0-100)');
-            } else {
-                $('#discount-value-hint').text('Enter fixed amount');
-            }
-        }
-    }).trigger('change');
-
-    // Note: Create coupon form is now on coupon-create page
-
-    // ===============================
-    // Helpers
-    // ===============================
-
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 });
 </script>
 

@@ -18,6 +18,8 @@ if (function_exists('sc_is_module_enabled') && !sc_is_module_enabled('coupons'))
     return;
 }
 
+require_once __DIR__ . '/coupons-query.php';
+
 /**
  * Create Discount Coupon (supports bulk generation)
  */
@@ -375,24 +377,43 @@ function sc_events_export_coupons_ajax() {
 }
 
 /**
+ * Shared request check for the coupon handlers below.
+ */
+function sc_coupons_verify_request() {
+    $nonce = isset($_REQUEST['nonce']) ? sanitize_text_field(wp_unslash($_REQUEST['nonce'])) : '';
+    if (!wp_verify_nonce($nonce, 'sc_dashboard_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    }
+    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    }
+}
+
+/**
+ * Keep only ids that really are coupons — the delete handlers used to pass any
+ * post id straight to wp_delete_post().
+ */
+function sc_coupons_only_ids($ids) {
+    global $wpdb;
+    $ids = array_filter(array_map('absint', (array) $ids));
+    if (!$ids) {
+        return array();
+    }
+    return array_map('intval', $wpdb->get_col("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND ID IN (" . implode(',', $ids) . ')'));
+}
+
+/**
  * Delete Coupon
  */
 add_action('wp_ajax_delete_coupon', 'sc_delete_coupon');
 function sc_delete_coupon() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    sc_coupons_verify_request();
+
+    $ids = sc_coupons_only_ids(array($_POST['coupon_id'] ?? 0));
+    if ($ids && wp_delete_post($ids[0], true)) {
+        sc_coupons_bump_cache();
+        wp_send_json_success(array('message' => __('Coupon deleted.', 'sc_events')));
     }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    $coupon_id = intval($_POST['coupon_id']);
-
-    if (wp_delete_post($coupon_id, true)) {
-        wp_send_json_success(array('message' => __('Coupon deleted successfully.', 'sc_events')));
-    }
-
     wp_send_json_error(array('message' => __('Failed to delete coupon.', 'sc_events')));
 }
 
@@ -401,703 +422,485 @@ function sc_delete_coupon() {
  */
 add_action('wp_ajax_bulk_delete_coupons', 'sc_bulk_delete_coupons');
 function sc_bulk_delete_coupons() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    if (empty($_POST['coupon_ids']) || !is_array($_POST['coupon_ids'])) {
-        wp_send_json_error(array('message' => __('No coupons selected.', 'sc_events')));
-    }
+    sc_coupons_verify_request();
 
     $deleted = 0;
-    foreach ($_POST['coupon_ids'] as $coupon_id) {
-        $coupon_id = intval($coupon_id);
-        if ($coupon_id && wp_delete_post($coupon_id, true)) {
-            $deleted++;
-        }
-    }
-
-    if ($deleted > 0) {
-        wp_send_json_success(array('message' => sprintf(__('%d coupon(s) deleted.', 'sc_events'), $deleted)));
-    }
-
-    wp_send_json_error(array('message' => __('Failed to delete selected coupons.', 'sc_events')));
-}
-
-/**
- * Delete All Coupons
- */
-add_action('wp_ajax_delete_all_coupons', 'sc_delete_all_coupons');
-function sc_delete_all_coupons() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    $coupons = get_posts(array(
-        'post_type' => 'sc_coupon',
-        'posts_per_page' => -1,
-        'fields' => 'ids'
-    ));
-
-    if (empty($coupons)) {
-        wp_send_json_error(array('message' => __('No coupons found to delete.', 'sc_events')));
-    }
-
-    $total = count($coupons);
-    $deleted = 0;
-
-    foreach ($coupons as $coupon_id) {
+    foreach (sc_coupons_only_ids($_POST['coupon_ids'] ?? array()) as $coupon_id) {
         if (wp_delete_post($coupon_id, true)) {
             $deleted++;
         }
     }
-
+    sc_coupons_bump_cache();
     if ($deleted > 0) {
-        wp_send_json_success(array(
-            'message' => sprintf(__('Successfully deleted %d out of %d coupons.', 'sc_events'), $deleted, $total),
-            'deleted' => $deleted,
-            'total' => $total
-        ));
+        wp_send_json_success(array('message' => sprintf(__('%d coupon(s) deleted.', 'sc_events'), $deleted)));
     }
+    wp_send_json_error(array('message' => __('No coupons selected.', 'sc_events')));
+}
 
-    wp_send_json_error(array('message' => __('Failed to delete coupons.', 'sc_events')));
+// "Delete all coupons" (every code on the site in one click) is no longer offered.
+// sc_delete_all_coupons() stays defined for reference but is not hooked.
+function sc_delete_all_coupons() {
+    wp_send_json_error(array('message' => __('Not available.', 'sc_events')));
 }
 
 /**
- * Get Coupons with Server-Side Pagination
+ * Coupons list: rows for one page, plus tab counts when asked.
  */
 add_action('wp_ajax_sc_get_coupons_paginated', 'sc_get_coupons_paginated');
 function sc_get_coupons_paginated() {
-    @set_time_limit(60);
-    @ini_set('memory_limit', '256M');
+    sc_coupons_verify_request();
 
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    $f = sc_coupons_read_filters($_POST);
+    $page = max(1, absint($_POST['page'] ?? 1));
+    $per_page = min(200, max(10, absint($_POST['per_page'] ?? 25)));
+
+    $counts = sc_coupons_counts($f);
+    $total = $counts[$f['view']];
+    $rows = sc_coupons_rows(sc_coupons_page_ids($f, $per_page, ($page - 1) * $per_page));
+
+    $response = array(
+        'rows'     => $rows,
+        'coupons'  => $rows,
+        'total'    => $total,
+        'pages'    => (int) ceil($total / $per_page),
+        'page'     => $page,
+        'per_page' => $per_page,
+    );
+    if (!empty($_POST['with_counts'])) {
+        $response['counts'] = $counts;
     }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    global $wpdb;
-
-    $page = max(1, intval($_POST['page'] ?? 1));
-    $per_page = min(200, max(10, intval($_POST['per_page'] ?? 50)));
-    $search = sanitize_text_field($_POST['search'] ?? '');
-    $event_id = sanitize_text_field($_POST['event_id'] ?? '');
-    $category_id = sanitize_text_field($_POST['category_id'] ?? '');
-    $status = sanitize_text_field($_POST['status'] ?? '');
-
-    $offset = ($page - 1) * $per_page;
-    $today = current_time('Y-m-d');
-
-    $where = "WHERE p.post_type = 'sc_coupon' AND p.post_status = 'publish'";
-    $where_values = array();
-
-    if (!empty($search)) {
-        $where .= " AND p.post_title LIKE %s";
-        $where_values[] = '%' . $wpdb->esc_like($search) . '%';
-    }
-
-    if (!empty($event_id)) {
-        $where .= " AND pm_event.meta_value = %s";
-        $where_values[] = $event_id;
-    }
-
-    if (!empty($category_id)) {
-        // Treat coupons without category_id meta as belonging to General (id=1)
-        if (intval($category_id) === SC_Coupon_Category::DEFAULT_ID) {
-            $where .= " AND (pm_category.meta_value = %s OR pm_category.meta_value IS NULL OR pm_category.meta_value = '')";
-        } else {
-            $where .= " AND pm_category.meta_value = %s";
-        }
-        $where_values[] = $category_id;
-    }
-
-    if ($status === 'expired') {
-        $where .= " AND pm_expiry.meta_value IS NOT NULL AND pm_expiry.meta_value != '' AND pm_expiry.meta_value < %s";
-        $where_values[] = $today;
-    } elseif ($status === 'active') {
-        $where .= " AND (pm_expiry.meta_value IS NULL OR pm_expiry.meta_value = '' OR pm_expiry.meta_value >= %s)";
-        $where_values[] = $today;
-    } elseif ($status === 'used') {
-        $where .= " AND pm_limit.meta_value IS NOT NULL AND pm_limit.meta_value != '' AND pm_limit.meta_value != '0'
-                   AND CAST(COALESCE(pm_usage.meta_value, '0') AS UNSIGNED) >= CAST(pm_limit.meta_value AS UNSIGNED)";
-    }
-
-    $count_sql = "
-        SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
-        LEFT JOIN {$wpdb->postmeta} pm_event ON p.ID = pm_event.post_id AND pm_event.meta_key = 'event_id'
-        LEFT JOIN {$wpdb->postmeta} pm_category ON p.ID = pm_category.post_id AND pm_category.meta_key = 'category_id'
-        LEFT JOIN {$wpdb->postmeta} pm_expiry ON p.ID = pm_expiry.post_id AND pm_expiry.meta_key = 'expiry_date'
-        LEFT JOIN {$wpdb->postmeta} pm_limit ON p.ID = pm_limit.post_id AND pm_limit.meta_key = 'usage_limit'
-        LEFT JOIN {$wpdb->postmeta} pm_usage ON p.ID = pm_usage.post_id AND pm_usage.meta_key = 'usage_count'
-        $where
-    ";
-
-    if (!empty($where_values)) {
-        $total = (int) $wpdb->get_var($wpdb->prepare($count_sql, $where_values));
-    } else {
-        $total = (int) $wpdb->get_var($count_sql);
-    }
-
-    $pages = ceil($total / $per_page);
-
-    $sql = "
-        SELECT
-            p.ID as id,
-            p.post_title as code,
-            pm_type.meta_value as discount_type,
-            pm_value.meta_value as discount_value,
-            pm_event.meta_value as event_id,
-            pm_category.meta_value as category_id,
-            pm_limit.meta_value as usage_limit,
-            COALESCE(pm_usage.meta_value, '0') as usage_count,
-            pm_expiry.meta_value as expiry_date
-        FROM {$wpdb->posts} p
-        LEFT JOIN {$wpdb->postmeta} pm_type ON p.ID = pm_type.post_id AND pm_type.meta_key = 'discount_type'
-        LEFT JOIN {$wpdb->postmeta} pm_value ON p.ID = pm_value.post_id AND pm_value.meta_key = 'discount_value'
-        LEFT JOIN {$wpdb->postmeta} pm_event ON p.ID = pm_event.post_id AND pm_event.meta_key = 'event_id'
-        LEFT JOIN {$wpdb->postmeta} pm_category ON p.ID = pm_category.post_id AND pm_category.meta_key = 'category_id'
-        LEFT JOIN {$wpdb->postmeta} pm_limit ON p.ID = pm_limit.post_id AND pm_limit.meta_key = 'usage_limit'
-        LEFT JOIN {$wpdb->postmeta} pm_usage ON p.ID = pm_usage.post_id AND pm_usage.meta_key = 'usage_count'
-        LEFT JOIN {$wpdb->postmeta} pm_expiry ON p.ID = pm_expiry.post_id AND pm_expiry.meta_key = 'expiry_date'
-        $where
-        ORDER BY p.ID DESC
-        LIMIT %d OFFSET %d
-    ";
-
-    $query_values = array_merge($where_values, array($per_page, $offset));
-    $coupons = $wpdb->get_results($wpdb->prepare($sql, $query_values));
-
-    $event_ids = array_filter(array_unique(array_column($coupons, 'event_id')));
-    $event_titles = array();
-    if (!empty($event_ids)) {
-        // Sanitize event IDs
-        $event_ids = array_map('intval', $event_ids);
-        $event_ids = array_filter($event_ids); // Remove zeros
-
-        if (!empty($event_ids)) {
-            // First try sc_events custom table - using prepared statement with placeholders
-            $sc_events_table = $wpdb->prefix . 'sc_events';
-            if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $sc_events_table)) === $sc_events_table) {
-                $placeholders = implode(',', array_fill(0, count($event_ids), '%d'));
-                $events = $wpdb->get_results($wpdb->prepare(
-                    "SELECT id, title FROM $sc_events_table WHERE id IN ($placeholders)",
-                    $event_ids
-                ));
-                foreach ($events as $event) {
-                    $event_titles[$event->id] = $event->title;
-                }
-            }
-
-            // Fallback to wp_posts for sc_event post type
-            $missing_ids = array_diff($event_ids, array_keys($event_titles));
-            if (!empty($missing_ids)) {
-                $missing_ids = array_values($missing_ids); // Re-index array
-                $placeholders = implode(',', array_fill(0, count($missing_ids), '%d'));
-                $events = $wpdb->get_results($wpdb->prepare(
-                    "SELECT ID, post_title FROM {$wpdb->posts} WHERE ID IN ($placeholders) AND post_type = 'sc_event'",
-                    $missing_ids
-                ));
-                foreach ($events as $event) {
-                    $event_titles[$event->ID] = $event->post_title;
-                }
-            }
-        }
-    }
-
-    // Fetch all categories once for badge display
-    $category_map = array();
-    $cat_table = $wpdb->prefix . 'sc_coupon_categories';
-    $all_cats = $wpdb->get_results("SELECT id, name, color FROM $cat_table");
-    foreach ($all_cats as $c) {
-        $category_map[(int) $c->id] = array('name' => $c->name, 'color' => $c->color);
-    }
-
-    $result = array();
-    foreach ($coupons as $coupon) {
-        $is_expired = !empty($coupon->expiry_date) && $coupon->expiry_date < $today;
-        $is_used = !empty($coupon->usage_limit) && $coupon->usage_limit != '0'
-                   && intval($coupon->usage_count) >= intval($coupon->usage_limit);
-
-        $status = 'active';
-        if ($is_expired) $status = 'expired';
-        elseif ($is_used) $status = 'used';
-
-        $cat_id = intval($coupon->category_id);
-        if ($cat_id <= 0) { $cat_id = SC_Coupon_Category::DEFAULT_ID; }
-        $cat_info = isset($category_map[$cat_id]) ? $category_map[$cat_id] : array('name' => 'General', 'color' => '#7c1314');
-
-        $result[] = array(
-            'id' => $coupon->id,
-            'code' => $coupon->code,
-            'discount_type' => $coupon->discount_type ?: 'free',
-            'discount_value' => $coupon->discount_value ?: '0',
-            'event_id' => $coupon->event_id ?: 0,
-            'event_title' => isset($event_titles[$coupon->event_id]) ? $event_titles[$coupon->event_id] : '',
-            'category_id' => $cat_id,
-            'category_name' => $cat_info['name'],
-            'category_color' => $cat_info['color'],
-            'usage_limit' => $coupon->usage_limit ?: 0,
-            'usage_count' => intval($coupon->usage_count),
-            'expiry_date' => (!empty($coupon->expiry_date) && strtotime($coupon->expiry_date) > 0) ? date('M j, Y', strtotime($coupon->expiry_date)) : '',
-            'status' => $status
-        );
-    }
-
-    wp_send_json_success(array(
-        'coupons' => $result,
-        'total' => $total,
-        'pages' => $pages,
-        'current_page' => $page,
-        'per_page' => $per_page
-    ));
+    wp_send_json_success($response);
 }
 
 /**
- * Sync Coupon Usage
+ * Export the coupons matching the list filters as CSV (streamed in batches).
+ */
+add_action('wp_ajax_sc_export_coupons_csv', 'sc_export_coupons_csv');
+function sc_export_coupons_csv() {
+    $nonce = isset($_GET['nonce']) ? sanitize_text_field(wp_unslash($_GET['nonce'])) : '';
+    if (!wp_verify_nonce($nonce, 'sc_dashboard_nonce') || !SC_Event_Manager_Dashboard::is_event_manager()) {
+        wp_die(esc_html__('Security check failed.', 'sc_events'));
+    }
+    @set_time_limit(300);
+    $f = sc_coupons_read_filters($_GET);
+    $f['orderby'] = 'created';
+    $f['order'] = 'ASC';
+
+    nocache_headers();
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="coupons-' . current_time('Y-m-d-His') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, array('Code', 'Status', 'Discount type', 'Discount', 'Event', 'Category', 'Ticket type', 'Uses', 'Usage limit', 'Expires', 'Used by', 'Note', 'Created'));
+    $batch = 2000;
+    for ($offset = 0; ; $offset += $batch) {
+        $ids = sc_coupons_page_ids($f, $batch, $offset);
+        if (!$ids) {
+            break;
+        }
+        foreach (sc_coupons_rows($ids, true) as $r) {
+            fputcsv($out, array_map('sc_csv_cell', array(
+                $r['code'], $r['state'], $r['discount_type'], $r['discount_value'], $r['event_title'] ?: 'All events', $r['category'],
+                $r['ticket_filter'], $r['usage_count'], $r['usage_limit'] ?: 'Unlimited', $r['expiry_date'],
+                implode('; ', wp_list_pluck($r['used_by'], 'name')) . ($r['used_by_total'] > 3 ? ' +' . ($r['used_by_total'] - 3) : ''),
+                $r['note'], $r['created'],
+            )));
+        }
+        if (count($ids) < $batch) {
+            break;
+        }
+    }
+    fclose($out);
+    exit;
+}
+
+/**
+ * Bulk actions from the list: activate, deactivate, move to category, delete.
+ */
+add_action('wp_ajax_sc_bulk_coupons', 'sc_bulk_coupons');
+function sc_bulk_coupons() {
+    sc_coupons_verify_request();
+    global $wpdb;
+
+    $op = sanitize_key($_POST['op'] ?? '');
+    $ids = sc_coupons_only_ids($_POST['ids'] ?? array());
+    if (!$ids) {
+        wp_send_json_error(array('message' => __('No coupons selected.', 'sc_events')));
+    }
+    $in = implode(',', $ids);
+
+    switch ($op) {
+        case 'activate':
+        case 'deactivate':
+            $status = $op === 'activate' ? 'publish' : 'draft';
+            $wpdb->query($wpdb->prepare("UPDATE {$wpdb->posts} SET post_status = %s WHERE ID IN ($in)", $status));
+            foreach ($ids as $id) {
+                update_post_meta($id, 'is_active', $op === 'activate' ? 1 : 0);
+                clean_post_cache($id);
+            }
+            $message = $op === 'activate'
+                ? sprintf(_n('%d coupon activated.', '%d coupons activated.', count($ids), 'sc_events'), count($ids))
+                : sprintf(_n('%d coupon deactivated — it can no longer be used.', '%d coupons deactivated — they can no longer be used.', count($ids), 'sc_events'), count($ids));
+            break;
+        case 'category':
+            $category = SC_Coupon_Category::get(absint($_POST['category_id'] ?? 0));
+            if (!$category) {
+                wp_send_json_error(array('message' => __('Choose a category.', 'sc_events')));
+            }
+            foreach ($ids as $id) {
+                update_post_meta($id, 'category_id', (int) $category->id);
+            }
+            $message = sprintf(_n('%1$d coupon moved to %2$s.', '%1$d coupons moved to %2$s.', count($ids), 'sc_events'), count($ids), $category->name);
+            break;
+        case 'delete':
+            $deleted = 0;
+            foreach ($ids as $id) {
+                if (wp_delete_post($id, true)) {
+                    $deleted++;
+                }
+            }
+            $message = sprintf(_n('%d coupon deleted.', '%d coupons deleted.', $deleted, 'sc_events'), $deleted);
+            break;
+        default:
+            wp_send_json_error(array('message' => __('Unknown action.', 'sc_events')));
+    }
+    sc_coupons_bump_cache();
+    wp_send_json_success(array('message' => $message));
+}
+
+/**
+ * Recount uses: set each coupon's usage_count to the active attendees holding its code.
  */
 add_action('wp_ajax_sc_sync_coupon_usage', 'sc_sync_coupon_usage');
 function sc_sync_coupon_usage() {
     @set_time_limit(300);
-    @ini_set('memory_limit', '512M');
-
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
+    sc_coupons_verify_request();
     global $wpdb;
 
-    $coupon_usage = $wpdb->get_results("
-        SELECT coupon_code, COUNT(*) as usage_count
-        FROM {$wpdb->prefix}sc_attendees
-        WHERE coupon_code IS NOT NULL
-        AND coupon_code != ''
-        AND status = 'active'
-        GROUP BY coupon_code
-    ");
-
-    $usage_map = array();
-    $total_usage = 0;
-    foreach ($coupon_usage as $row) {
-        $usage_map[$row->coupon_code] = (int) $row->usage_count;
-        $total_usage += (int) $row->usage_count;
+    $usage = array();
+    foreach ($wpdb->get_results("SELECT UPPER(coupon_code) AS code, COUNT(*) AS n FROM {$wpdb->prefix}sc_attendees WHERE coupon_code IS NOT NULL AND coupon_code <> '' AND status = 'active' GROUP BY UPPER(coupon_code)") as $row) {
+        $usage[$row->code] = (int) $row->n;
     }
-
-    $coupons = $wpdb->get_results("
-        SELECT ID, post_title as code
-        FROM {$wpdb->posts}
-        WHERE post_type = 'sc_coupon'
-        AND post_status = 'publish'
-    ");
+    // One query for every coupon's current count instead of a get_post_meta() per coupon.
+    $coupons = $wpdb->get_results("SELECT p.ID, UPPER(p.post_title) AS code, m.meta_value AS uses FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'usage_count'
+        WHERE p.post_type = 'sc_coupon' AND p.post_status IN ('publish', 'draft')");
 
     $updated = 0;
-    foreach ($coupons as $coupon) {
-        $new_usage = isset($usage_map[$coupon->code]) ? $usage_map[$coupon->code] : 0;
-        $current_usage = (int) get_post_meta($coupon->ID, 'usage_count', true);
-
-        if ($new_usage !== $current_usage) {
-            update_post_meta($coupon->ID, 'usage_count', $new_usage);
+    foreach ($coupons as $c) {
+        $new = $usage[$c->code] ?? 0;
+        if ($c->uses === null || (int) $c->uses !== $new) {
+            update_post_meta((int) $c->ID, 'usage_count', $new);
             $updated++;
         }
     }
-
+    sc_coupons_bump_cache();
     wp_send_json_success(array(
-        'updated' => $updated,
+        'message'       => $updated
+            ? sprintf(_n('Uses recounted: %d coupon corrected.', 'Uses recounted: %d coupons corrected.', $updated, 'sc_events'), $updated)
+            : __('Uses recounted: every coupon was already right.', 'sc_events'),
+        'updated'       => $updated,
         'total_coupons' => count($coupons),
-        'total_usage' => $total_usage,
-        'stats' => array('total_usage' => $total_usage)
+        'total_usage'   => array_sum($usage),
     ));
 }
 
 /**
- * Import Coupons from CSV
+ * Discount settings shared by save, generate and import.
+ * "free" is stored as 100% — registration treats any non-percentage type as a fixed amount.
+ */
+function sc_coupon_read_discount($type, $value) {
+    $type = sanitize_key($type);
+    if ($type === 'free') {
+        return array('percentage', 100.0);
+    }
+    $type = $type === 'fixed' ? 'fixed' : 'percentage';
+    $value = max(0, (float) $value);
+    return array($type, $type === 'percentage' ? min(100, $value) : $value);
+}
+
+/**
+ * Is a code already taken (active or inactive)?
+ */
+function sc_coupon_code_taken($code, $exclude_id = 0) {
+    global $wpdb;
+    return (bool) $wpdb->get_var($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_status IN ('publish', 'draft') AND post_title = %s AND ID <> %d LIMIT 1",
+        $code,
+        (int) $exclude_id
+    ));
+}
+
+/**
+ * Import Coupons from CSV — columns: code, discount_type, discount_value, usage_limit, expiry_date
  */
 add_action('wp_ajax_import_coupons', 'sc_import_coupons');
 function sc_import_coupons() {
-    // Increase limits for large imports
     @set_time_limit(300);
-    @ini_set('memory_limit', '512M');
-
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    $csv_data = isset($_POST['csv_data']) ? sanitize_textarea_field($_POST['csv_data']) : '';
-    $target_event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $target_category_id = isset($_POST['category_id']) ? intval($_POST['category_id']) : 1;
-    if ($target_category_id <= 0) { $target_category_id = 1; }
-
-    if (empty($csv_data)) {
-        wp_send_json_error(array('message' => __('No CSV data provided.', 'sc_events')));
-    }
-
-    $lines = explode("\n", $csv_data);
-    $imported = 0;
-    $failed = 0;
-    $skipped_header = false;
-
-    // Pre-load ALL existing coupon codes in one query (avoids N+1)
+    sc_coupons_verify_request();
     global $wpdb;
-    $existing_codes = $wpdb->get_col("SELECT UPPER(post_title) FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_status IN ('publish','draft')");
-    $existing_codes_map = array_flip($existing_codes);
 
-    // Expected CSV format: code,discount_type,discount_value,usage_limit,expiry_date
-    $header_patterns = array('code', 'coupon', 'discount_type', 'type');
+    $csv_data = isset($_POST['csv_data']) ? sanitize_textarea_field(wp_unslash($_POST['csv_data'])) : '';
+    $event_id = absint($_POST['event_id'] ?? 0);
+    $category_id = absint($_POST['category_id'] ?? 0) ?: SC_Coupon_Category::DEFAULT_ID;
+    if ($csv_data === '') {
+        wp_send_json_error(array('message' => __('Choose a CSV file first.', 'sc_events'), 'errors' => array('csv_file' => __('Choose a CSV file first.', 'sc_events'))));
+    }
 
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if (empty($line)) continue;
+    $taken = array_flip($wpdb->get_col("SELECT UPPER(post_title) FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_status IN ('publish', 'draft')"));
+    $imported = 0;
+    $duplicates = 0;
+    $invalid = 0;
+    wp_defer_term_counting(true);
 
-        $parts = str_getcsv($line);
-        if (count($parts) < 1) continue;
-
-        $code = sanitize_text_field($parts[0]);
-        if (empty($code)) continue;
-
-        // Skip header row if detected
-        if (!$skipped_header) {
-            $first_col_lower = strtolower($code);
-            foreach ($header_patterns as $pattern) {
-                if (strpos($first_col_lower, $pattern) !== false) {
-                    $skipped_header = true;
-                    continue 2;
-                }
-            }
-        }
-
-        // Check if coupon already exists (from pre-loaded map)
-        if (isset($existing_codes_map[strtoupper($code)])) {
-            $failed++;
+    foreach (preg_split('/\r\n|\r|\n/', $csv_data) as $i => $line) {
+        $parts = str_getcsv(trim($line));
+        $code = strtoupper(preg_replace('/\s+/', '', (string) ($parts[0] ?? '')));
+        if ($code === '') {
             continue;
         }
-        // Add to map to catch duplicates within the CSV itself
-        $existing_codes_map[strtoupper($code)] = true;
-
-        $coupon_id = wp_insert_post(array(
-            'post_title' => strtoupper($code),
-            'post_type' => 'sc_coupon',
-            'post_status' => 'publish',
-            'post_author' => get_current_user_id()
-        ));
-
-        if ($coupon_id) {
-            // Get values from CSV (columns: code, discount_type, discount_value, usage_limit, expiry_date)
-            $discount_type = isset($parts[1]) ? sanitize_text_field($parts[1]) : 'percentage';
-            $discount_value = isset($parts[2]) ? floatval($parts[2]) : 0;
-            $usage_limit = isset($parts[3]) ? intval($parts[3]) : 0;
-            $expiry_date = isset($parts[4]) ? sanitize_text_field($parts[4]) : '';
-
-            // Validate discount type
-            if (!in_array($discount_type, array('percentage', 'fixed', 'free'))) {
-                $discount_type = 'percentage';
-            }
-
-            update_post_meta($coupon_id, 'discount_type', $discount_type);
-            update_post_meta($coupon_id, 'discount_value', $discount_value);
-            update_post_meta($coupon_id, 'event_id', $target_event_id); // Use event_id from form
-            update_post_meta($coupon_id, 'category_id', $target_category_id);
-            update_post_meta($coupon_id, 'usage_limit', $usage_limit);
-            update_post_meta($coupon_id, 'usage_count', 0);
-            // Empty or invalid expiry = lifetime (no expiry)
-            if (!empty($expiry_date) && strtotime($expiry_date) > 0) {
-                update_post_meta($coupon_id, 'expiry_date', $expiry_date);
-            }
-            update_post_meta($coupon_id, 'is_active', 1);
-
-            $imported++;
-        } else {
-            $failed++;
+        if ($i === 0 && preg_match('/code|coupon/i', $code)) {
+            continue; // header row
         }
-    }
+        if (!preg_match('/^[A-Z0-9_-]{3,50}$/', $code)) {
+            $invalid++;
+            continue;
+        }
+        if (isset($taken[$code])) {
+            $duplicates++;
+            continue;
+        }
+        $taken[$code] = true;
 
-    $message = sprintf(__('%d coupons imported successfully.', 'sc_events'), $imported);
-    if ($failed > 0) {
-        $message .= ' ' . sprintf(__('%d failed (duplicates or errors).', 'sc_events'), $failed);
+        $coupon_id = wp_insert_post(array('post_title' => $code, 'post_type' => 'sc_coupon', 'post_status' => 'publish', 'post_author' => get_current_user_id()));
+        if (!$coupon_id || is_wp_error($coupon_id)) {
+            $invalid++;
+            continue;
+        }
+        list($type, $value) = sc_coupon_read_discount($parts[1] ?? 'free', $parts[2] ?? 100);
+        $expiry = sanitize_text_field($parts[4] ?? '');
+        update_post_meta($coupon_id, 'discount_type', $type);
+        update_post_meta($coupon_id, 'discount_value', $value);
+        update_post_meta($coupon_id, 'event_id', $event_id);
+        update_post_meta($coupon_id, 'category_id', $category_id);
+        update_post_meta($coupon_id, 'usage_limit', isset($parts[3]) && $parts[3] !== '' ? absint($parts[3]) : 1);
+        update_post_meta($coupon_id, 'usage_count', 0);
+        update_post_meta($coupon_id, 'ticket_type_filter', 'all');
+        update_post_meta($coupon_id, 'is_active', 1);
+        if ($expiry !== '' && strtotime($expiry)) {
+            update_post_meta($coupon_id, 'expiry_date', gmdate('Y-m-d', strtotime($expiry)));
+        }
+        $imported++;
     }
+    wp_defer_term_counting(false);
+    sc_coupons_bump_cache();
 
-    wp_send_json_success(array(
-        'message' => $message,
-        'imported' => $imported,
-        'failed' => $failed
-    ));
+    $message = sprintf(_n('%d coupon imported.', '%d coupons imported.', $imported, 'sc_events'), $imported);
+    if ($duplicates) {
+        $message .= ' ' . sprintf(_n('%d skipped because the code already exists.', '%d skipped because the codes already exist.', $duplicates, 'sc_events'), $duplicates);
+    }
+    if ($invalid) {
+        $message .= ' ' . sprintf(_n('%d line had an invalid code.', '%d lines had invalid codes.', $invalid, 'sc_events'), $invalid);
+    }
+    wp_send_json_success(array('message' => $message, 'imported' => $imported, 'failed' => $duplicates + $invalid));
 }
 
 /**
- * Save Single Coupon (Create/Update)
+ * Save Single Coupon (create / update).
+ *
+ * Writes only the settings registration enforces (code, active, discount, event,
+ * ticket type, usage limit, expiry) plus category and note. Older keys such as
+ * per_user_limit or min_purchase are never checked anywhere and are left as they are.
  */
 add_action('wp_ajax_sc_save_coupon', 'sc_save_coupon_handler');
 function sc_save_coupon_handler() {
-    // Verify nonce - support both nonce field names
-    $nonce_valid = false;
-    if (isset($_POST['sc_coupon_nonce']) && wp_verify_nonce($_POST['sc_coupon_nonce'], 'sc_coupon_action')) {
-        $nonce_valid = true;
-    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        $nonce_valid = true;
+    sc_coupons_verify_request();
+    global $wpdb;
+
+    $in = function ($key, $default = '') {
+        return isset($_POST[$key]) ? wp_unslash($_POST[$key]) : $default;
+    };
+    $coupon_id = absint($in('coupon_id', 0));
+    $existing = $coupon_id ? get_post($coupon_id) : null;
+    if ($coupon_id && (!$existing || $existing->post_type !== 'sc_coupon')) {
+        wp_send_json_error(array('message' => __('Coupon not found.', 'sc_events')));
     }
 
-    if (!$nonce_valid) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
+    $code = strtoupper(preg_replace('/\s+/', '', sanitize_text_field($in('code'))));
+    list($type, $value) = sc_coupon_read_discount($in('discount_type', 'percentage'), $in('discount_value', 0));
+    $event_id = absint($in('event_id', 0));
+    $category_id = absint($in('category_id', 0)) ?: SC_Coupon_Category::DEFAULT_ID;
+    $ticket_filter = in_array($in('ticket_type_filter'), array('general', 'competitor'), true) ? $in('ticket_type_filter') : 'all';
+    $usage_limit = absint($in('usage_limit', 0));
+    $expiry = sanitize_text_field($in('expiry_date'));
+    $is_active = !empty($in('is_active', '1'));
+    $uses = $existing ? (int) get_post_meta($coupon_id, 'usage_count', true) : 0;
+
+    $errors = array();
+    if ($code === '') {
+        $errors['code'] = __('Enter a code.', 'sc_events');
+    } elseif (!preg_match('/^[A-Z0-9_-]{3,50}$/', $code)) {
+        $errors['code'] = __('Use 3–50 letters, numbers, dashes or underscores.', 'sc_events');
+    } elseif (sc_coupon_code_taken($code, $coupon_id)) {
+        $errors['code'] = __('Another coupon already uses this code.', 'sc_events');
+    } elseif ($existing && $uses > 0 && $code !== $existing->post_title) {
+        $errors['code'] = __('This code has already been used, so it can’t be renamed — registrations keep the old code.', 'sc_events');
+    }
+    if (sanitize_key($in('discount_type')) !== 'free' && $value <= 0) {
+        $errors['discount_value'] = __('Enter the discount.', 'sc_events');
+    }
+    if ($expiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiry)) {
+        $errors['expiry_date'] = __('Enter a valid date.', 'sc_events');
+    }
+    if ($event_id && !$wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}sc_events WHERE id = %d", $event_id))) {
+        $errors['event_id'] = __('That event no longer exists.', 'sc_events');
+    }
+    if ($errors) {
+        wp_send_json_error(array('message' => reset($errors), 'errors' => $errors));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    // Get form data
-    $coupon_id = isset($_POST['coupon_id']) ? intval($_POST['coupon_id']) : 0;
-    $code = isset($_POST['code']) ? strtoupper(sanitize_text_field($_POST['code'])) : '';
-    $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
-    $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
-    $discount_type = isset($_POST['discount_type']) ? sanitize_text_field($_POST['discount_type']) : 'percentage';
-    $discount_value = isset($_POST['discount_value']) ? floatval($_POST['discount_value']) : 0;
-    $usage_limit = isset($_POST['usage_limit']) ? intval($_POST['usage_limit']) : 0;
-    $per_user_limit = isset($_POST['per_user_limit']) ? intval($_POST['per_user_limit']) : 0;
-    $min_purchase = isset($_POST['min_purchase']) ? floatval($_POST['min_purchase']) : 0;
-    $max_discount = isset($_POST['max_discount']) ? floatval($_POST['max_discount']) : 0;
-    $expiry_date = isset($_POST['expiry_date']) ? sanitize_text_field($_POST['expiry_date']) : '';
-    $start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '';
-    $end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '';
-    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $category_id = isset($_POST['category_id']) ? intval($_POST['category_id']) : 1;
-    if ($category_id <= 0) { $category_id = 1; }
-    $is_active = isset($_POST['is_active']) ? intval($_POST['is_active']) : 1;
-
-    // Validate
-    if (empty($code)) {
-        wp_send_json_error(array('message' => __('Coupon code is required.', 'sc_events')));
-    }
-
-    // Check for duplicate code
-    $existing = new WP_Query(array(
-        'post_type' => 'sc_coupon',
-        'title' => $code,
-        'posts_per_page' => 1,
-        'post__not_in' => $coupon_id ? array($coupon_id) : array()
-    ));
-
-    if ($existing->have_posts()) {
-        wp_send_json_error(array('message' => __('Coupon code already exists.', 'sc_events')));
-    }
-
-    // Create or Update
-    $post_data = array(
-        'post_title' => $code,
-        'post_content' => $description,
-        'post_type' => 'sc_coupon',
-        'post_status' => $is_active ? 'publish' : 'draft',
+    $post = array(
+        'post_title'   => $code,
+        'post_content' => sanitize_textarea_field($in('note')),
+        'post_type'    => 'sc_coupon',
+        'post_status'  => $is_active ? 'publish' : 'draft',
     );
-
-    if ($coupon_id) {
-        $post_data['ID'] = $coupon_id;
-        $result = wp_update_post($post_data);
+    if ($existing) {
+        $post['ID'] = $coupon_id;
+        $result = wp_update_post($post, true);
     } else {
-        $post_data['post_author'] = get_current_user_id();
-        $result = wp_insert_post($post_data);
-        $coupon_id = $result;
+        $post['post_author'] = get_current_user_id();
+        $result = wp_insert_post($post, true);
+        $coupon_id = is_wp_error($result) ? 0 : (int) $result;
     }
-
     if (is_wp_error($result) || !$result) {
         wp_send_json_error(array('message' => __('Failed to save coupon.', 'sc_events')));
     }
 
-    // Save meta
-    update_post_meta($coupon_id, 'coupon_name', $name);
-    update_post_meta($coupon_id, 'discount_type', $discount_type);
-    update_post_meta($coupon_id, 'discount_value', $discount_value);
-    update_post_meta($coupon_id, 'usage_limit', $usage_limit);
-    update_post_meta($coupon_id, 'per_user_limit', $per_user_limit);
-    update_post_meta($coupon_id, 'min_purchase', $min_purchase);
-    update_post_meta($coupon_id, 'max_discount', $max_discount);
-    update_post_meta($coupon_id, 'expiry_date', $expiry_date);
-    update_post_meta($coupon_id, 'start_date', $start_date);
-    update_post_meta($coupon_id, 'end_date', $end_date);
+    update_post_meta($coupon_id, 'discount_type', $type);
+    update_post_meta($coupon_id, 'discount_value', $value);
     update_post_meta($coupon_id, 'event_id', $event_id);
     update_post_meta($coupon_id, 'category_id', $category_id);
-    update_post_meta($coupon_id, 'is_active', $is_active);
-
-    // Sync to custom table if it has a row for this coupon
-    global $wpdb;
-    $coupons_table = $wpdb->prefix . 'sc_coupons';
-    $wpdb->update($coupons_table, array('category_id' => $category_id), array('wp_post_id' => $coupon_id), array('%d'), array('%d'));
-
-    // Ticket type filter
-    $ticket_type_filter = isset($_POST['ticket_type_filter']) && in_array($_POST['ticket_type_filter'], array('all', 'general', 'competitor'))
-        ? $_POST['ticket_type_filter'] : 'all';
-    update_post_meta($coupon_id, 'ticket_type_filter', $ticket_type_filter);
+    update_post_meta($coupon_id, 'ticket_type_filter', $ticket_filter);
+    update_post_meta($coupon_id, 'usage_limit', $usage_limit);
+    update_post_meta($coupon_id, 'is_active', $is_active ? 1 : 0);
+    if (!$existing) {
+        update_post_meta($coupon_id, 'usage_count', 0);
+    }
+    if ($expiry !== '') {
+        update_post_meta($coupon_id, 'expiry_date', $expiry);
+    } else {
+        delete_post_meta($coupon_id, 'expiry_date');
+    }
+    sc_coupons_bump_cache();
 
     wp_send_json_success(array(
-        'message' => __('Coupon saved successfully!', 'sc_events'),
+        'message'   => $existing ? __('Coupon saved.', 'sc_events') : __('Coupon created.', 'sc_events'),
         'coupon_id' => $coupon_id,
-        'redirect' => home_url('/event-manager-dashboard/coupons/')
+        'code'      => $code,
+        'redirect'  => $existing ? '' : home_url('/event-manager-dashboard/coupon-edit?id=' . $coupon_id . '&created=1'),
     ));
 }
 
 /**
- * Bulk Create Coupons
+ * Generate a batch of random codes with the same settings.
  */
 add_action('wp_ajax_sc_bulk_create_coupons', 'sc_bulk_create_coupons_handler');
 function sc_bulk_create_coupons_handler() {
-    // Verify nonce - support all nonce field names used in forms
-    $nonce_valid = false;
-    if (isset($_POST['sc_coupon_nonce']) && wp_verify_nonce($_POST['sc_coupon_nonce'], 'sc_coupon_action')) {
-        $nonce_valid = true;
-    } elseif (isset($_POST['sc_bulk_nonce']) && wp_verify_nonce($_POST['sc_bulk_nonce'], 'sc_coupon_action')) {
-        $nonce_valid = true;
-    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        $nonce_valid = true;
-    }
+    @set_time_limit(600);
+    sc_coupons_verify_request();
+    global $wpdb;
 
-    if (!$nonce_valid) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
+    $in = function ($key, $default = '') {
+        return isset($_POST[$key]) ? wp_unslash($_POST[$key]) : $default;
+    };
+    $count = absint($in('count', 0));
+    $prefix = strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', (string) $in('prefix')));
+    $length = absint($in('code_length', 8));
+    list($type, $value) = sc_coupon_read_discount($in('discount_type', 'free'), $in('discount_value', 100));
+    $event_id = absint($in('event_id', 0));
+    $category_id = absint($in('category_id', 0)) ?: SC_Coupon_Category::DEFAULT_ID;
+    $ticket_filter = in_array($in('ticket_type_filter'), array('general', 'competitor'), true) ? $in('ticket_type_filter') : 'all';
+    $usage_limit = absint($in('usage_limit', 1));
+    $expiry = sanitize_text_field($in('expiry_date'));
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    // Get form data
-    $count = isset($_POST['count']) ? intval($_POST['count']) : 1;
-    $prefix = isset($_POST['prefix']) ? strtoupper(sanitize_text_field($_POST['prefix'])) : '';
-    $code_length = isset($_POST['code_length']) ? intval($_POST['code_length']) : 8;
-    $discount_type = isset($_POST['discount_type']) ? sanitize_text_field($_POST['discount_type']) : 'percentage';
-    $discount_value = isset($_POST['discount_value']) ? floatval($_POST['discount_value']) : 0;
-    $usage_limit = isset($_POST['usage_limit']) ? intval($_POST['usage_limit']) : 0;
-    $expiry_date = isset($_POST['expiry_date']) ? sanitize_text_field($_POST['expiry_date']) : '';
-    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $category_id = isset($_POST['category_id']) ? intval($_POST['category_id']) : 1;
-    if ($category_id <= 0) { $category_id = 1; }
-
-    // Validate
+    $errors = array();
     if ($count < 1 || $count > 10000) {
-        wp_send_json_error(array('message' => __('Count must be between 1 and 10000.', 'sc_events')));
+        $errors['count'] = __('Generate between 1 and 10,000 codes at a time.', 'sc_events');
+    }
+    if (strlen($prefix) > 20) {
+        $errors['prefix'] = __('Keep the prefix to 20 characters.', 'sc_events');
+    }
+    if ($length < 4 || $length > 20) {
+        $errors['code_length'] = __('Random part: 4–20 characters.', 'sc_events');
+    }
+    if (sanitize_key($in('discount_type')) !== 'free' && $value <= 0) {
+        $errors['discount_value'] = __('Enter the discount.', 'sc_events');
+    }
+    if ($expiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiry)) {
+        $errors['expiry_date'] = __('Enter a valid date.', 'sc_events');
+    }
+    if ($errors) {
+        wp_send_json_error(array('message' => reset($errors), 'errors' => $errors));
     }
 
-    $created = 0;
-    $coupons = array();
+    // Letters and digits that can't be confused when read aloud or typed from paper.
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    $taken = array_flip($wpdb->get_col($wpdb->prepare(
+        "SELECT post_title FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_title LIKE %s",
+        $wpdb->esc_like($prefix) . '%'
+    )));
 
-    for ($i = 0; $i < $count; $i++) {
-        // Generate random code
-        $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, $code_length));
-        $code = $prefix . $random;
-
-        // Create coupon
-        $coupon_id = wp_insert_post(array(
-            'post_title' => $code,
-            'post_type' => 'sc_coupon',
-            'post_status' => 'publish',
-            'post_author' => get_current_user_id()
-        ));
-
-        if ($coupon_id && !is_wp_error($coupon_id)) {
-            update_post_meta($coupon_id, 'discount_type', $discount_type);
-            update_post_meta($coupon_id, 'discount_value', $discount_value);
-            update_post_meta($coupon_id, 'usage_limit', $usage_limit);
-            update_post_meta($coupon_id, 'usage_count', 0);
-            update_post_meta($coupon_id, 'expiry_date', $expiry_date);
-            update_post_meta($coupon_id, 'event_id', $event_id);
-            update_post_meta($coupon_id, 'category_id', $category_id);
-            update_post_meta($coupon_id, 'is_active', 1);
-
-            $created++;
-            // Return full coupon data for CSV download
-            $coupons[] = array(
-                'code' => $code,
-                'discount_type' => $discount_type,
-                'discount_value' => $discount_value,
-                'usage_limit' => $usage_limit,
-                'expiry_date' => $expiry_date
-            );
+    wp_defer_term_counting(true);
+    wp_suspend_cache_addition(true);
+    $codes = array();
+    $attempts = 0;
+    while (count($codes) < $count && $attempts < $count * 20) {
+        $attempts++;
+        $code = $prefix;
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         }
-    }
+        if (isset($taken[$code])) {
+            continue;
+        }
+        $taken[$code] = true;
 
-    if ($created > 0) {
-        wp_send_json_success(array(
-            'message' => sprintf(__('%d coupons created successfully!', 'sc_events'), $created),
-            'created' => $created,
-            'coupons' => $coupons
-        ));
+        $coupon_id = wp_insert_post(array('post_title' => $code, 'post_type' => 'sc_coupon', 'post_status' => 'publish', 'post_author' => get_current_user_id()));
+        if (!$coupon_id || is_wp_error($coupon_id)) {
+            continue;
+        }
+        update_post_meta($coupon_id, 'discount_type', $type);
+        update_post_meta($coupon_id, 'discount_value', $value);
+        update_post_meta($coupon_id, 'usage_limit', $usage_limit);
+        update_post_meta($coupon_id, 'usage_count', 0);
+        update_post_meta($coupon_id, 'event_id', $event_id);
+        update_post_meta($coupon_id, 'category_id', $category_id);
+        update_post_meta($coupon_id, 'ticket_type_filter', $ticket_filter);
+        update_post_meta($coupon_id, 'is_active', 1);
+        if ($expiry !== '') {
+            update_post_meta($coupon_id, 'expiry_date', $expiry);
+        }
+        $codes[] = $code;
     }
+    wp_suspend_cache_addition(false);
+    wp_defer_term_counting(false);
+    sc_coupons_bump_cache();
 
-    wp_send_json_error(array('message' => __('Failed to create coupons.', 'sc_events')));
+    if (!$codes) {
+        wp_send_json_error(array('message' => __('No codes could be created. Try a longer random part.', 'sc_events')));
+    }
+    wp_send_json_success(array(
+        'message' => sprintf(_n('%d code generated.', '%d codes generated.', count($codes), 'sc_events'), count($codes)),
+        'created' => count($codes),
+        'codes'   => $codes,
+    ));
 }
 
 /**
- * Create Coupons (Alternative handler)
+ * Create Coupons (older alternative entry point) — same as generating codes.
  */
 add_action('wp_ajax_sc_create_coupons', 'sc_create_coupons_handler');
 function sc_create_coupons_handler() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    $count = isset($_POST['count']) ? intval($_POST['count']) : 1;
-    $prefix = isset($_POST['prefix']) ? strtoupper(sanitize_text_field($_POST['prefix'])) : '';
-    $discount_type = isset($_POST['discount_type']) ? sanitize_text_field($_POST['discount_type']) : 'percentage';
-    $discount_value = isset($_POST['discount_value']) ? floatval($_POST['discount_value']) : 0;
-    $usage_limit = isset($_POST['usage_limit']) ? intval($_POST['usage_limit']) : 0;
-    $expiry_date = isset($_POST['expiry_date']) ? sanitize_text_field($_POST['expiry_date']) : '';
-    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-
-    if ($count < 1 || $count > 10000) {
-        wp_send_json_error(array('message' => __('Count must be between 1 and 10000.', 'sc_events')));
-    }
-
-    $created = 0;
-    $codes = array();
-
-    for ($i = 0; $i < $count; $i++) {
-        $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
-        $code = $prefix . $random;
-
-        $coupon_id = wp_insert_post(array(
-            'post_title' => $code,
-            'post_type' => 'sc_coupon',
-            'post_status' => 'publish',
-            'post_author' => get_current_user_id()
-        ));
-
-        if ($coupon_id && !is_wp_error($coupon_id)) {
-            update_post_meta($coupon_id, 'discount_type', $discount_type);
-            update_post_meta($coupon_id, 'discount_value', $discount_value);
-            update_post_meta($coupon_id, 'usage_limit', $usage_limit);
-            update_post_meta($coupon_id, 'usage_count', 0);
-            update_post_meta($coupon_id, 'expiry_date', $expiry_date);
-            update_post_meta($coupon_id, 'event_id', $event_id);
-
-            $created++;
-            $codes[] = $code;
-        }
-    }
-
-    if ($created > 0) {
-        wp_send_json_success(array(
-            'message' => sprintf(__('%d coupons created successfully!', 'sc_events'), $created),
-            'created' => $created,
-            'codes' => $codes
-        ));
-    }
-
-    wp_send_json_error(array('message' => __('Failed to create coupons.', 'sc_events')));
+    sc_bulk_create_coupons_handler();
 }

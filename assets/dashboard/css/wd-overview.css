@@ -373,3 +373,15 @@
 .w-hall__body { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; font-size: 14px; }
 .w-hall-photo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .w-hall-photo img { width: 120px; height: 68px; border-radius: var(--w-radius-md); object-fit: cover; }
+
+/* Coupon categories */
+.w-catgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.w-catgrid > .w-state { grid-column: 1 / -1; }
+.w-dash .w-cat { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 14px 20px; overflow: hidden; border: 1px solid var(--w-border); border-radius: var(--w-radius-lg); background: var(--w-surface); }
+.w-cat__bar { position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; }
+.w-cat__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.w-dash .w-cat__name { margin: 0; font-size: 16px; font-weight: 600; }
+.w-cat__body .w-sub { margin: 0; }
+.w-cat__stats { margin: 4px 0 0; font-size: 13px; color: var(--w-text-2); }
+.w-cat__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.w-dash .w-color { height: 38px; padding: 4px; cursor: pointer; }
