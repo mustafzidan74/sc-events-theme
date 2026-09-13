@@ -205,10 +205,13 @@ function sc_create_or_update_event() {
         $venue = sanitize_text_field($_POST['address']);
     }
     $capacity = isset($_POST['capacity']) ? intval($_POST['capacity']) : 0;
-    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'draft';
+    $status = isset($_POST['status']) ? sanitize_key(wp_unslash($_POST['status'])) : 'draft';
+    if (!in_array($status, array('draft', 'publish', 'private', 'cancelled', 'completed', 'disabled'), true)) {
+        $status = 'draft';
+    }
 
     // New fields
-    $all_day_event = isset($_POST['all_day_event']) ? 1 : 0;
+    $all_day_event = !empty($_POST['all_day_event']) ? 1 : 0;
     $default_timezone = get_option('timezone_string', 'UTC') ?: 'UTC';
     $timezone = isset($_POST['timezone']) ? sanitize_text_field($_POST['timezone']) : $default_timezone;
 
@@ -350,7 +353,7 @@ function sc_create_or_update_event() {
     }
 
     // Get certificate settings
-    $enable_certificates = isset($_POST['enable_certificates']) ? 1 : 0;
+    $enable_certificates = !empty($_POST['enable_certificates']) ? 1 : 0;
     $certificate_template_id = isset($_POST['certificate_template_id']) ? intval($_POST['certificate_template_id']) : 0;
 
     // Certificate issuance method: 'auto' or 'manual'
@@ -358,9 +361,9 @@ function sc_create_or_update_event() {
     $auto_issue_certificate = ($certificate_issue_method === 'auto') ? 1 : 0;
 
     // Certificate requirements
-    $certificate_require_checkin = isset($_POST['certificate_require_checkin']) ? 1 : 0;
-    $certificate_require_checkout = isset($_POST['certificate_require_checkout']) ? 1 : 0;
-    $certificate_require_event_ended = isset($_POST['certificate_require_event_ended']) ? 1 : 0;
+    $certificate_require_checkin = !empty($_POST['certificate_require_checkin']) ? 1 : 0;
+    $certificate_require_checkout = !empty($_POST['certificate_require_checkout']) ? 1 : 0;
+    $certificate_require_event_ended = !empty($_POST['certificate_require_event_ended']) ? 1 : 0;
 
     // Prepare JSON data - using wp_unslash for security
     $faq = array();
@@ -445,8 +448,16 @@ function sc_create_or_update_event() {
     }
     if (!empty($social_links_json)) {
         $decoded = json_decode($social_links_json, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            $social_links = $decoded;
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            foreach ($decoded as $link) {
+                $url = is_array($link) && isset($link['url']) ? esc_url_raw(trim($link['url'])) : '';
+                if ($url !== '') {
+                    $social_links[] = array(
+                        'icon' => sanitize_text_field($link['icon'] ?? ''),
+                        'url'  => $url,
+                    );
+                }
+            }
         }
     }
 
@@ -512,6 +523,52 @@ function sc_create_or_update_event() {
         'extra_fields'           => $extra_fields,
         'author_id'              => get_current_user_id(),
     );
+
+    // On update, leave alone every column this request does not carry. The edit form
+    // has no controls for several of them, and filling them with defaults wiped values
+    // set elsewhere (API, imports): timezone, capacity, deadline, order limits, city.
+    if ($event_id > 0) {
+        $only_if_posted = array(
+            'timezone'              => 'timezone',
+            'total_capacity'        => 'capacity',
+            'registration_deadline' => 'registration_deadline',
+            'min_tickets_per_order' => 'min_ticket',
+            'max_tickets_per_order' => 'max_ticket',
+            'venue_city'            => 'city',
+            'venue_country'         => 'country',
+            'all_day_event'         => 'all_day_event',
+            'google_maps_url'       => 'google_maps_url',
+            'meeting_link'          => 'meeting_link',
+            'calendar_bg_color'     => array('calendar_bg_color', 'brand_primary_color'),
+            'calendar_text_color'   => array('calendar_text_color', 'brand_secondary_color'),
+            'faq'                   => 'faq_data',
+            'extra_fields'          => 'extra_fields_data',
+            'additional_sections'   => 'additional_sections_data',
+            'social_links'          => array('social_links', 'social_links_data'),
+            'certificate_template_id' => 'certificate_template_id',
+        );
+        foreach ($only_if_posted as $column => $keys) {
+            $posted = false;
+            foreach ((array) $keys as $key) {
+                $posted = $posted || isset($_POST[$key]);
+            }
+            if (!$posted) {
+                unset($event_data[$column]);
+            }
+        }
+        // Certificate settings render only while the module is on.
+        if (!isset($_POST['certificate_issue_method'])) {
+            unset(
+                $event_data['enable_certificates'],
+                $event_data['auto_issue_certificate'],
+                $event_data['certificate_require_checkin'],
+                $event_data['certificate_require_checkout'],
+                $event_data['certificate_require_event_ended']
+            );
+        }
+        // Schedules live in sc_schedules; the author stays whoever created the event.
+        unset($event_data['schedule'], $event_data['author_id']);
+    }
 
     // Add image IDs if uploaded
     if ($featured_image_id > 0) {
@@ -682,7 +739,7 @@ function sc_create_or_update_event() {
         if (class_exists('SC_Speaker')) {
             SC_Speaker::sync_event_speakers($event_id, $speakers);
         }
-    } elseif (!isset($_POST['speakers'])) {
+    } elseif (!isset($_POST['speakers']) && (!function_exists('sc_is_module_enabled') || sc_is_module_enabled('speakers'))) {
         // No speakers field means clear all speakers
         if (class_exists('SC_Speaker')) {
             SC_Speaker::sync_event_speakers($event_id, array());

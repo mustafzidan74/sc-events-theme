@@ -532,6 +532,17 @@ $currency = sc_get_currency_symbol();
                                 <select class="form-control" id="event-status" name="status">
                                     <option value="publish" <?php selected($event->status, 'publish'); ?>><?php echo $t['publish']; ?></option>
                                     <option value="draft" <?php selected($event->status, 'draft'); ?>><?php echo $t['draft']; ?></option>
+                                    <?php
+                                    // Offer the stored status too; otherwise saving a completed or disabled event republished it.
+                                    $other_statuses = array(
+                                        'completed' => __('Completed', 'sc_events'),
+                                        'disabled'  => __('Disabled', 'sc_events'),
+                                        'cancelled' => __('Cancelled', 'sc_events'),
+                                        'private'   => __('Private', 'sc_events'),
+                                    );
+                                    if (isset($other_statuses[$event->status])): ?>
+                                        <option value="<?php echo esc_attr($event->status); ?>" selected><?php echo esc_html($other_statuses[$event->status]); ?></option>
+                                    <?php endif; ?>
                                 </select>
                             </div>
 
