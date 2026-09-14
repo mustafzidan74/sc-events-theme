@@ -695,3 +695,5 @@
 .w-upper::placeholder { text-transform: none; }
 .w-dash .w-result { border-color: var(--w-success, #1f7a5a); }
 .w-codes { max-height: 260px; margin: 16px 0 0; padding: 12px 14px; overflow: auto; border-radius: var(--w-radius-md); background: var(--w-surface-2); color: var(--w-text); font-size: 13px; line-height: 1.7; white-space: pre; }
+.w-dash .w-media--contain .w-media__preview { background: #fff; }
+.w-dash .w-media--contain .w-media__preview img { object-fit: contain; padding: 10px; }
