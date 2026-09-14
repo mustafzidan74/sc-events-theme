@@ -16,6 +16,23 @@ if (!defined('ABSPATH')) {
 /**
  * Create Content Page (Privacy Policy or Terms & Conditions)
  */
+/**
+ * The dashboard edits the legal pages only — not every page on the site (drafts and private pages included).
+ */
+function sc_is_legal_page($page_id) {
+    $page_id = (int) $page_id;
+    if ($page_id && $page_id === (int) get_option('wp_page_for_privacy_policy')) {
+        return true;
+    }
+    foreach (array('terms-and-conditions', 'terms', 'privacy-policy') as $slug) {
+        $p = get_page_by_path($slug);
+        if ($p && (int) $p->ID === $page_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 add_action('wp_ajax_sc_create_content_page', 'sc_create_content_page_handler');
 function sc_create_content_page_handler() {
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
@@ -118,7 +135,7 @@ function sc_get_page_content_handler() {
 
     $page = get_post($page_id);
 
-    if (!$page || $page->post_type !== 'page') {
+    if (!$page || $page->post_type !== 'page' || !sc_is_legal_page($page_id)) {
         wp_send_json_error(array('message' => __('Page not found.', 'sc_events')));
     }
 
@@ -143,8 +160,8 @@ function sc_update_page_content_handler() {
     }
 
     $page_id = isset($_POST['page_id']) ? intval($_POST['page_id']) : 0;
-    $title = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
-    $content = isset($_POST['content']) ? wp_kses_post($_POST['content']) : '';
+    $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
+    $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';
 
     if (!$page_id) {
         wp_send_json_error(array('message' => __('Invalid page ID.', 'sc_events')));
@@ -152,7 +169,7 @@ function sc_update_page_content_handler() {
 
     $page = get_post($page_id);
 
-    if (!$page || $page->post_type !== 'page') {
+    if (!$page || $page->post_type !== 'page' || !sc_is_legal_page($page_id)) {
         wp_send_json_error(array('message' => __('Page not found.', 'sc_events')));
     }
 

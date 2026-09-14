@@ -13,28 +13,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Update Event Manager Settings (General)
- */
-add_action('wp_ajax_update_event_manager_settings', 'sc_update_event_manager_settings');
-function sc_update_event_manager_settings() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    // Update settings from POST data
-    if (isset($_POST['settings']) && is_array($_POST['settings'])) {
-        foreach ($_POST['settings'] as $key => $value) {
-            update_option('sc_' . sanitize_key($key), sanitize_text_field($value));
-        }
-    }
-
-    wp_send_json_success(array('message' => __('Settings updated successfully!', 'sc_events')));
-}
+// update_event_manager_settings used to write any posted key as an sc_* option
+// (payment gateways, language, colours…) for any event manager. Removed.
 
 /**
  * Update Platform Settings
@@ -90,8 +70,8 @@ function sc_ajax_update_platform_settings() {
         }
     }
 
-    // Site Language
-    if (isset($_POST['site_language'])) {
+    // Site Language (site-wide; administrators only, as localization.php already requires)
+    if (isset($_POST['site_language']) && current_user_can('manage_options')) {
         $lang = sanitize_text_field($_POST['site_language']);
         if (in_array($lang, array('en', 'ar'))) {
             update_option('sc_site_language', $lang);
@@ -166,6 +146,11 @@ function sc_ajax_update_account_settings() {
 
     $current_user = wp_get_current_user();
     if ($email !== $current_user->user_email) {
+        // Changing the sign-in email is as sensitive as changing the password.
+        $check_password = isset($_POST['current_password']) ? (string) $_POST['current_password'] : '';
+        if ($check_password === '' || !wp_check_password($check_password, $current_user->user_pass, $current_user_id)) {
+            wp_send_json_error(array('message' => __('Enter your current password to change your email address.', 'sc_events')));
+        }
         $update_result = wp_update_user(array(
             'ID' => $current_user_id,
             'user_email' => $email
@@ -210,8 +195,8 @@ function sc_update_seo_settings_handler() {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager() && !current_user_can('administrator')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Only site administrators can change the site title and icon.', 'sc_events')), 403);
     }
 
     if (isset($_POST['site_title'])) {
@@ -353,11 +338,12 @@ function sc_toggle_payment_gateway_handler() {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager() && !current_user_can('administrator')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    // Payment credentials decide where money goes: administrators only.
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Only site administrators can change payment settings.', 'sc_events')), 403);
     }
 
-    $gateway = sanitize_text_field($_POST['gateway'] ?? '');
+    $gateway = sanitize_text_field(wp_unslash($_POST['gateway'] ?? ''));
     $enabled = intval($_POST['enabled'] ?? 0);
 
     $valid_gateways = array('paymob', 'stripe', 'myfatoorah', 'kashier');
@@ -386,11 +372,11 @@ function sc_save_gateway_settings_handler() {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager() && !current_user_can('administrator')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Only site administrators can change payment settings.', 'sc_events')), 403);
     }
 
-    $gateway = sanitize_text_field($_POST['gateway_code'] ?? '');
+    $gateway = sanitize_text_field(wp_unslash($_POST['gateway_code'] ?? ''));
 
     $valid_gateways = array('paymob', 'stripe', 'myfatoorah', 'kashier');
     if (!in_array($gateway, $valid_gateways)) {
@@ -411,11 +397,18 @@ function sc_save_gateway_settings_handler() {
         'kashier' => array('merchant_id', 'api_key', 'secret_key'),
     );
 
+    // Secrets are never sent back to the page, so an empty box means "keep what is saved".
+    $secret_fields = array('api_key', 'hmac_secret', 'secret_key', 'webhook_secret');
     if (isset($gateway_fields[$gateway])) {
         foreach ($gateway_fields[$gateway] as $field) {
-            if (isset($_POST[$field])) {
-                $settings[$field] = sanitize_text_field($_POST[$field]);
+            if (!isset($_POST[$field])) {
+                continue;
             }
+            $value = trim(sanitize_text_field(wp_unslash($_POST[$field])));
+            if ($value === '' && in_array($field, $secret_fields, true)) {
+                continue;
+            }
+            $settings[$field] = $value;
         }
     }
 
@@ -435,11 +428,12 @@ function sc_test_gateway_connection_handler() {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    if (!SC_Event_Manager_Dashboard::is_event_manager() && !current_user_can('administrator')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+    // Payment credentials decide where money goes: administrators only.
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Only site administrators can change payment settings.', 'sc_events')), 403);
     }
 
-    $gateway = sanitize_text_field($_POST['gateway'] ?? '');
+    $gateway = sanitize_text_field(wp_unslash($_POST['gateway'] ?? ''));
     $settings = get_option('sc_gateway_' . $gateway, array());
 
     switch ($gateway) {

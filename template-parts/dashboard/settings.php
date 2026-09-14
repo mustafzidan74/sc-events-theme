@@ -552,8 +552,8 @@ $site_tagline = get_option('blogdescription');
                                                             <input type="<?php echo $field['type']; ?>" class="form-control"
                                                                    id="<?php echo $gateway_code; ?>-<?php echo $field_key; ?>"
                                                                    name="<?php echo $field_key; ?>"
-                                                                   value="<?php echo esc_attr(isset($settings[$field_key]) ? $settings[$field_key] : ''); ?>"
-                                                                   <?php echo $field['type'] === 'password' ? 'autocomplete="new-password"' : ''; ?>>
+                                                                   value="<?php echo $field['type'] === 'password' ? '' : esc_attr(isset($settings[$field_key]) ? $settings[$field_key] : ''); ?>"
+                                                                   <?php echo $field['type'] === 'password' ? 'autocomplete="new-password" placeholder="' . esc_attr(!empty($settings[$field_key]) ? __('Saved — leave empty to keep', 'sc_events') : '') . '"' : ''; ?>>
                                                         <?php endif; ?>
                                                     </div>
                                                     <?php endforeach; ?>
