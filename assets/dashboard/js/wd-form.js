@@ -26,6 +26,8 @@
 (function (window, document) {
   'use strict';
 
+  var instances = [];
+
   function create(opts) {
     var form = opts.form;
     var T = Object.assign({
@@ -39,10 +41,19 @@
       leave: 'You have unsaved changes.'
     }, opts.i18n || {});
 
-    var saveButtons = Array.prototype.slice.call(document.querySelectorAll('[data-w-save]'));
-    var dirtyBadge = document.querySelector('[data-w-dirty]');
-    var savedText = document.querySelector('[data-w-saved]');
-    var summary = document.querySelector('[data-w-errors]');
+    // Several forms can share a page (e.g. settings): each one owns the save buttons, badges and
+    // error box inside it. A page with a single form may keep them outside it, as before.
+    instances.push(form);
+    var own = function (sel) { return Array.prototype.slice.call(form.querySelectorAll(sel)); };
+    var loose = function (sel) {
+      return Array.prototype.slice.call(document.querySelectorAll(sel)).filter(function (el) {
+        return !el.closest('form') || el.closest('form') === form;
+      });
+    };
+    var saveButtons = own('[data-w-save]').length ? own('[data-w-save]') : loose('[data-w-save]');
+    var dirtyBadge = form.querySelector('[data-w-dirty]') || loose('[data-w-dirty]')[0] || null;
+    var savedText = form.querySelector('[data-w-saved]') || loose('[data-w-saved]')[0] || null;
+    var summary = form.querySelector('[data-w-errors]') || loose('[data-w-errors]')[0] || null;
     var saving = false;
     var errors = [];
 
@@ -278,6 +289,8 @@
     });
     document.addEventListener('keydown', function (e) {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && !document.querySelector('.modal.show')) {
+        // With more than one form on the page, Ctrl+S saves only the one being edited.
+        if (instances.length > 1 && !form.contains(document.activeElement)) { return; }
         e.preventDefault();
         save();
       }
