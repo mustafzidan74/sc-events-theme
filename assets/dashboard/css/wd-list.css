@@ -910,3 +910,8 @@
 .w-push__app { color: #6b6862; font-size: 11px; }
 .w-push__ptitle { font-size: 14px; overflow-wrap: anywhere; }
 .w-push__pbody { font-size: 13px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+/* Module manager */
+.w-mod__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.w-dash .w-mod:not(.is-on) { background: var(--w-surface-2); }
+.w-mod:not(.is-on) .w-cat__name { color: var(--w-text-2); }
+.w-mod__switch { flex: none; margin-top: 2px; }
