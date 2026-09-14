@@ -689,7 +689,7 @@ function sc_booth_booking_row($r) {
         'total'     => (float) $r->total_amount,
         'paid'      => (float) $r->deposit_paid + (float) $r->balance_paid,
         'due'       => max(0, (float) $r->total_amount - (float) $r->deposit_paid - (float) $r->balance_paid),
-        'due_date'  => $r->balance_due_date,
+        'due_date'  => $r->balance_due_date && $r->balance_due_date !== '0000-00-00' ? $r->balance_due_date : null,
         'currency'  => $currency,
         'checked_in_at' => $r->checked_in ? $r->checked_in_at : null,
         'created'   => $r->booking_date ?: $r->created_at,
