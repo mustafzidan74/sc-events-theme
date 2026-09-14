@@ -1,6 +1,8 @@
 <?php
 /**
- * Support Messages Management Page
+ * Support inbox — contact form messages on the list pattern (sc_support_list / sc_support_bulk
+ * in inc/admin-dashboard/support-ajax-handlers.php). A message opens in a reading dialog with
+ * reply links: email and, when there is a phone number, WhatsApp.
  *
  * @package sc_events
  */
@@ -9,480 +11,268 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-// Translations
-$page_title = sc_t('dashboard_pages.support_messages', 'Support Messages');
-$t = array(
-    'support_messages' => sc_t('dashboard_pages.support_messages', 'Support Messages'),
-    'support' => sc_t('dashboard_pages.support', 'Support'),
-    'status' => sc_t('dashboard_pages.status', 'Status'),
-    'all_status' => sc_t('dashboard_pages.all_status', 'All Status'),
-    'new' => sc_t('dashboard_pages.new', 'New'),
-    'contacted' => sc_t('dashboard_pages.contacted', 'Contacted'),
-    'resolved' => sc_t('dashboard_pages.resolved', 'Resolved'),
-    'search' => sc_t('dashboard_pages.search', 'Search'),
-    'search_placeholder' => sc_t('dashboard_pages.name_email_subject', 'Name, Email, Subject...'),
-    'reset' => sc_t('dashboard_pages.reset', 'Reset'),
-    'name' => sc_t('dashboard_pages.name', 'Name'),
-    'email' => sc_t('dashboard_pages.email', 'Email'),
-    'phone' => sc_t('dashboard_pages.phone', 'Phone'),
-    'subject' => sc_t('dashboard_pages.subject', 'Subject'),
-    'date' => sc_t('dashboard_pages.date', 'Date'),
-    'actions' => sc_t('dashboard_pages.actions', 'Actions'),
-    'loading' => sc_t('dashboard_pages.loading', 'Loading...'),
-    'message_details' => sc_t('dashboard_pages.message_details', 'Message Details'),
-    'message' => sc_t('dashboard_pages.message', 'Message'),
-    'update_status' => sc_t('dashboard_pages.update_status', 'Update Status'),
-    'delete' => sc_t('dashboard_pages.delete', 'Delete'),
-    'close' => sc_t('dashboard_pages.close', 'Close'),
-    'view' => sc_t('dashboard_pages.view', 'View'),
-    'mark_as_contacted' => sc_t('dashboard_pages.mark_as_contacted', 'Mark as Contacted'),
-    'no_messages_found' => sc_t('dashboard_pages.no_messages_found', 'No messages found.'),
-    'status_updated' => sc_t('dashboard_pages.status_updated', 'Status updated successfully'),
-    'marked_as_contacted' => sc_t('dashboard_pages.marked_as_contacted', 'Marked as contacted'),
-    'confirm_delete_message' => sc_t('dashboard_pages.confirm_delete_message', 'Are you sure you want to delete this message?'),
-    'message_deleted' => sc_t('dashboard_pages.message_deleted', 'Message deleted'),
-);
+global $load_wd_list, $load_wd_form;
+$load_wd_list = true;
+$load_wd_form = true;
+
+$dashboard_url = home_url('/event-manager-dashboard/');
+$platform_name = get_option('sc_platform_name', get_bloginfo('name'));
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="block-header">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <h2><?php echo $t['support_messages']; ?></h2>
-                <ul class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                    <li class="breadcrumb-item active"><?php echo $t['support']; ?></li>
-                </ul>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <div class="d-flex flex-row-reverse">
-                    <div class="page_action"></div>
-                </div>
-            </div>
+
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html(sc_t('nav.support', 'Support')); ?><span class="w-page-head__count" data-w-total></span></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('support.sub', 'Messages sent from the contact page. Reply by email or WhatsApp, then mark the message as replied or resolved so the team knows it is handled.')); ?></p>
         </div>
     </div>
 
-    <!-- Filters Bar -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <form id="support-filters" class="form-inline">
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-status" class="mr-2"><?php echo $t['status']; ?>:</label>
-                            <select class="form-control" id="filter-status" name="status">
-                                <option value=""><?php echo $t['all_status']; ?></option>
-                                <option value="new"><?php echo $t['new']; ?></option>
-                                <option value="contacted"><?php echo $t['contacted']; ?></option>
-                                <option value="resolved"><?php echo $t['resolved']; ?></option>
-                            </select>
-                        </div>
-
-                        <div class="form-group mr-3 mb-2">
-                            <label for="filter-search" class="mr-2"><?php echo $t['search']; ?>:</label>
-                            <input type="text" class="form-control" id="filter-search" name="search" placeholder="<?php echo esc_attr($t['search_placeholder']); ?>">
-                        </div>
-
-                        <button type="submit" class="btn btn-primary mb-2">
-                            <i class="fa fa-search"></i> <?php echo $t['search']; ?>
-                        </button>
-                        <button type="button" class="btn btn-secondary mb-2 ml-2" id="reset-filters">
-                            <i class="fa fa-refresh"></i> <?php echo $t['reset']; ?>
-                        </button>
-                    </form>
-                </div>
+    <div id="support-list">
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr(sc_t('nav.support', 'Support')); ?>"></div>
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html(sc_t('support.search', 'Search name, email, phone or message')); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr(sc_t('support.search', 'Search name, email, phone or message')); ?>" autocomplete="off">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
+        </div>
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-bulkbar" data-w-bulk hidden></div>
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table><thead></thead><tbody></tbody></table>
             </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
         </div>
     </div>
 
-    <!-- Messages Table -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover" id="support-table">
-                            <thead>
-                                <tr>
-                                    <th width="5%">#</th>
-                                    <th width="15%"><?php echo $t['name']; ?></th>
-                                    <th width="15%"><?php echo $t['email']; ?></th>
-                                    <th width="10%"><?php echo $t['phone']; ?></th>
-                                    <th width="15%"><?php echo $t['subject']; ?></th>
-                                    <th width="10%"><?php echo $t['status']; ?></th>
-                                    <th width="15%"><?php echo $t['date']; ?></th>
-                                    <th width="15%"><?php echo $t['actions']; ?></th>
-                                </tr>
-                            </thead>
-                            <tbody id="support-table-body">
-                                <tr>
-                                    <td colspan="8" class="text-center">
-                                        <i class="fa fa-spinner fa-spin"></i> <?php echo $t['loading']; ?>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div id="support-pagination" class="mt-3"></div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 </div>
 
-<!-- View Message Modal -->
-<div class="modal fade" id="viewMessageModal" tabindex="-1" role="dialog">
+<div class="modal fade" id="msgModal" tabindex="-1" role="dialog" aria-labelledby="msg-subject">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><?php echo $t['message_details']; ?></h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <div class="w-stack">
+                    <h5 class="modal-title" id="msg-subject"></h5>
+                    <span class="w-sub" id="msg-when"></span>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong><?php echo $t['name']; ?>:</strong>
-                        <p id="modal-name"></p>
-                    </div>
-                    <div class="col-md-6">
-                        <strong><?php echo $t['email']; ?>:</strong>
-                        <p id="modal-email"></p>
+                <div class="w-msg__from">
+                    <span class="w-person__avatar" id="msg-avatar" data-tone="0"></span>
+                    <div class="w-stack">
+                        <strong id="msg-name"></strong>
+                        <span class="w-sub w-ltr"><a id="msg-email" href="#"></a><span id="msg-phone-wrap"> · <a id="msg-phone" href="#"></a></span></span>
+                        <span class="w-sub" id="msg-known"></span>
                     </div>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong><?php echo $t['phone']; ?>:</strong>
-                        <p id="modal-phone"></p>
-                    </div>
-                    <div class="col-md-6">
-                        <strong><?php echo $t['date']; ?>:</strong>
-                        <p id="modal-date"></p>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <strong><?php echo $t['subject']; ?>:</strong>
-                        <p id="modal-subject"></p>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <strong><?php echo $t['message']; ?>:</strong>
-                        <div id="modal-message" class="border p-3 bg-light"></div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <strong><?php echo $t['status']; ?>:</strong>
-                        <select id="modal-status" class="form-control">
-                            <option value="new"><?php echo $t['new']; ?></option>
-                            <option value="contacted"><?php echo $t['contacted']; ?></option>
-                            <option value="resolved"><?php echo $t['resolved']; ?></option>
-                        </select>
-                    </div>
+                <div class="w-msg__body" id="msg-body" dir="auto"></div>
+                <div class="w-aside-actions mt-3">
+                    <a class="btn btn-primary btn-sm" id="msg-reply-email" href="#" target="_blank" rel="noopener"><?php echo esc_html(sc_t('support.reply_email', 'Reply by email')); ?></a>
+                    <a class="btn btn-secondary btn-sm" id="msg-reply-wa" href="#" target="_blank" rel="noopener"><?php echo esc_html(sc_t('support.reply_whatsapp', 'Reply on WhatsApp')); ?></a>
+                    <a class="btn btn-secondary btn-sm" id="msg-attendee" href="#"><?php echo esc_html(sc_t('support.see_registrations', 'See their registrations')); ?></a>
                 </div>
             </div>
-            <div class="modal-footer">
-                <input type="hidden" id="modal-message-id">
-                <button type="button" class="btn btn-primary" id="update-status-btn">
-                    <i class="fa fa-save"></i> <?php echo $t['update_status']; ?>
-                </button>
-                <button type="button" class="btn btn-danger" id="delete-message-btn">
-                    <i class="fa fa-trash"></i> <?php echo $t['delete']; ?>
-                </button>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo $t['close']; ?></button>
+            <div class="modal-footer w-msg__foot">
+                <button type="button" class="btn btn-link w-tpl__delete mr-auto" data-msg-op="delete"><?php echo esc_html(sc_t('dashboard_pages.delete', 'Delete')); ?></button>
+                <button type="button" class="btn btn-secondary" data-msg-op="new"><?php echo esc_html(sc_t('support.mark_new', 'Mark as new')); ?></button>
+                <button type="button" class="btn btn-secondary" data-msg-op="contacted"><?php echo esc_html(sc_t('support.mark_replied', 'Mark as replied')); ?></button>
+                <button type="button" class="btn btn-primary" data-msg-op="resolved"><?php echo esc_html(sc_t('support.mark_resolved', 'Mark as resolved')); ?></button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-tbody#support-table-body .btn i {
-    margin: 0;
-}
-</style>
-
 <script>
-// Translations for JavaScript
-var supportTranslations = {
-    loading: '<?php echo esc_js($t['loading']); ?>',
-    no_messages_found: '<?php echo esc_js($t['no_messages_found']); ?>',
-    view: '<?php echo esc_js($t['view']); ?>',
-    mark_as_contacted: '<?php echo esc_js($t['mark_as_contacted']); ?>',
-    delete: '<?php echo esc_js($t['delete']); ?>',
-    status_updated: '<?php echo esc_js($t['status_updated']); ?>',
-    marked_as_contacted: '<?php echo esc_js($t['marked_as_contacted']); ?>',
-    confirm_delete_message: '<?php echo esc_js($t['confirm_delete_message']); ?>',
-    message_deleted: '<?php echo esc_js($t['message_deleted']); ?>'
-};
+jQuery(function ($) {
+    'use strict';
 
-jQuery(document).ready(function($) {
-    var currentPage = 1;
-    var currentFilters = {};
+    var esc = WDList.esc;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var platform = <?php echo $js($platform_name); ?>;
+    var L = <?php echo $js(array(
+        'views'     => array('new' => sc_t('support.new', 'New'), 'contacted' => sc_t('support.replied', 'Replied'), 'resolved' => sc_t('support.resolved', 'Resolved'), 'all' => sc_t('dashboard_pages.all', 'All')),
+        'from'      => sc_t('support.from', 'From'),
+        'message'   => sc_t('support.message', 'Message'),
+        'received'  => sc_t('support.received', 'Received'),
+        'state'     => sc_t('dashboard_pages.status', 'Status'),
+        'open'      => sc_t('support.read', 'Read'),
+        'regs'      => sc_t('support.n_registrations', '%s registrations'),
+        'oneReg'    => sc_t('support.one_registration', '1 registration'),
+        'certs'     => sc_t('support.n_certificates', '%s certificates'),
+        'oneCert'   => sc_t('support.one_certificate', '1 certificate'),
+        'noReg'     => sc_t('support.not_registered', 'No registrations under this email'),
+        'markReplied' => sc_t('support.mark_replied', 'Mark as replied'),
+        'markResolved' => sc_t('support.mark_resolved', 'Mark as resolved'),
+        'markNew'   => sc_t('support.mark_new', 'Mark as new'),
+        'delete'    => sc_t('dashboard_pages.delete', 'Delete'),
+        'confirmDelete'    => sc_t('support.confirm_delete', 'Delete %d messages? This cannot be undone.'),
+        'confirmDeleteOne' => sc_t('support.confirm_delete_one', 'Delete this message from %s? This cannot be undone.'),
+        'replyGreeting' => sc_t('support.reply_greeting', 'Hello %s,'),
+        'search'    => sc_t('general.search', 'Search'),
+        'emptyText' => sc_t('support.empty', 'No messages here.'),
+        'failed'    => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
+    var ICON = {
+        eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+        reply: 'M9 17 4 12l5-5M20 18v-2a4 4 0 0 0-4-4H4',
+        check: 'M20 6 9 17l-5-5',
+        dot: 'M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14'
+    };
+    var TAG = { new: 'w-tag--gold', contacted: 'w-tag--primary', resolved: 'w-tag--teal' };
 
-    // Modal helper functions (Bootstrap 3/4 compatible)
-    function showModal(modalId) {
-        var $modal = $(modalId);
-        $modal.addClass('show').css('display', 'block');
-        $('body').addClass('modal-open');
-        if (!$('.modal-backdrop').length) {
-            $('body').append('<div class="modal-backdrop fade show"></div>');
-        }
+    function tone(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) % 4; } return h; }
+    function initials(name) { return String(name || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '?'; }
+    function when(d) {
+        if (!d) { return ''; }
+        var dt = new Date(String(d).replace(' ', 'T'));
+        var days = Math.floor((Date.now() - dt.getTime()) / 86400000);
+        var date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: dt.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+        return days < 1 ? String(d).slice(11, 16) : date;
+    }
+    // Egyptian numbers are usually written 01xxxxxxxxx; WhatsApp wants 201xxxxxxxxx.
+    function waNumber(phone) {
+        var d = String(phone || '').replace(/[^\d]/g, '');
+        if (/^00/.test(d)) { d = d.slice(2); }
+        if (/^01\d{9}$/.test(d)) { d = '2' + d; }
+        return d.length >= 10 ? d : '';
+    }
+    function known(r) {
+        if (!r.registrations) { return L.noReg; }
+        return [r.registrations === 1 ? L.oneReg : L.regs.replace('%s', r.registrations), r.certificates ? (r.certificates === 1 ? L.oneCert : L.certs.replace('%s', r.certificates)) : ''].filter(Boolean).join(' · ');
     }
 
-    function hideModal(modalId) {
-        var $modal = $(modalId);
-        $modal.removeClass('show').css('display', 'none');
-        $('body').removeClass('modal-open');
-        $('.modal-backdrop').remove();
+    function bulk(op, ids) {
+        return $.post(scDashboard.ajaxurl, { action: 'sc_support_bulk', nonce: scDashboard.nonce, op: op, ids: ids })
+            .done(function (res) {
+                if (!res.success) { showError(res.data && res.data.message || L.failed); return; }
+                if (window.toastr) { toastr.success(res.data.message); }
+                list.reload();
+            })
+            .fail(function () { showError(L.failed); });
     }
-
-    // Close modal on close button or backdrop click
-    $(document).on('click', '[data-dismiss="modal"], .modal-backdrop', function() {
-        hideModal('#viewMessageModal');
-    });
-
-    // Close modal on ESC key
-    $(document).on('keydown', function(e) {
-        if (e.key === 'Escape') {
-            hideModal('#viewMessageModal');
-        }
-    });
-
-    // Load messages
-    function loadMessages(page) {
-        page = page || 1;
-        currentPage = page;
-
-        var data = {
-            action: 'sc_get_support_messages',
-            nonce: scDashboard.nonce,
-            page: page,
-            status: $('#filter-status').val(),
-            search: $('#filter-search').val()
-        };
-
-        $('#support-table-body').html('<tr><td colspan="8" class="text-center"><i class="fa fa-spinner fa-spin"></i> ' + supportTranslations.loading + '</td></tr>');
-
-        $.post(scDashboard.ajaxurl, data, function(response) {
-            if (response.success) {
-                renderMessages(response.data.messages);
-                renderPagination(response.data.total_pages, page);
-            } else {
-                $('#support-table-body').html('<tr><td colspan="8" class="text-center text-danger">' + response.data.message + '</td></tr>');
-            }
+    function askDelete(ids, name) {
+        showDeleteConfirm(name ? L.confirmDeleteOne.replace('%s', name) : L.confirmDelete.replace('%d', ids.length)).then(function (r) {
+            if (r.isConfirmed) { $('#msgModal').modal('hide'); bulk('delete', ids); }
         });
     }
 
-    // Render messages table
-    function renderMessages(messages) {
-        if (messages.length === 0) {
-            $('#support-table-body').html('<tr><td colspan="8" class="text-center">' + supportTranslations.no_messages_found + '</td></tr>');
-            return;
-        }
-
-        var html = '';
-        $.each(messages, function(index, msg) {
-            var statusClass = 'badge-secondary';
-            if (msg.status === 'new') statusClass = 'badge-danger';
-            else if (msg.status === 'contacted') statusClass = 'badge-warning';
-            else if (msg.status === 'resolved') statusClass = 'badge-success';
-
-            html += '<tr data-id="' + msg.id + '">';
-            html += '<td>' + msg.id + '</td>';
-            html += '<td>' + escapeHtml(msg.name) + '</td>';
-            html += '<td><a href="mailto:' + escapeHtml(msg.email) + '">' + escapeHtml(msg.email) + '</a></td>';
-            html += '<td>' + (msg.phone ? '<a href="tel:' + escapeHtml(msg.phone) + '">' + escapeHtml(msg.phone) + '</a>' : '-') + '</td>';
-            html += '<td>' + escapeHtml(msg.subject) + '</td>';
-            html += '<td><span class="badge ' + statusClass + '">' + escapeHtml(msg.status.charAt(0).toUpperCase() + msg.status.slice(1)) + '</span></td>';
-            html += '<td>' + msg.created_at + '</td>';
-            html += '<td>';
-            html += '<div class="btn-group">';
-            html += '<button class="btn btn-sm btn-info view-message-btn" data-id="' + msg.id + '" title="' + supportTranslations.view + '"><i class="fa fa-eye"></i></button>';
-            html += '<button type="button" class="btn btn-sm btn-info dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="sr-only">Toggle Dropdown</span></button>';
-            html += '<div class="dropdown-menu dropdown-menu-right">';
-            html += '<a class="dropdown-item mark-contacted-btn" href="javascript:void(0);" data-id="' + msg.id + '"><i class="fa fa-check text-success mr-2"></i> ' + supportTranslations.mark_as_contacted + '</a>';
-            html += '<div class="dropdown-divider"></div>';
-            html += '<a class="dropdown-item text-danger delete-message-btn-inline" href="javascript:void(0);" data-id="' + msg.id + '"><i class="fa fa-trash mr-2"></i> ' + supportTranslations.delete + '</a>';
-            html += '</div></div>';
-            html += '</td>';
-            html += '</tr>';
-        });
-
-        $('#support-table-body').html(html);
+    var current = null;
+    function openMessage(r) {
+        current = r;
+        $('#msg-subject').text(r.subject);
+        $('#msg-when').text(new Date(String(r.created).replace(' ', 'T')).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }));
+        $('#msg-avatar').text(initials(r.name)).attr('data-tone', tone(r.name));
+        $('#msg-name').text(r.name);
+        $('#msg-email').text(r.email).attr('href', 'mailto:' + encodeURIComponent(r.email).replace(/%40/g, '@'));
+        $('#msg-phone-wrap').prop('hidden', !r.phone);
+        var wa = waNumber(r.phone);
+        $('#msg-phone').text(r.phone).attr('href', 'tel:' + String(r.phone).replace(/[^\d+]/g, ''));
+        $('#msg-known').text(known(r));
+        $('#msg-body').text(r.message);
+        var greeting = L.replyGreeting.replace('%s', r.name) + '\n\n';
+        var quoted = '\n\n---\n' + r.message.split('\n').map(function (line) { return '> ' + line; }).join('\n');
+        $('#msg-reply-email').attr('href', 'mailto:' + encodeURIComponent(r.email).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Re: ' + r.subject) + '&body=' + encodeURIComponent(greeting + quoted.slice(0, 1500)));
+        $('#msg-reply-wa').prop('hidden', !wa).attr('href', wa ? 'https://wa.me/' + wa + '?text=' + encodeURIComponent(greeting + '(' + platform + ') ' + r.subject) : '#');
+        $('#msg-attendee').prop('hidden', !r.registrations).attr('href', dashboardUrl + 'attendees?search=' + encodeURIComponent(r.email));
+        $('[data-msg-op="new"]').prop('hidden', r.status === 'new');
+        $('[data-msg-op="contacted"]').prop('hidden', r.status === 'contacted');
+        $('[data-msg-op="resolved"]').prop('hidden', r.status === 'resolved');
+        $('#msgModal').modal('show');
     }
-
-    // Escape HTML
-    function escapeHtml(text) {
-        if (!text) return '';
-        var div = document.createElement('div');
-        div.appendChild(document.createTextNode(text));
-        return div.innerHTML;
-    }
-
-    // Render pagination
-    function renderPagination(totalPages, currentPage) {
-        if (totalPages <= 1) {
-            $('#support-pagination').html('');
-            return;
-        }
-
-        var html = '<nav><ul class="pagination">';
-
-        // Previous
-        html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">';
-        html += '<a class="page-link" href="#" data-page="' + (currentPage - 1) + '">&laquo;</a></li>';
-
-        // Pages
-        for (var i = 1; i <= totalPages; i++) {
-            html += '<li class="page-item ' + (i === currentPage ? 'active' : '') + '">';
-            html += '<a class="page-link" href="#" data-page="' + i + '">' + i + '</a></li>';
-        }
-
-        // Next
-        html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">';
-        html += '<a class="page-link" href="#" data-page="' + (currentPage + 1) + '">&raquo;</a></li>';
-
-        html += '</ul></nav>';
-        $('#support-pagination').html(html);
-    }
-
-    // Filter form submit
-    $('#support-filters').on('submit', function(e) {
-        e.preventDefault();
-        loadMessages(1);
+    $('#msgModal').on('click', '[data-msg-op]', function () {
+        var op = this.getAttribute('data-msg-op');
+        if (!current) { return; }
+        if (op === 'delete') { askDelete([current.id], current.name); return; }
+        $('#msgModal').modal('hide');
+        bulk(op, [current.id]);
     });
-
-    // Reset filters
-    $('#reset-filters').on('click', function() {
-        $('#support-filters')[0].reset();
-        loadMessages(1);
-    });
-
-    // Pagination click
-    $(document).on('click', '#support-pagination .page-link', function(e) {
-        e.preventDefault();
-        var page = $(this).data('page');
-        if (page > 0) {
-            loadMessages(page);
+    // Replying is the usual next step: offer to mark it after the reply link is used.
+    $('#msg-reply-email, #msg-reply-wa').on('click', function () {
+        if (current && current.status === 'new') {
+            setTimeout(function () { $('[data-msg-op="contacted"]').addClass('w-pulse').trigger('focus'); }, 400);
         }
     });
 
-    // View message
-    $(document).on('click', '.view-message-btn', function() {
-        var id = $(this).data('id');
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_get_support_message',
-            nonce: scDashboard.nonce,
-            id: id
-        }, function(response) {
-            if (response.success) {
-                var msg = response.data;
-                $('#modal-message-id').val(msg.id);
-                $('#modal-name').text(msg.name);
-                $('#modal-email').html('<a href="mailto:' + msg.email + '">' + msg.email + '</a>');
-                $('#modal-phone').text(msg.phone || '-');
-                $('#modal-date').text(msg.created_at);
-                $('#modal-subject').text(msg.subject);
-                $('#modal-message').text(msg.message);
-                $('#modal-status').val(msg.status);
-                showModal('#viewMessageModal');
+    var list = WDList.create({
+        root: document.getElementById('support-list'),
+        action: 'sc_support_list',
+        rowsKey: 'rows',
+        filters: ['search'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        defaultSort: { orderby: 'created', order: 'desc' },
+        tabs: ['new', 'contacted', 'resolved', 'all'].map(function (k) { return { key: k, label: L.views[k], params: { view: k }, countKey: k }; }),
+        emptyText: L.emptyText,
+        columns: [
+            {
+                label: L.from,
+                render: function (r) {
+                    return '<div class="w-person"><span class="w-person__avatar" data-tone="' + tone(r.name) + '">' + esc(initials(r.name)) + '</span><span class="w-person__text">' +
+                        '<button type="button" class="w-row-title w-linkbtn" data-open="' + r.id + '">' + esc(r.name) + '</button>' +
+                        '<span class="w-sub w-ltr w-truncate">' + esc(r.email) + (r.phone ? ' · ' + esc(r.phone) : '') + '</span></span></div>';
+                }
+            },
+            {
+                label: L.message,
+                render: function (r) {
+                    return '<div class="w-stack w-msg__cell"><span class="w-truncate' + (r.status === 'new' ? ' w-strong' : '') + '" dir="auto">' + esc(r.subject) + '</span>' +
+                        '<span class="w-sub w-msg__excerpt" dir="auto">' + esc(r.message.replace(/\s+/g, ' ').slice(0, 140)) + '</span>' +
+                        (r.registrations ? '<span class="w-sub">' + esc(known(r)) + '</span>' : '') + '</div>';
+                }
+            },
+            {
+                label: L.received, sort: 'created',
+                render: function (r) { return '<span class="w-nowrap" title="' + esc(r.created) + '">' + esc(when(r.created)) + '</span>'; }
+            },
+            {
+                label: L.state,
+                render: function (r) { return '<span class="w-tag ' + (TAG[r.status] || '') + '">' + esc(L.views[r.status] || r.status) + '</span>'; }
             }
-        });
+        ],
+        rowMenu: function (r) {
+            return [
+                { label: L.open, icon: ICON.eye, onSelect: function () { openMessage(r); } },
+                r.status !== 'contacted' ? { label: L.markReplied, icon: ICON.reply, onSelect: function () { bulk('contacted', [r.id]); } } : null,
+                r.status !== 'resolved' ? { label: L.markResolved, icon: ICON.check, onSelect: function () { bulk('resolved', [r.id]); } } : null,
+                r.status !== 'new' ? { label: L.markNew, icon: ICON.dot, onSelect: function () { bulk('new', [r.id]); } } : null,
+                { separator: true },
+                { label: L.delete, icon: ICON.trash, danger: true, onSelect: function () { askDelete([r.id], r.name); } }
+            ];
+        },
+        bulkActions: [
+            { key: 'contacted', label: L.markReplied, icon: ICON.reply, run: function (ids) { bulk('contacted', ids); } },
+            { key: 'resolved', label: L.markResolved, icon: ICON.check, run: function (ids) { bulk('resolved', ids); } },
+            { key: 'delete', label: L.delete, icon: ICON.trash, danger: true, run: function (ids) { askDelete(ids); } }
+        ],
+        chips: function (state) {
+            return state.filters.search ? [{ label: L.search, value: state.filters.search, clear: function (l) { l.setFilter('search', ''); } }] : [];
+        }
     });
 
-    // Update status
-    $('#update-status-btn').on('click', function() {
-        var id = $('#modal-message-id').val();
-        var status = $('#modal-status').val();
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_update_support_status',
-            nonce: scDashboard.nonce,
-            id: id,
-            status: status
-        }, function(response) {
-            if (response.success) {
-                hideModal('#viewMessageModal');
-                loadMessages(currentPage);
-                toastr.success(supportTranslations.status_updated);
-            } else {
-                toastr.error(response.data.message);
-            }
-        });
+    $('#support-list').on('click', '[data-open]', function () {
+        var id = +this.getAttribute('data-open');
+        var r = list.rows().filter(function (x) { return x.id === id; })[0];
+        if (r) { openMessage(r); }
     });
-
-    // Mark as contacted (inline)
-    $(document).on('click', '.mark-contacted-btn', function() {
-        var id = $(this).data('id');
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_update_support_status',
-            nonce: scDashboard.nonce,
-            id: id,
-            status: 'contacted'
-        }, function(response) {
-            if (response.success) {
-                loadMessages(currentPage);
-                toastr.success(supportTranslations.marked_as_contacted);
-            }
-        });
-    });
-
-    // Delete message (inline)
-    $(document).on('click', '.delete-message-btn-inline', function() {
-        if (!confirm(supportTranslations.confirm_delete_message)) return;
-
-        var id = $(this).data('id');
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_delete_support_message',
-            nonce: scDashboard.nonce,
-            id: id
-        }, function(response) {
-            if (response.success) {
-                loadMessages(currentPage);
-                toastr.success(supportTranslations.message_deleted);
-            }
-        });
-    });
-
-    // Delete from modal
-    $('#delete-message-btn').on('click', function() {
-        if (!confirm(supportTranslations.confirm_delete_message)) return;
-
-        var id = $('#modal-message-id').val();
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_delete_support_message',
-            nonce: scDashboard.nonce,
-            id: id
-        }, function(response) {
-            if (response.success) {
-                hideModal('#viewMessageModal');
-                loadMessages(currentPage);
-                toastr.success(supportTranslations.message_deleted);
-            }
-        });
-    });
-
-    // Initial load
-    loadMessages(1);
 });
 </script>
 

@@ -91,6 +91,12 @@ if ($platform_phone) {
                           rows="6" required></textarea>
             </div>
 
+            <?php // Left empty by people; bots fill it and their message is dropped. ?>
+            <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden">
+                <label for="contact-website">Website</label>
+                <input type="text" id="contact-website" name="contact_website" tabindex="-1" autocomplete="off">
+            </div>
+
             <div id="contact-form-alert" style="display:none"></div>
 
             <button class="w-btn w-btn--lg" type="submit" style="align-self:flex-start">

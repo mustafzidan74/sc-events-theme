@@ -829,3 +829,14 @@
   .w-plan__stage { min-height: 0; }
   .w-plan__zoom { margin-inline-start: 0; }
 }
+/* Support inbox */
+.w-dash .w-linkbtn { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.w-dash .w-linkbtn:hover { color: var(--w-primary); text-decoration: underline; }
+.w-strong { font-weight: 600; }
+.w-msg__cell { max-width: 520px; }
+.w-msg__excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+.w-msg__from { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.w-msg__body { max-height: 50vh; overflow: auto; padding: 14px 16px; border-radius: var(--w-radius-md); background: var(--w-surface-2); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.6; }
+.w-msg__foot { flex-wrap: wrap; gap: 8px; }
+.w-dash .w-pulse { box-shadow: 0 0 0 3px var(--w-primary-soft); }
+@media (max-width: 575.98px) { .w-msg__foot .btn { flex: 1 1 auto; } }

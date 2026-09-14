@@ -1,6 +1,9 @@
 <?php
 /**
- * Support Messages AJAX Handlers
+ * Support messages — the contact form's inbox.
+ *
+ * Public: sc_submit_contact_form (page-contact.php, front page). Dashboard:
+ * sc_support_list / sc_support_bulk for template-parts/dashboard/support.php.
  *
  * @package sc_events
  */
@@ -37,32 +40,40 @@ function sc_create_support_messages_table() {
 }
 add_action('after_switch_theme', 'sc_create_support_messages_table');
 
-// Also run on init to ensure table exists
-function sc_ensure_support_table_exists() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'sc_support_messages';
-
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+// Make sure the table exists once, instead of a SHOW TABLES query on every page load.
+add_action('init', function () {
+    if (get_option('sc_support_table_v') !== '1') {
         sc_create_support_messages_table();
+        update_option('sc_support_table_v', '1', true);
     }
-}
-add_action('init', 'sc_ensure_support_table_exists');
+});
 
 /**
  * Submit contact form (public)
  */
 function sc_submit_contact_form() {
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_public_nonce')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'sc_public_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
 
-    // Validate required fields
-    $name = isset($_POST['contact_name']) ? sanitize_text_field($_POST['contact_name']) : '';
-    $email = isset($_POST['contact_email']) ? sanitize_email($_POST['contact_email']) : '';
-    $phone = isset($_POST['contact_phone']) ? sanitize_text_field($_POST['contact_phone']) : '';
-    $subject = isset($_POST['contact_subject']) ? sanitize_text_field($_POST['contact_subject']) : '';
-    $message = isset($_POST['contact_message']) ? sanitize_textarea_field($_POST['contact_message']) : '';
+    // Bots fill every field, people never see this one.
+    if (!empty($_POST['contact_website'])) {
+        wp_send_json_success(array('message' => __('Your message has been sent successfully! We will get back to you soon.', 'sc_events')));
+    }
+
+    // At most 5 messages per visitor per 15 minutes.
+    $ip = function_exists('sc_get_client_ip') ? sc_get_client_ip() : (isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '');
+    $throttle_key = 'sc_contact_' . md5($ip . wp_salt('auth'));
+    $sent = (int) get_transient($throttle_key);
+    if ($sent >= 5) {
+        wp_send_json_error(array('message' => __('You have sent several messages already. Please wait a few minutes and try again.', 'sc_events')));
+    }
+
+    $name = isset($_POST['contact_name']) ? sanitize_text_field(wp_unslash($_POST['contact_name'])) : '';
+    $email = isset($_POST['contact_email']) ? sanitize_email(wp_unslash($_POST['contact_email'])) : '';
+    $phone = isset($_POST['contact_phone']) ? sanitize_text_field(wp_unslash($_POST['contact_phone'])) : '';
+    $subject = isset($_POST['contact_subject']) ? sanitize_text_field(wp_unslash($_POST['contact_subject'])) : '';
+    $message = isset($_POST['contact_message']) ? sanitize_textarea_field(wp_unslash($_POST['contact_message'])) : '';
 
     if (empty($name) || empty($email) || empty($subject) || empty($message)) {
         wp_send_json_error(array('message' => __('Please fill in all required fields.', 'sc_events')));
@@ -78,11 +89,11 @@ function sc_submit_contact_form() {
     $result = $wpdb->insert(
         $table_name,
         array(
-            'name' => $name,
+            'name' => mb_substr($name, 0, 255),
             'email' => $email,
-            'phone' => $phone,
-            'subject' => $subject,
-            'message' => $message,
+            'phone' => mb_substr($phone, 0, 50),
+            'subject' => mb_substr($subject, 0, 255),
+            'message' => mb_substr($message, 0, 10000),
             'status' => 'new',
             'created_at' => current_time('mysql')
         ),
@@ -92,6 +103,7 @@ function sc_submit_contact_form() {
     if ($result === false) {
         wp_send_json_error(array('message' => __('Failed to save message. Please try again.', 'sc_events')));
     }
+    set_transient($throttle_key, $sent + 1, 15 * MINUTE_IN_SECONDS);
 
     // Send email notification to admin
     $admin_email = get_option('sc_platform_email', get_option('admin_email'));
@@ -107,178 +119,133 @@ function sc_submit_contact_form() {
         $message
     );
 
-    wp_mail($admin_email, $email_subject, $email_body);
+    wp_mail($admin_email, $email_subject, $email_body, array('Reply-To: ' . $name . ' <' . $email . '>'));
 
     wp_send_json_success(array('message' => __('Your message has been sent successfully! We will get back to you soon.', 'sc_events')));
 }
 add_action('wp_ajax_sc_submit_contact_form', 'sc_submit_contact_form');
 add_action('wp_ajax_nopriv_sc_submit_contact_form', 'sc_submit_contact_form');
 
-/**
- * Get support messages (dashboard)
- */
-function sc_get_support_messages() {
-    // Check permissions
+/* ==========================================================================
+   Dashboard
+   ========================================================================== */
+
+function sc_support_verify_request() {
+    $nonce = isset($_REQUEST['nonce']) ? sanitize_text_field(wp_unslash($_REQUEST['nonce'])) : '';
+    if (!wp_verify_nonce($nonce, 'sc_dashboard_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')), 403);
+    }
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
+        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')), 403);
     }
-
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'sc_support_messages';
-
-    $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
-    $per_page = 10;
-    $offset = ($page - 1) * $per_page;
-
-    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '';
-    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-
-    $where = array('1=1');
-    $params = array();
-
-    if (!empty($status)) {
-        $where[] = 'status = %s';
-        $params[] = $status;
-    }
-
-    if (!empty($search)) {
-        $where[] = '(name LIKE %s OR email LIKE %s OR subject LIKE %s)';
-        $search_param = '%' . $wpdb->esc_like($search) . '%';
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $params[] = $search_param;
-    }
-
-    $where_clause = implode(' AND ', $where);
-
-    // Get total count
-    $count_sql = "SELECT COUNT(*) FROM $table_name WHERE $where_clause";
-    if (!empty($params)) {
-        $count_sql = $wpdb->prepare($count_sql, $params);
-    }
-    $total = $wpdb->get_var($count_sql);
-
-    // Get messages
-    $sql = "SELECT * FROM $table_name WHERE $where_clause ORDER BY created_at DESC LIMIT %d OFFSET %d";
-    $params[] = $per_page;
-    $params[] = $offset;
-
-    $messages = $wpdb->get_results($wpdb->prepare($sql, $params));
-
-    wp_send_json_success(array(
-        'messages' => $messages,
-        'total' => $total,
-        'total_pages' => ceil($total / $per_page),
-        'current_page' => $page
-    ));
 }
-add_action('wp_ajax_sc_get_support_messages', 'sc_get_support_messages');
 
-/**
- * Get single support message
- */
-function sc_get_support_message() {
-    // Check permissions
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
-    if (!$id) {
-        wp_send_json_error(array('message' => __('Invalid message ID.', 'sc_events')));
-    }
-
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'sc_support_messages';
-
-    $message = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id));
-
-    if (!$message) {
-        wp_send_json_error(array('message' => __('Message not found.', 'sc_events')));
-    }
-
-    wp_send_json_success($message);
-}
-add_action('wp_ajax_sc_get_support_message', 'sc_get_support_message');
-
-/**
- * Update support message status
- */
-function sc_update_support_status() {
-    // Check permissions
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
-    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '';
-
-    if (!$id || !in_array($status, array('new', 'contacted', 'resolved'))) {
-        wp_send_json_error(array('message' => __('Invalid data.', 'sc_events')));
-    }
-
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'sc_support_messages';
-
-    $result = $wpdb->update(
-        $table_name,
-        array('status' => $status),
-        array('id' => $id),
-        array('%s'),
-        array('%d')
+function sc_support_view_condition($view) {
+    $map = array(
+        'new'       => " AND s.status = 'new'",
+        'contacted' => " AND s.status = 'contacted'",
+        'resolved'  => " AND s.status = 'resolved'",
     );
-
-    if ($result === false) {
-        wp_send_json_error(array('message' => __('Failed to update status.', 'sc_events')));
-    }
-
-    wp_send_json_success(array('message' => __('Status updated successfully.', 'sc_events')));
+    return $map[$view] ?? '';
 }
-add_action('wp_ajax_sc_update_support_status', 'sc_update_support_status');
 
-/**
- * Delete support message
- */
-function sc_delete_support_message() {
-    // Check permissions
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
-    if (!$id) {
-        wp_send_json_error(array('message' => __('Invalid message ID.', 'sc_events')));
-    }
-
+add_action('wp_ajax_sc_support_list', 'sc_support_list');
+function sc_support_list() {
+    sc_support_verify_request();
     global $wpdb;
-    $table_name = $wpdb->prefix . 'sc_support_messages';
+    $p = $wpdb->prefix;
+    $view = isset($_POST['view']) ? sanitize_key(wp_unslash($_POST['view'])) : 'new';
+    $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
+    $order = isset($_POST['order']) && $_POST['order'] === 'asc' ? 'ASC' : 'DESC';
+    $per_page = isset($_POST['per_page']) ? min(200, max(1, absint($_POST['per_page']))) : 50;
+    $page = isset($_POST['page']) ? max(1, absint($_POST['page'])) : 1;
 
-    $result = $wpdb->delete($table_name, array('id' => $id), array('%d'));
+    $where = '1=1';
+    $values = array();
+    if ($search !== '') {
+        $like = '%' . $wpdb->esc_like($search) . '%';
+        $where .= ' AND (s.name LIKE %s OR s.email LIKE %s OR s.phone LIKE %s OR s.subject LIKE %s OR s.message LIKE %s)';
+        array_push($values, $like, $like, $like, $like, $like);
+    }
+    $prep = function ($sql) use ($wpdb, $values) {
+        return $values ? $wpdb->prepare($sql, $values) : $sql;
+    };
 
-    if ($result === false) {
-        wp_send_json_error(array('message' => __('Failed to delete message.', 'sc_events')));
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT s.* FROM {$p}sc_support_messages s WHERE $where" . sc_support_view_condition($view) . " ORDER BY s.created_at $order, s.id $order LIMIT %d OFFSET %d",
+        array_merge($values, array($per_page, ($page - 1) * $per_page))
+    ));
+
+    // Who is writing: registrations and certificates under the same email.
+    $emails = array_values(array_unique(array_filter(array_map('strtolower', wp_list_pluck($rows, 'email')))));
+    $known = array();
+    if ($emails) {
+        $in = implode(',', array_fill(0, count($emails), '%s'));
+        foreach ($wpdb->get_results($wpdb->prepare("SELECT LOWER(email) email, COUNT(*) n, MAX(created_at) latest FROM {$p}sc_attendees WHERE LOWER(email) IN ($in) AND status = 'active' GROUP BY LOWER(email)", $emails)) as $k) {
+            $known[$k->email]['registrations'] = (int) $k->n;
+        }
+        $cert_table = $p . 'sc_certificates';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $cert_table))) {
+            foreach ($wpdb->get_results($wpdb->prepare("SELECT LOWER(a.email) email, COUNT(*) n FROM $cert_table c JOIN {$p}sc_attendees a ON a.id = c.attendee_id WHERE LOWER(a.email) IN ($in) AND c.status <> 'revoked' GROUP BY LOWER(a.email)", $emails)) as $k) {
+                $known[$k->email]['certificates'] = (int) $k->n;
+            }
+        }
     }
 
-    wp_send_json_success(array('message' => __('Message deleted successfully.', 'sc_events')));
+    $out = array(
+        'rows' => array_map(function ($r) use ($known) {
+            $key = strtolower((string) $r->email);
+            return array(
+                'id'            => (int) $r->id,
+                'name'          => (string) $r->name,
+                'email'         => (string) $r->email,
+                'phone'         => (string) $r->phone,
+                'subject'       => (string) $r->subject,
+                'message'       => (string) $r->message,
+                'status'        => in_array($r->status, array('new', 'contacted', 'resolved'), true) ? $r->status : 'new',
+                'created'       => $r->created_at,
+                'updated'       => $r->updated_at,
+                'registrations' => $known[$key]['registrations'] ?? 0,
+                'certificates'  => $known[$key]['certificates'] ?? 0,
+            );
+        }, $rows),
+        'total' => (int) $wpdb->get_var($prep("SELECT COUNT(*) FROM {$p}sc_support_messages s WHERE $where" . sc_support_view_condition($view))),
+    );
+    if (!empty($_POST['with_counts'])) {
+        $out['counts'] = array();
+        foreach (array('new', 'contacted', 'resolved', 'all') as $v) {
+            $out['counts'][$v] = (int) $wpdb->get_var($prep("SELECT COUNT(*) FROM {$p}sc_support_messages s WHERE $where" . sc_support_view_condition($v)));
+        }
+    }
+    wp_send_json_success($out);
 }
-add_action('wp_ajax_sc_delete_support_message', 'sc_delete_support_message');
+
+add_action('wp_ajax_sc_support_bulk', 'sc_support_bulk');
+function sc_support_bulk() {
+    sc_support_verify_request();
+    global $wpdb;
+    $table = $wpdb->prefix . 'sc_support_messages';
+    $op = isset($_POST['op']) ? sanitize_key(wp_unslash($_POST['op'])) : '';
+    $ids = isset($_POST['ids']) ? array_values(array_filter(array_map('absint', (array) wp_unslash($_POST['ids'])))) : array();
+    if (!$ids || !in_array($op, array('new', 'contacted', 'resolved', 'delete'), true)) {
+        wp_send_json_error(array('message' => __('Nothing to do.', 'sc_events')));
+    }
+    $in = implode(',', $ids);
+    if ($op === 'delete') {
+        $done = (int) $wpdb->query("DELETE FROM $table WHERE id IN ($in)");
+        /* translators: %d: number of messages */
+        $message = sprintf(_n('%d message deleted.', '%d messages deleted.', $done, 'sc_events'), $done);
+    } else {
+        $done = (int) $wpdb->query($wpdb->prepare("UPDATE $table SET status = %s WHERE id IN ($in)", $op));
+        $labels = array(
+            /* translators: %d: number of messages */
+            'new'       => _n('%d message marked as new.', '%d messages marked as new.', count($ids), 'sc_events'),
+            /* translators: %d: number of messages */
+            'contacted' => _n('%d message marked as replied.', '%d messages marked as replied.', count($ids), 'sc_events'),
+            /* translators: %d: number of messages */
+            'resolved'  => _n('%d message marked as resolved.', '%d messages marked as resolved.', count($ids), 'sc_events'),
+        );
+        $message = sprintf($labels[$op], count($ids));
+    }
+    wp_send_json_success(array('message' => $message, 'done' => $done));
+}
