@@ -605,7 +605,7 @@
 
   .w-search { max-width: none; flex-basis: 100%; }
   .w-search__kbd { display: none; }
-  .w-dash .w-toolbar select.form-control { flex: 1 1 calc(50% - 4px); max-width: none; }
+  .w-dash .w-toolbar select.form-control { flex: 1 1 calc(50% - 4px); min-width: 0; max-width: 100%; }
   .w-toolbar__end { margin-inline-start: 0; width: 100%; }
   .w-toolbar__end .btn { flex: 1; }
 
