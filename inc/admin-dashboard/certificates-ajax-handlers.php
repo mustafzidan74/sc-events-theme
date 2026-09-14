@@ -1058,20 +1058,15 @@ function sc_bulk_send_certificate_emails() {
 add_action('wp_ajax_sc_verify_certificate', 'sc_verify_certificate_public');
 add_action('wp_ajax_nopriv_sc_verify_certificate', 'sc_verify_certificate_public');
 function sc_verify_certificate_public() {
-    $code = isset($_POST['code']) ? sanitize_text_field($_POST['code']) : '';
-    $number = isset($_POST['number']) ? sanitize_text_field($_POST['number']) : '';
+    // Code only: certificate numbers are sequential, so looking them up publicly
+    // would let anyone list attendee names.
+    $code = isset($_POST['code']) ? preg_replace('/[^A-Za-z0-9]/', '', sanitize_text_field(wp_unslash($_POST['code']))) : '';
 
-    if (empty($code) && empty($number)) {
-        wp_send_json_error(array('message' => __('Verification code or certificate number is required.', 'sc_events')));
+    if ($code === '') {
+        wp_send_json_error(array('message' => __('Enter the verification code.', 'sc_events')));
     }
 
-    $certificate = null;
-
-    if (!empty($code)) {
-        $certificate = SC_Certificate::get_by_verification_code($code);
-    } elseif (!empty($number)) {
-        $certificate = SC_Certificate::get_by_number($number);
-    }
+    $certificate = SC_Certificate::get_by_verification_code($code);
 
     if (!$certificate) {
         wp_send_json_error(array(
@@ -1080,8 +1075,8 @@ function sc_verify_certificate_public() {
         ));
     }
 
-    // Check status
-    $is_valid = $certificate['status'] === 'issued';
+    // Downloading a certificate changes its status to "downloaded"; it is still valid.
+    $is_valid = $certificate['status'] !== 'revoked';
 
     $response = array(
         'valid' => $is_valid,

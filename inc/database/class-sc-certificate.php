@@ -587,7 +587,7 @@ class SC_Certificate {
      * @return string
      */
     public static function get_verification_url($verification_code) {
-        return home_url('/verify-certificate/' . $verification_code);
+        return home_url('/certificate-verify/' . rawurlencode($verification_code) . '/');
     }
 
     /**

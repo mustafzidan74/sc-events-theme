@@ -553,11 +553,12 @@ function sc_output_certificate_html($certificate) {
  */
 add_action('init', 'sc_register_certificate_endpoints');
 function sc_register_certificate_endpoints() {
-    add_rewrite_rule(
-        '^certificate/verify/([^/]+)/?$',
-        'index.php?sc_verify_code=$matches[1]',
-        'top'
-    );
+    // The certificate PDFs print /certificate-verify/{code}/ in their QR code; the
+    // other two spellings were used by older links. All of them show the same page.
+    foreach (array('certificate-verify', 'verify-certificate', 'certificate/verify') as $base) {
+        add_rewrite_rule('^' . $base . '/([^/]+)/?$', 'index.php?sc_verify_page=1&sc_verify_code=$matches[1]', 'top');
+    }
+    add_rewrite_rule('^certificate-verify/?$', 'index.php?sc_verify_page=1', 'top');
     add_rewrite_rule(
         '^certificate/download/([0-9]+)/([^/]+)/?$',
         'index.php?sc_certificate=$matches[1]&token=$matches[2]',
@@ -568,7 +569,46 @@ function sc_register_certificate_endpoints() {
 add_filter('query_vars', 'sc_certificate_query_vars');
 function sc_certificate_query_vars($vars) {
     $vars[] = 'sc_verify_code';
+    $vars[] = 'sc_verify_page';
     $vars[] = 'sc_certificate';
     $vars[] = 'token';
     return $vars;
+}
+
+// Rules above changed: flush once so the verification URLs stop returning 404.
+add_action('init', function () {
+    if (get_option('sc_certificate_rules_version') !== '2') {
+        flush_rewrite_rules(false);
+        update_option('sc_certificate_rules_version', '2');
+    }
+}, 999);
+
+/**
+ * Render the public verification page for /certificate-verify/{code}/.
+ */
+add_action('template_redirect', 'sc_render_certificate_verify_page', 1);
+function sc_render_certificate_verify_page() {
+    if (!get_query_var('sc_verify_page')) {
+        return;
+    }
+    // The lookup form submits ?code=…; send it to the clean URL.
+    if (!get_query_var('sc_verify_code') && isset($_GET['code'])) {
+        $code = preg_replace('/[^A-Za-z0-9]/', '', sanitize_text_field(wp_unslash($_GET['code'])));
+        if ($code !== '') {
+            wp_safe_redirect(home_url('/certificate-verify/' . rawurlencode($code) . '/'));
+            exit;
+        }
+    }
+    global $wp_query;
+    $wp_query->is_404 = false;
+    status_header(200);
+    nocache_headers();
+    // Names on certificates shouldn't end up in search results.
+    add_filter('wp_robots', 'wp_robots_no_robots');
+    add_filter('wp_title', function () {
+        return sc_t('frontend.certificate_verification', 'Certificate verification') . ' | ';
+    }, 99);
+    $sc_verify_code = (string) get_query_var('sc_verify_code');
+    include get_template_directory() . '/template-parts/public/certificate-verify.php';
+    exit;
 }
