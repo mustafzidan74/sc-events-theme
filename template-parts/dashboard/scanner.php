@@ -999,7 +999,10 @@ jQuery(document).ready(function($) {
 
         // Extract ticket ID from various URL formats
         let ticketId = data;
-        if (data.includes('ticket_code=')) {
+        if (/^s*{/.test(data)) {
+            // Badge QR as JSON, e.g. company badges: {"type":"company","code":"COMP-…"}
+            try { const qr = JSON.parse(data); ticketId = qr.code || qr.company_code || qr.ticket_code || data; } catch (e) {}
+        } else if (data.includes('ticket_code=')) {
             // New secure format: /ticket-view/?attendee_id=X&ticket_code=XXXX-XXXX-XXXX
             const m = data.match(/ticket_code=([^&]+)/);
             if (m) ticketId = decodeURIComponent(m[1]);
@@ -1100,7 +1103,7 @@ jQuery(document).ready(function($) {
         if (data.already_checked_in) {
             $('#result-header-bg').css('background', 'linear-gradient(135deg, #ffc107, #ff9800)');
             $('#result-icon').html('<i class="fa fa-exclamation-circle"></i>');
-            $('#result-status-text').text('Already checked in to this session');
+            $('#result-status-text').text(data.is_company ? 'Company already checked in' : 'Already checked in');
         } else if (data.action_type === 'check_out') {
             $('#result-header-bg').css('background', 'linear-gradient(135deg, #ffc107, #ff9800)');
             $('#result-icon').html('<i class="fa fa-sign-out"></i>');

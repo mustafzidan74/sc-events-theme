@@ -299,6 +299,7 @@ require get_template_directory() . '/inc/public-frontend/chat-widget-init.php';
  * Public Certificate Handlers (Shortcodes & Download)
  */
 require get_template_directory() . '/inc/public-frontend/certificate-public.php';
+require get_template_directory() . '/inc/public-frontend/company-ticket.php';
 
 /**
  * Speaker URLs — speakers live in the custom table, so WordPress cannot route

@@ -546,6 +546,11 @@ function sc_scan_and_checkin() {
 
     global $wpdb;
 
+    // Company (exhibitor) badges carry COMP-XXXX-XXXX; staff scan them with the same scanner.
+    if (preg_match('/^COMP-[A-Z0-9]+-[A-Z0-9]+$/i', $ticket_id)) {
+        sc_scan_company_badge(strtoupper($ticket_id), $filter_event_id);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // NEW SYSTEM: Lookup in scev_sc_attendees by ticket_code
     // ─────────────────────────────────────────────────────────────
@@ -1069,5 +1074,69 @@ function sc_get_attendance_details() {
             'days_without_checkout'    => $days_without_checkout,
             'total_event_days'         => count($event_days),
         ),
+    ));
+}
+
+/**
+ * Check in a company (exhibitor) badge from the attendance scanner. Sends the
+ * same response shape as an attendee scan so the scanner's result screen works.
+ *
+ * @param string $code            Company code (COMP-XXXX-XXXX)
+ * @param int    $filter_event_id Event chosen in the scanner, 0 for any
+ */
+function sc_scan_company_badge($code, $filter_event_id) {
+    global $wpdb;
+    $company = $wpdb->get_row($wpdb->prepare(
+        "SELECT c.*, e.title AS event_title FROM {$wpdb->prefix}sc_company_attendees c LEFT JOIN {$wpdb->prefix}sc_events e ON e.id = c.event_id WHERE c.company_code = %s LIMIT 1",
+        $code
+    ));
+    if (!$company) {
+        wp_send_json_error(array('message' => __('This company badge was not found.', 'sc_events'), 'title' => 'Invalid Badge'));
+    }
+    if (!sc_scanner_can_access_event($company->event_id)) {
+        wp_send_json_error(array('message' => __('You are not assigned to scan tickets for this event.', 'sc_events'), 'title' => 'Not Allowed'));
+    }
+    if ($filter_event_id && (int) $company->event_id !== (int) $filter_event_id) {
+        $expected = $wpdb->get_var($wpdb->prepare("SELECT title FROM {$wpdb->prefix}sc_events WHERE id = %d", $filter_event_id));
+        wp_send_json_error(array('message' => sprintf(__('This badge belongs to a different event. Expected: %s', 'sc_events'), $expected ?: 'Unknown'), 'title' => 'Wrong Event'));
+    }
+    if ($company->status !== 'active') {
+        wp_send_json_error(array('message' => __('This company registration has been cancelled.', 'sc_events'), 'title' => 'Badge Inactive'));
+    }
+    if ($company->payment_status !== 'success') {
+        wp_send_json_error(array('message' => __('Payment for this company is not confirmed yet.', 'sc_events'), 'title' => 'Not Paid'));
+    }
+
+    $already = (int) $company->checked_in === 1;
+    if (!$already && class_exists('SC_Company_Attendee')) {
+        SC_Company_Attendee::check_in((int) $company->id, get_current_user_id());
+    }
+    $now = current_time('timestamp');
+    $details = array_filter(array(
+        'Contact'     => trim($company->contact_name . ($company->contact_title ? ' — ' . $company->contact_title : '')),
+        'Booth'       => $company->booth_number,
+        'Sponsorship' => $company->sponsorship_level,
+        'Company code'=> $company->company_code,
+    ));
+    wp_send_json_success(array(
+        'action_type'        => 'check_in',
+        'already_checked_in' => $already,
+        'is_company'         => true,
+        'scan_time'          => date('h:i A', $now),
+        'scan_date'          => date('M d, Y', $now),
+        'tracking_enabled'   => false,
+        'total_scans'        => 0,
+        'duration'           => '',
+        'gate'               => null,
+        'attendee'           => array(
+            'id'          => (int) $company->id,
+            'name'        => $company->company_name,
+            'email'       => $company->contact_email,
+            'phone'       => $company->contact_phone,
+            'ticket_type' => __('Company / exhibitor', 'sc_events'),
+            'event_id'    => (int) $company->event_id,
+            'event_name'  => $company->event_title,
+        ),
+        'extra_fields'       => $details,
     ));
 }

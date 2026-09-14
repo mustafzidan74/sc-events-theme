@@ -109,8 +109,10 @@ class SC_API_Router {
         // ==========================================
         $this->addRoute('POST', '/companies/register', 'SC_Companies_Endpoint@register'); // Public registration
         $this->addRoute('GET', '/companies/{company_code}', 'SC_Companies_Endpoint@show'); // Get by company code
-        $this->addRoute('GET', '/companies', 'SC_Companies_Endpoint@index'); // List companies for event
-        $this->addRoute('PUT', '/companies/{company_code}', 'SC_Companies_Endpoint@update'); // Update company
+        // Lists contact emails, so managers only.
+        $this->addRoute('GET', '/companies', 'SC_Companies_Endpoint@index', ['auth' => true, 'role' => 'manager']); // List companies for event
+        // Was open to anyone who knew or guessed a code.
+        $this->addRoute('PUT', '/companies/{company_code}', 'SC_Companies_Endpoint@update', ['auth' => true, 'role' => 'manager']); // Update company
 
         // ==========================================
         // Booths Routes
@@ -140,7 +142,7 @@ class SC_API_Router {
         // ==========================================
         $this->addRoute('GET', '/coupons', 'SC_Coupons_Endpoint@index'); // List coupons for event
         $this->addRoute('POST', '/coupons/validate', 'SC_Coupons_Endpoint@validateCoupon'); // Validate coupon
-        $this->addRoute('POST', '/coupons/apply', 'SC_Coupons_Endpoint@apply'); // Apply coupon
+        $this->addRoute('POST', '/coupons/apply', 'SC_Coupons_Endpoint@apply', ['auth' => true]); // Apply coupon (uses up a code)
         $this->addRoute('GET', '/coupons/check/{code}', 'SC_Coupons_Endpoint@check'); // Quick check
 
         // ==========================================

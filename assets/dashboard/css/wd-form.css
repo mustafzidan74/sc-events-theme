@@ -501,6 +501,17 @@
 
 /* Repeater cards */
 .w-repeat { display: flex; flex-direction: column; gap: 10px; }
+/* Inline repeater rows (links, products) */
+.w-repeat__row { display: flex; align-items: center; gap: 8px; }
+.w-repeat__row > .form-control { flex: 1 1 0; min-width: 0; }
+.w-repeat__row > .w-repeat__narrow { flex: 0 0 150px; }
+.w-repeat__row > .w-icon-btn { flex: none; }
+@media (max-width: 575.98px) {
+  .w-repeat__row { flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--w-border); }
+  .w-repeat__row > .form-control { flex-basis: calc(100% - 52px); }
+  .w-repeat__row > .w-repeat__narrow { flex: 1 1 calc(100% - 52px); }
+  .w-repeat__row--stack > .form-control + .form-control { order: 3; flex-basis: 100%; }
+}
 .w-repeat__item { border: 1px solid var(--w-border); border-radius: var(--w-radius-md); background: var(--w-surface); }
 .w-repeat__head {
   display: flex;
