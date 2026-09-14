@@ -1,211 +1,185 @@
 <?php
 /**
- * Dashboard Login Template - Modern Bootstrap Design
+ * Dashboard sign-in — shown for any dashboard URL when nobody is logged in.
+ * Posts to event_manager_login (inc/admin-dashboard/auth-ajax-handlers.php).
  *
  * @package sc_events
  */
 
-// Redirect if already logged in
-if (is_user_logged_in() && SC_Event_Manager_Dashboard::is_event_manager()) {
-    wp_redirect(home_url('/event-manager-dashboard/home'));
+if (!defined('ABSPATH')) {
     exit;
 }
 
-$assets_url = get_template_directory_uri() . '/assets/admin-dashboard/';
-$logo_url = get_template_directory_uri() . '/assets/images/logo.png';
-$platform_logo_id = get_option('sc_platform_logo');
-if ($platform_logo_id) {
-    $logo = wp_get_attachment_image_src($platform_logo_id, 'full');
-    $logo_url = $logo[0];
+if (is_user_logged_in() && (SC_Event_Manager_Dashboard::is_event_manager() || SC_Event_Manager_Dashboard::is_event_scanner())) {
+    wp_safe_redirect(home_url(SC_Event_Manager_Dashboard::is_event_manager() ? '/event-manager-dashboard/home' : '/event-manager-dashboard/scanner'));
+    exit;
 }
-$platform_name = get_option('sc_platform_name', 'Super Coding Events');
-$primary_color = get_option('sc_primary_color', '#667eea');
 
-// Translations
-$t = array(
-    'event_manager_login' => sc_t('dashboard_pages.event_manager_login', 'Event Manager Login'),
-    'event_manager_dashboard' => sc_t('dashboard_pages.event_manager_dashboard', 'Event Manager Dashboard'),
-    'welcome_back' => sc_t('dashboard_pages.welcome_back', 'Welcome back!'),
-    'login_to_access' => sc_t('dashboard_pages.login_to_access', 'Login to access Event Manager Dashboard'),
-    'email_or_username' => sc_t('dashboard_pages.email_or_username', 'Email Address or Username'),
-    'password' => sc_t('dashboard_pages.password', 'Password'),
-    'enter_password' => sc_t('dashboard_pages.enter_password', 'Enter your password'),
-    'remember_me' => sc_t('dashboard_pages.remember_me', 'Remember me'),
-    'login' => sc_t('dashboard_pages.login', 'Login'),
-    'logging_in' => sc_t('dashboard_pages.logging_in', 'Logging in...'),
-    'all_rights_reserved' => sc_t('dashboard_pages.all_rights_reserved', 'All rights reserved.'),
-    'failed_to_login' => sc_t('dashboard_pages.failed_to_login', 'Failed to login.'),
-    'request_timed_out' => sc_t('dashboard_pages.request_timed_out', 'The request timed out. Please check your connection and try again.'),
-    'could_not_connect' => sc_t('dashboard_pages.could_not_connect', 'Could not connect to server. Please check your internet connection.'),
-    'too_many_attempts' => sc_t('dashboard_pages.too_many_attempts', 'Too many login attempts. Please wait a few minutes and try again.'),
-    'server_error' => sc_t('dashboard_pages.server_error', 'Server error occurred. Please contact support.'),
-    'refresh_and_try' => sc_t('dashboard_pages.refresh_and_try', 'Please refresh the page and try again.'),
+require_once get_template_directory() . '/inc/admin-dashboard/dashboard-nav.php'; // sc_dashboard_asset()
+
+$platform_name = get_option('sc_platform_name', get_bloginfo('name'));
+$logo_id = get_option('sc_platform_logo');
+$logo = $logo_id ? wp_get_attachment_image_src($logo_id, 'medium') : false;
+$is_rtl = is_rtl() || (function_exists('sc_is_rtl') && sc_is_rtl());
+
+$i18n = array(
+    'signing_in'   => sc_t('login.signing_in', 'Signing in…'),
+    'sign_in'      => sc_t('login.sign_in', 'Sign in'),
+    'failed'       => sc_t('login.failed', 'Could not sign in. Please try again.'),
+    'offline'      => sc_t('login.offline', 'Could not reach the server. Check your connection and try again.'),
+    'show'         => sc_t('login.show_password', 'Show password'),
+    'hide'         => sc_t('login.hide_password', 'Hide password'),
+    'missing'      => sc_t('login.missing', 'Enter your email or username and your password.'),
 );
 ?>
-<!DOCTYPE html>
-<html <?php language_attributes(); ?>>
+<!doctype html>
+<html <?php language_attributes(); ?> dir="<?php echo $is_rtl ? 'rtl' : 'ltr'; ?>">
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title><?php echo $t['event_manager_login']; ?> - <?php echo esc_html($platform_name); ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <link rel="icon" href="<?php echo $assets_url; ?>images/favicon.ico" type="image/x-icon">
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="<?php echo $assets_url; ?>vendor/bootstrap/css/bootstrap.min.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="<?php echo $assets_url; ?>vendor/font-awesome/css/font-awesome.min.css">
-
-    <?php wp_head(); ?>
-
-    <!-- Login Page Styles -->
-    <link rel="stylesheet" href="<?php echo esc_url(get_template_directory_uri()); ?>/assets/dashboard/css/login.css">
-    <style>
-        :root { --primary-color: <?php echo esc_attr($primary_color); ?>; --primary-dark: <?php echo esc_attr(adjustBrightness($primary_color, -20)); ?>; }
-        body { font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; margin: 0; }
-    </style>
+    <title><?php echo esc_html(sc_t('login.title', 'Sign in') . ' · ' . $platform_name); ?></title>
+    <link rel="icon" href="<?php echo esc_url(get_template_directory_uri() . '/assets/admin-dashboard/images/favicon.ico'); ?>" type="image/x-icon">
+    <script>
+    (function () {
+        var p = null;
+        try { p = localStorage.getItem('sc_dashboard_theme'); } catch (e) {}
+        if (p === 'light' || p === 'dark') { document.documentElement.setAttribute('data-theme', p); }
+    })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('frontend/css/wisdom/tokens.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('frontend/css/wisdom/components.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('frontend/css/wisdom/auth.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/login.css')); ?>">
 </head>
+<body class="w-login">
 
-<body>
-    <div class="login-container">
-        <div class="login-card">
-            <!-- Login Header -->
-            <div class="login-header">
-                <div class="login-logo">
-                    <img src="<?php echo esc_url($logo_url); ?>" alt="Logo">
-                </div>
-                <h1 class="login-title"><?php echo esc_html($platform_name); ?></h1>
-                <p class="login-subtitle"><?php echo $t['event_manager_dashboard']; ?></p>
-            </div>
-
-            <!-- Login Body -->
-            <div class="login-body">
-                <div class="welcome-text">
-                    <h4><?php echo $t['welcome_back']; ?></h4>
-                    <p><?php echo $t['login_to_access']; ?></p>
-                </div>
-
-                <div id="login-messages"></div>
-
-                <form id="event-manager-login-form" method="post" novalidate>
-                    <?php wp_nonce_field('event_manager_login', 'login_nonce'); ?>
-
-                    <div class="form-group">
-                        <label for="user_login"><?php echo $t['email_or_username']; ?></label>
-                        <div class="input-group-modern">
-                            <input id="user_login" name="user_login" type="text" required placeholder="john@example.com">
-                            <i class="fa fa-user"></i>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="user_password"><?php echo $t['password']; ?></label>
-                        <div class="input-group-modern">
-                            <input id="user_password" name="user_password" type="password" required placeholder="<?php echo $t['enter_password']; ?>">
-                            <i class="fa fa-lock"></i>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="custom-checkbox">
-                            <input type="checkbox" name="remember_me" id="remember">
-                            <label for="remember"><?php echo $t['remember_me']; ?></label>
-                        </div>
-                    </div>
-
-                    <button class="btn-login" type="submit">
-                        <span class="login-text"><?php echo $t['login']; ?></span>
-                        <span class="login-spinner" style="display: none;">
-                            <i class="fa fa-circle-o-notch fa-spin"></i> <?php echo $t['logging_in']; ?>
-                        </span>
-                    </button>
-                </form>
-            </div>
-
-            <!-- Login Footer -->
-            <div class="login-footer">
-                &copy; <?php echo date('Y'); ?> <?php echo esc_html($platform_name); ?>. <?php echo $t['all_rights_reserved']; ?>
-            </div>
-        </div>
+<main class="w-login__main">
+    <div class="w-login__brand">
+        <?php if ($logo): ?>
+            <img src="<?php echo esc_url($logo[0]); ?>" alt="<?php echo esc_attr($platform_name); ?>">
+        <?php else: ?>
+            <span class="w-login__name"><?php echo esc_html($platform_name); ?></span>
+        <?php endif; ?>
     </div>
 
-    <!-- jQuery -->
-    <script src="<?php echo esc_url($assets_url . 'vendor/jquery/jquery.min.js'); ?>"></script>
-    <!-- Bootstrap -->
-    <script src="<?php echo $assets_url; ?>vendor/bootstrap/js/bootstrap.min.js"></script>
+    <div class="w-auth__card w-login__card">
+        <form class="w-auth__form" id="w-login-form" method="post" novalidate>
+            <div>
+                <h1 class="w-login__title"><?php echo esc_html(sc_t('login.heading', 'Sign in to the dashboard')); ?></h1>
+                <p class="w-auth__lede"><?php echo esc_html(sc_t('login.lede', 'For event managers and scanner staff.')); ?></p>
+            </div>
 
-    <script>
-    jQuery(document).ready(function($) {
-        $('#event-manager-login-form').on('submit', function(e) {
-            e.preventDefault();
+            <div class="w-login__error" id="w-login-error" role="alert" hidden></div>
 
-            var form = $(this);
-            var submitBtn = form.find('button[type="submit"]');
+            <?php wp_nonce_field('event_manager_login', 'login_nonce'); ?>
 
-            // Show loading state
-            submitBtn.prop('disabled', true);
-            form.find('.login-text').hide();
-            form.find('.login-spinner').show();
-            $('#login-messages').html('');
+            <div class="w-field">
+                <label class="w-label" for="user_login"><?php echo esc_html(sc_t('login.user', 'Email or username')); ?></label>
+                <input class="w-input" id="user_login" name="user_login" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" dir="ltr" required>
+            </div>
 
-            $.ajax({
-                url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                type: 'POST',
-                data: {
-                    action: 'event_manager_login',
-                    user_login: $('#user_login').val(),
-                    user_password: $('#user_password').val(),
-                    remember_me: $('#remember').is(':checked') ? 'yes' : 'no',
-                    nonce: $('[name="login_nonce"]').val()
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $('#login-messages').html('<div class="alert alert-success"><i class="fa fa-check-circle"></i> ' + response.data.message + '</div>');
-                        setTimeout(function() {
-                            window.location.href = response.data.redirect;
-                        }, 500);
-                    } else {
-                        $('#login-messages').html('<div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> ' + response.data.message + '</div>');
-                        submitBtn.prop('disabled', false);
-                        form.find('.login-text').show();
-                        form.find('.login-spinner').hide();
-                    }
-                },
-                error: function(xhr, status) {
-                    var errorMsg = '<?php echo esc_js($t['failed_to_login']); ?> ';
-                    if (status === 'timeout') {
-                        errorMsg += '<?php echo esc_js($t['request_timed_out']); ?>';
-                    } else if (xhr.status === 0) {
-                        errorMsg += '<?php echo esc_js($t['could_not_connect']); ?>';
-                    } else if (xhr.status === 429) {
-                        errorMsg += '<?php echo esc_js($t['too_many_attempts']); ?>';
-                    } else if (xhr.status === 500) {
-                        errorMsg += '<?php echo esc_js($t['server_error']); ?>';
-                    } else {
-                        errorMsg += '<?php echo esc_js($t['refresh_and_try']); ?>';
-                    }
-                    $('#login-messages').html('<div class="alert alert-danger"><i class="fa fa-exclamation-triangle"></i> ' + errorMsg + '</div>');
-                    submitBtn.prop('disabled', false);
-                    form.find('.login-text').show();
-                    form.find('.login-spinner').hide();
-                }
-            });
-        });
+            <div class="w-field">
+                <label class="w-label" for="user_password">
+                    <span class="w-auth__row">
+                        <span><?php echo esc_html(sc_t('login.password', 'Password')); ?></span>
+                        <a class="w-auth__link" href="<?php echo esc_url(home_url('/forgot-password/')); ?>"><?php echo esc_html(sc_t('login.forgot', 'Forgot password?')); ?></a>
+                    </span>
+                </label>
+                <span class="w-auth__pw">
+                    <input class="w-input" id="user_password" name="user_password" type="password" autocomplete="current-password" dir="ltr" required>
+                    <button class="w-auth__reveal" type="button" id="w-login-reveal" aria-label="<?php echo esc_attr($i18n['show']); ?>" aria-pressed="false">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </span>
+            </div>
+
+            <label class="w-auth__check">
+                <input type="checkbox" id="remember" name="remember_me" value="yes">
+                <span><?php echo esc_html(sc_t('login.remember', 'Keep me signed in on this device')); ?></span>
+            </label>
+
+            <button class="w-btn w-btn--lg" type="submit" id="w-login-submit"><?php echo esc_html($i18n['sign_in']); ?></button>
+        </form>
+    </div>
+
+    <p class="w-login__foot">
+        <a href="<?php echo esc_url(home_url('/')); ?>"><?php echo esc_html(sprintf(sc_t('login.go_site', '← %s website'), $platform_name)); ?></a>
+    </p>
+</main>
+
+<script>
+(function () {
+    var i18n = <?php echo wp_json_encode($i18n); ?>;
+    var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+    var form = document.getElementById('w-login-form');
+    var error = document.getElementById('w-login-error');
+    var submit = document.getElementById('w-login-submit');
+    var user = document.getElementById('user_login');
+    var pass = document.getElementById('user_password');
+    var reveal = document.getElementById('w-login-reveal');
+
+    function showError(msg) {
+        error.textContent = msg;
+        error.hidden = false;
+    }
+
+    function busy(on) {
+        submit.disabled = on;
+        submit.textContent = on ? i18n.signing_in : i18n.sign_in;
+    }
+
+    reveal.addEventListener('click', function () {
+        var show = pass.type === 'password';
+        pass.type = show ? 'text' : 'password';
+        reveal.setAttribute('aria-pressed', show ? 'true' : 'false');
+        reveal.setAttribute('aria-label', show ? i18n.hide : i18n.show);
+        pass.focus();
     });
-    </script>
 
-    <?php wp_footer(); ?>
+    user.focus();
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        error.hidden = true;
+        user.removeAttribute('aria-invalid');
+        pass.removeAttribute('aria-invalid');
+        if (!user.value.trim() || !pass.value) {
+            if (!user.value.trim()) { user.setAttribute('aria-invalid', 'true'); }
+            if (!pass.value) { pass.setAttribute('aria-invalid', 'true'); }
+            showError(i18n.missing);
+            (user.value.trim() ? pass : user).focus();
+            return;
+        }
+
+        var body = new URLSearchParams();
+        body.set('action', 'event_manager_login');
+        body.set('user_login', user.value.trim());
+        body.set('user_password', pass.value);
+        body.set('remember_me', document.getElementById('remember').checked ? 'yes' : 'no');
+        body.set('nonce', form.querySelector('[name="login_nonce"]').value);
+
+        busy(true);
+        fetch(ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body })
+            .then(function (r) { return r.json().catch(function () { return null; }); })
+            .then(function (res) {
+                if (res && res.success && res.data && res.data.redirect) {
+                    window.location.assign(res.data.redirect);
+                    return;
+                }
+                busy(false);
+                showError((res && res.data && res.data.message) || i18n.failed);
+                pass.select();
+            })
+            .catch(function () {
+                busy(false);
+                showError(i18n.offline);
+            });
+    });
+})();
+</script>
 </body>
 </html>
-
-<?php
-// Helper function for color adjustment
-function adjustBrightness($hexColor, $percent) {
-    $hexColor = ltrim($hexColor, '#');
-    $rgb = array_map('hexdec', str_split($hexColor, 2));
-    foreach ($rgb as &$color) {
-        $color = max(0, min(255, $color + ($percent * 255 / 100)));
-    }
-    return '#' . implode('', array_map(function($val) { return str_pad(dechex($val), 2, '0', STR_PAD_LEFT); }, $rgb));
-}
-?>

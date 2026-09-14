@@ -15,6 +15,8 @@ if (!defined('ABSPATH')) {
 // Define API directory
 define('SC_API_DIR', dirname(__FILE__) . '/');
 
+require_once dirname(__DIR__) . '/sc-client-ip.php';
+
 // Load core classes
 require_once SC_API_DIR . 'class-api-response.php';
 require_once SC_API_DIR . 'class-api-auth.php';

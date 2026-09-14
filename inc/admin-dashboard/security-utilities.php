@@ -984,37 +984,5 @@ function sc_sanitize_filename($filename) {
     return $filename;
 }
 
-/**
- * ============================================
- * HELPER: Get Client IP (if not already defined)
- * ============================================
- */
-if (!function_exists('sc_get_client_ip')) {
-    function sc_get_client_ip() {
-        $ip = '';
-
-        $headers = array(
-            'HTTP_CF_CONNECTING_IP',
-            'HTTP_X_REAL_IP',
-            'HTTP_X_FORWARDED_FOR',
-            'REMOTE_ADDR'
-        );
-
-        foreach ($headers as $header) {
-            if (!empty($_SERVER[$header])) {
-                $ip = $_SERVER[$header];
-                if (strpos($ip, ',') !== false) {
-                    $ips = explode(',', $ip);
-                    $ip = trim($ips[0]);
-                }
-                break;
-            }
-        }
-
-        if (filter_var($ip, FILTER_VALIDATE_IP)) {
-            return $ip;
-        }
-
-        return '0.0.0.0';
-    }
-}
+// sc_get_client_ip() lives in inc/sc-client-ip.php so the SHORTINIT API (api.php) can use it too.
+require_once dirname(__DIR__) . '/sc-client-ip.php';

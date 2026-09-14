@@ -18,88 +18,63 @@ if (!defined('ABSPATH')) {
  */
 add_action('wp_ajax_nopriv_event_manager_login', 'sc_event_manager_login_handler');
 function sc_event_manager_login_handler() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'event_manager_login')) {
-        wp_send_json_error(array('message' => __('Security check failed. Please refresh and try again.', 'sc_events')));
+    $locked_message = function ($seconds) {
+        return sprintf(__('Too many failed sign-in attempts. Please try again in %d minutes.', 'sc_events'), max(1, ceil($seconds / 60)));
+    };
+
+    $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+    if (!wp_verify_nonce($nonce, 'event_manager_login')) {
+        wp_send_json_error(array('message' => __('This page has expired. Refresh it and sign in again.', 'sc_events')));
     }
 
-    $user_login = sanitize_text_field($_POST['user_login']);
-
-    // Check if the username belongs to an admin/event_manager user
-    $target_user = get_user_by('login', $user_login);
-    if (!$target_user) {
-        $target_user = get_user_by('email', $user_login);
+    $user_login = isset($_POST['user_login']) ? trim(sanitize_text_field(wp_unslash($_POST['user_login']))) : '';
+    // Passwords are passed on as sent, the way wp-login.php does.
+    $user_password = isset($_POST['user_password']) ? (string) $_POST['user_password'] : '';
+    if ($user_login === '' || $user_password === '') {
+        wp_send_json_error(array('message' => __('Enter your email or username and your password.', 'sc_events')));
     }
 
-    $is_admin_user = false;
-    if ($target_user) {
-        $admin_roles = array('administrator', 'event_manager');
-        $is_admin_user = !empty(array_intersect($admin_roles, $target_user->roles));
+    // Lockout is per IP and the same for every account, so the reply never
+    // reveals which usernames belong to staff. Failed attempts are counted
+    // once, by the wp_login_failed hook in security-utilities.php.
+    $lockout = sc_is_ip_locked_out();
+    if ($lockout) {
+        wp_send_json_error(array('message' => $locked_message($lockout['remaining']), 'locked_out' => true, 'retry_after' => $lockout['remaining']));
     }
 
-    // Check brute force lockout - only for admin users
-    if ($is_admin_user && function_exists('sc_is_ip_locked_out')) {
-        $lockout = sc_is_ip_locked_out();
-        if ($lockout) {
-            wp_send_json_error(array(
-                'message' => sprintf(__('Too many failed login attempts. Please try again in %d minutes.', 'sc_events'), ceil($lockout['remaining'] / 60)),
-                'locked_out' => true,
-                'retry_after' => $lockout['remaining']
-            ));
-        }
-    }
-    $user_password = $_POST['user_password'];
-    $remember_me = isset($_POST['remember_me']) && $_POST['remember_me'] === 'yes';
-
-    $credentials = array(
-        'user_login' => $user_login,
+    $user = wp_signon(array(
+        'user_login'    => $user_login,
         'user_password' => $user_password,
-        'remember' => $remember_me
-    );
-
-    $user = wp_signon($credentials, is_ssl());
+        'remember'      => isset($_POST['remember_me']) && $_POST['remember_me'] === 'yes',
+    ), is_ssl());
 
     if (is_wp_error($user)) {
-        // Only record failed login attempts for admin users
-        if ($is_admin_user && function_exists('sc_record_failed_login')) {
-            $result = sc_record_failed_login(null, $user_login);
-
-            if (isset($result['locked']) && $result['locked']) {
-                wp_send_json_error(array(
-                    'message' => sprintf(__('Too many failed login attempts. Please try again in %d minutes.', 'sc_events'), ceil($result['duration'] / 60)),
-                    'locked_out' => true,
-                    'retry_after' => $result['duration']
-                ));
-            }
-
-            if (isset($result['remaining_attempts']) && $result['remaining_attempts'] <= 2) {
-                wp_send_json_error(array(
-                    'message' => sprintf(__('Invalid username or password. %d attempts remaining.', 'sc_events'), $result['remaining_attempts'])
-                ));
-            }
+        $lockout = sc_is_ip_locked_out();
+        if ($lockout) {
+            wp_send_json_error(array('message' => $locked_message($lockout['remaining']), 'locked_out' => true, 'retry_after' => $lockout['remaining']));
         }
-
-        wp_send_json_error(array('message' => __('Invalid username or password.', 'sc_events')));
+        $config = sc_get_brute_force_config();
+        $attempts = get_transient('sc_attempts_' . md5(sc_get_client_ip()));
+        $left = $config['max_attempts'] - (is_array($attempts) ? (int) $attempts['count'] : 0);
+        $message = __('Wrong email, username or password.', 'sc_events');
+        if ($left > 0 && $left <= 2) {
+            $message .= ' ' . sprintf(_n('%d attempt left before sign-in is paused.', '%d attempts left before sign-in is paused.', $left, 'sc_events'), $left);
+        }
+        wp_send_json_error(array('message' => $message));
     }
 
-    $is_event_manager = in_array('event_manager', $user->roles) || in_array('administrator', $user->roles);
-    $is_event_scanner = in_array('event_scanner', $user->roles);
+    $is_event_manager = in_array('event_manager', $user->roles, true) || in_array('administrator', $user->roles, true);
+    $is_event_scanner = in_array('event_scanner', $user->roles, true);
 
     if (!$is_event_manager && !$is_event_scanner) {
         wp_logout();
-        wp_send_json_error(array('message' => __('You do not have permission to access the Event Manager Dashboard.', 'sc_events')));
+        wp_send_json_error(array('message' => __('This account has no dashboard access. The dashboard is for event managers and scanner staff.', 'sc_events')));
     }
 
-    if (function_exists('sc_record_successful_login')) {
-        sc_record_successful_login();
-    }
-
-    $redirect_url = $is_event_scanner
-        ? home_url('/event-manager-dashboard/scanner')
-        : home_url('/event-manager-dashboard/home');
+    sc_record_successful_login();
 
     wp_send_json_success(array(
-        'message' => __('Login successful! Redirecting...', 'sc_events'),
-        'redirect' => $redirect_url
+        'redirect' => home_url($is_event_manager ? '/event-manager-dashboard/home' : '/event-manager-dashboard/scanner'),
     ));
 }
 
