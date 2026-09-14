@@ -154,8 +154,7 @@ class SC_Chat {
         // Get identifier (use IP + visitor token for better tracking)
         if (!$identifier) {
             $ip = $this->get_client_ip();
-            $visitor_token = isset($_COOKIE['sc_chat_visitor_token']) ? sanitize_text_field($_COOKIE['sc_chat_visitor_token']) : '';
-            $identifier = md5($ip . $visitor_token);
+            $identifier = md5($ip . wp_salt('auth'));
         }
 
         $limit = $this->rate_limits[$action]['limit'];
@@ -231,18 +230,51 @@ class SC_Chat {
      * Get or create visitor token from cookie
      */
     public function get_visitor_token() {
-        if (isset($_COOKIE['sc_chat_visitor_token'])) {
-            return sanitize_text_field($_COOKIE['sc_chat_visitor_token']);
+        // The same token for the whole request. A new token on every call meant the
+        // conversation was saved with one token and the browser kept another, so a
+        // guest's second message was refused.
+        if ($this->request_token) {
+            return $this->request_token;
+        }
+
+        $cookie = isset($_COOKIE['sc_chat_visitor_token']) ? sanitize_text_field(wp_unslash($_COOKIE['sc_chat_visitor_token'])) : '';
+        if (preg_match('/^[a-f0-9]{64}$/', $cookie)) {
+            return $this->request_token = $cookie;
         }
 
         $token = $this->generate_visitor_token();
 
-        // Set cookie for 30 days
+        // Set cookie for 30 days. The widget keeps its own copy, so scripts never need to read it.
         if (!headers_sent()) {
-            setcookie('sc_chat_visitor_token', $token, time() + (30 * DAY_IN_SECONDS), '/');
+            setcookie('sc_chat_visitor_token', $token, array(
+                'expires'  => time() + (30 * DAY_IN_SECONDS),
+                'path'     => '/',
+                'secure'   => is_ssl(),
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ));
         }
+        $_COOKIE['sc_chat_visitor_token'] = $token;
 
-        return $token;
+        return $this->request_token = $token;
+    }
+
+    /** Token chosen for this request (see get_visitor_token). */
+    private $request_token = '';
+
+    /**
+     * Organizer actions are for event managers, not every logged-in account.
+     */
+    private function is_organizer() {
+        return is_user_logged_in() && class_exists('SC_Event_Manager_Dashboard') && SC_Event_Manager_Dashboard::is_event_manager();
+    }
+
+    /**
+     * Only these two sides exist; anything else is refused.
+     */
+    private function party($value) {
+        $value = sanitize_key((string) $value);
+        return in_array($value, array('visitor', 'organizer'), true) ? $value : '';
     }
 
     // =========================================
@@ -617,8 +649,8 @@ class SC_Chat {
             if (!empty($conversation->user_id) && (int) $conversation->user_id === $user_id) {
                 return true;
             }
-            // Organizers/admins can access any conversation
-            if ($accessor_type === 'organizer') {
+            // Event managers can access any conversation
+            if ($accessor_type === 'organizer' && $this->is_organizer()) {
                 return true;
             }
         }
@@ -748,9 +780,9 @@ class SC_Chat {
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
         $message = sanitize_textarea_field($_POST['message'] ?? '');
-        $sender_type = sanitize_text_field($_POST['sender_type'] ?? 'visitor');
+        $sender_type = $this->party($_POST['sender_type'] ?? 'visitor');
 
-        if (!$conversation_id || empty($message)) {
+        if (!$conversation_id || empty($message) || !$sender_type) {
             wp_send_json_error(array('message' => __('Invalid request', 'sc_events')));
         }
 
@@ -792,10 +824,15 @@ class SC_Chat {
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
         $last_id = intval($_POST['last_id'] ?? 0);
-        $reader_type = sanitize_text_field($_POST['reader_type'] ?? 'visitor');
+        $reader_type = $this->party($_POST['reader_type'] ?? 'visitor');
 
-        if (!$conversation_id) {
+        if (!$conversation_id || !$reader_type) {
             wp_send_json_error(array('message' => __('Invalid request', 'sc_events')));
+        }
+
+        // Only the visitor who owns the conversation, or an event manager, may read it.
+        if (!$this->can_access_conversation($conversation_id, $reader_type)) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
         }
 
         $messages = $this->get_new_messages($conversation_id, $last_id);
@@ -883,10 +920,14 @@ class SC_Chat {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
-        $reader_type = sanitize_text_field($_POST['reader_type'] ?? 'visitor');
+        $reader_type = $this->party($_POST['reader_type'] ?? 'visitor');
 
-        if (!$conversation_id) {
+        if (!$conversation_id || !$reader_type) {
             wp_send_json_error(array('message' => __('Invalid request', 'sc_events')));
+        }
+
+        if (!$this->can_access_conversation($conversation_id, $reader_type)) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
         }
 
         $this->mark_as_read($conversation_id, $reader_type);
@@ -904,12 +945,12 @@ class SC_Chat {
     public function ajax_get_conversations() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         $status = sanitize_text_field($_POST['status'] ?? 'all');
-        $page = intval($_POST['page'] ?? 1);
+        $page = max(1, intval($_POST['page'] ?? 1));
         $per_page = 20;
         $offset = ($page - 1) * $per_page;
 
@@ -927,6 +968,10 @@ class SC_Chat {
              LIMIT $per_page OFFSET $offset"
         );
 
+        foreach ($conversations as $c) {
+            unset($c->visitor_token);
+        }
+
         wp_send_json_success(array(
             'conversations' => $conversations,
             'stats' => $this->get_chat_stats(),
@@ -939,8 +984,8 @@ class SC_Chat {
     public function ajax_get_conversation_messages() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
@@ -950,6 +995,10 @@ class SC_Chat {
         }
 
         $conversation = $this->get_conversation($conversation_id);
+        if (!$conversation) {
+            wp_send_json_error(array('message' => __('Conversation not found', 'sc_events')));
+        }
+        unset($conversation->visitor_token);
         $messages = $this->get_messages($conversation_id);
 
         // Mark as read by organizer
@@ -967,8 +1016,8 @@ class SC_Chat {
     public function ajax_close_conversation() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
@@ -988,8 +1037,8 @@ class SC_Chat {
     public function ajax_get_unread_count() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         wp_send_json_success(array(
@@ -1169,9 +1218,9 @@ class SC_Chat {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
-        $sender_type = sanitize_text_field($_POST['sender_type'] ?? 'visitor');
+        $sender_type = $this->party($_POST['sender_type'] ?? 'visitor');
 
-        if (!$conversation_id) {
+        if (!$conversation_id || !$sender_type) {
             wp_send_json_error(array('message' => __('Invalid conversation', 'sc_events')));
         }
 
@@ -1363,8 +1412,8 @@ class SC_Chat {
     public function ajax_archive_conversation() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
@@ -1384,8 +1433,8 @@ class SC_Chat {
     public function ajax_restore_conversation() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
@@ -1427,8 +1476,8 @@ class SC_Chat {
     public function ajax_reopen_conversation() {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')));
+        if (!$this->is_organizer()) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'sc_events')), 403);
         }
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
