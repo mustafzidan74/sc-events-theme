@@ -373,7 +373,13 @@ class SC_Certificate_Template {
             'is_active'        => 1,
         );
 
-        return self::create($data);
+        $new_id = self::create($data);
+        // create() doesn't know the visual builder's columns; copy the design too.
+        if ($new_id && isset($template->design_mode)) {
+            global $wpdb;
+            $wpdb->update(self::get_table(), array('design_mode' => $template->design_mode, 'elements_config' => $template->elements_config), array('id' => (int) $new_id));
+        }
+        return $new_id;
     }
 
     /**

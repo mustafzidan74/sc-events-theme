@@ -626,6 +626,41 @@ class SC_Certificate_PDF {
      * @param string $output_mode Output mode
      * @return mixed PDF output
      */
+    /**
+     * Show a template as a PDF filled with sample values, without issuing anything.
+     *
+     * @param int $template_id Template ID
+     */
+    public static function preview_template($template_id) {
+        $template = SC_Certificate_Template::get($template_id);
+        if (!$template) {
+            wp_die(esc_html__('Certificate template not found.', 'sc_events'));
+        }
+        global $wpdb;
+        $event = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}sc_events WHERE certificate_template_id = %d ORDER BY start_date DESC LIMIT 1",
+            (int) $template_id
+        ));
+        $generator = (new ReflectionClass(self::class))->newInstanceWithoutConstructor();
+        $generator->template = $template;
+        $generator->event = $event ?: (object) array('title' => 'Sample Event', 'start_date' => current_time('Y-m-d'), 'end_date' => current_time('Y-m-d'), 'venue_name' => 'Cairo', 'organizer_id' => 0);
+        $generator->attendee = (object) array('name' => 'Dr. Sample Attendee Name', 'email' => 'attendee@example.com', 'phone' => '', 'ticket_name' => 'General');
+        $generator->certificate = array(
+            'id'                 => 0,
+            'certificate_number' => 'CERT-' . current_time('Y') . '-SAMPLE',
+            'verification_code'  => 'SAMPLE000000',
+            'issued_at'          => current_time('mysql'),
+            'event_id'           => $event ? (int) $event->id : 0,
+            'template_id'        => (int) $template_id,
+        );
+        try {
+            $generator->generate('I');
+        } catch (Exception $e) {
+            wp_die(esc_html($e->getMessage()));
+        }
+        exit;
+    }
+
     public static function generate_pdf($certificate_id, $output_mode = 'I') {
         $generator = new self($certificate_id);
         return $generator->generate($output_mode);

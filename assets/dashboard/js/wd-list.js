@@ -12,6 +12,7 @@
  *     rowMenu: row => [{ label, icon, href | onSelect, danger, disabled }],
  *     bulkActions: [{ key, label, danger, run(ids, rows, list) }],
  *     extraParams: () => ({}), chips: state => [{ label, value, clear }],
+ *     fixedFilters: ['scope'],                 // filters that define the page, not narrow it
  *   });
  *
  * Renderers return HTML strings and must escape data with WDList.esc().
@@ -103,7 +104,7 @@
       });
     }
     function activeFilterCount() {
-      return Object.keys(state.filters).length;
+      return Object.keys(state.filters).filter(function (key) { return (opts.fixedFilters || []).indexOf(key) === -1; }).length;
     }
 
     /* ---------------------------------------------------------------- URL */
@@ -630,7 +631,11 @@
         return load();
       },
       reset: function () {
-        state.filters = {};
+        // Fixed filters (e.g. the event a page is about) survive Clear all.
+        state.filters = (opts.fixedFilters || []).reduce(function (keep, key) {
+          if (state.filters[key] !== undefined) { keep[key] = state.filters[key]; }
+          return keep;
+        }, {});
         state.page = 1;
         if (opts.tabs) { state.tab = opts.tabs[0].key; }
         selected.clear();

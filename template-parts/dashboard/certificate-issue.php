@@ -1,7 +1,10 @@
 <?php
 /**
- * Dashboard Certificate Issue Page
- * Bulk issue certificates to event attendees
+ * Issue certificates — pick an event or workshop, see who qualifies under its
+ * certificate rules, and issue to everyone eligible or to the people you select.
+ *
+ * Lists sc_certificate_candidates and posts to sc_issue_certificates
+ * (inc/admin-dashboard/certificates-dashboard.php).
  *
  * @package sc_events
  */
@@ -10,754 +13,361 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Translations
-$t = array(
-    'page_title' => sc_t('dashboard_pages.issue_certificates', 'Issue Certificates'),
-    'certificates' => sc_t('dashboard_pages.certificates', 'Certificates'),
-    'issue' => sc_t('dashboard_pages.issue', 'Issue'),
-    'back_to_certificates' => sc_t('dashboard_pages.back_to_certificates', 'Back to Certificates'),
-    'step1_select_event' => sc_t('dashboard_pages.step1_select_event', 'Step 1: Select Event'),
-    'event' => sc_t('dashboard_pages.event', 'Event'),
-    'select_event' => sc_t('dashboard_pages.select_event', '-- Select an Event --'),
-    'event_certificate_stats' => sc_t('dashboard_pages.event_certificate_stats', 'Event Certificate Statistics'),
-    'total_attendees' => sc_t('dashboard_pages.total_attendees', 'Total Attendees'),
-    'certificates_issued' => sc_t('dashboard_pages.certificates_issued', 'Certificates Issued'),
-    'pending' => sc_t('dashboard_pages.pending', 'Pending'),
-    'revoked' => sc_t('dashboard_pages.revoked', 'Revoked'),
-    'step2_select_template' => sc_t('dashboard_pages.step2_select_template', 'Step 2: Select Template'),
-    'certificate_template' => sc_t('dashboard_pages.certificate_template', 'Certificate Template'),
-    'no_templates_available' => sc_t('dashboard_pages.no_templates_available', 'No templates available'),
-    'create_template_first' => sc_t('dashboard_pages.create_template_first', 'Create a template first'),
-    'step3_select_attendees' => sc_t('dashboard_pages.step3_select_attendees', 'Step 3: Select Attendees'),
-    'select_all' => sc_t('dashboard_pages.select_all', 'Select All'),
-    'select_none' => sc_t('dashboard_pages.select_none', 'Select None'),
-    'select_checked_in' => sc_t('dashboard_pages.select_checked_in', 'Select Checked-In Only'),
-    'select_pending_only' => sc_t('dashboard_pages.select_pending_only', 'Select Pending Only'),
-    'search_attendees' => sc_t('dashboard_pages.search_attendees', 'Search attendees...'),
-    'all_attendees' => sc_t('dashboard_pages.all_attendees', 'All Attendees'),
-    'without_certificate' => sc_t('dashboard_pages.without_certificate', 'Without Certificate'),
-    'with_certificate' => sc_t('dashboard_pages.with_certificate', 'With Certificate'),
-    'checked_in_only' => sc_t('dashboard_pages.checked_in_only', 'Checked In Only'),
-    'selected' => sc_t('dashboard_pages.selected', 'selected'),
-    'attendee' => sc_t('dashboard_pages.attendee', 'Attendee'),
-    'ticket' => sc_t('dashboard_pages.ticket', 'Ticket'),
-    'checkin' => sc_t('dashboard_pages.checkin', 'Check-In'),
-    'certificate' => sc_t('dashboard_pages.certificate', 'Certificate'),
-    'select_event_to_load' => sc_t('dashboard_pages.select_event_to_load', 'Select an event to load attendees'),
-    'send_notification_emails' => sc_t('dashboard_pages.send_notification_emails', 'Send notification emails'),
-    'after_issuing' => sc_t('dashboard_pages.after_issuing', 'after issuing certificates'),
-    'issue_certificates_btn' => sc_t('dashboard_pages.issue_certificates_btn', 'Issue Certificates'),
-    'template_preview' => sc_t('dashboard_pages.template_preview', 'Template Preview'),
-    'select_template_preview' => sc_t('dashboard_pages.select_template_preview', 'Select a template to see preview'),
-    'issue_progress' => sc_t('dashboard_pages.issue_progress', 'Issue Progress'),
-    'preparing' => sc_t('dashboard_pages.preparing', 'Preparing...'),
-    'loading_attendees' => sc_t('dashboard_pages.loading_attendees', 'Loading attendees...'),
-    'error_loading_attendees' => sc_t('dashboard_pages.error_loading_attendees', 'Error loading attendees'),
-    'no_attendees_found' => sc_t('dashboard_pages.no_attendees_found', 'No attendees found for this event'),
-    'no_matching_attendees' => sc_t('dashboard_pages.no_matching_attendees', 'No matching attendees'),
-    'yes' => sc_t('dashboard_pages.yes', 'Yes'),
-    'no' => sc_t('dashboard_pages.no', 'No'),
-    'issued' => sc_t('dashboard_pages.issued', 'Issued'),
-    'loading' => sc_t('dashboard_pages.loading', 'Loading...'),
-    'preview_failed' => sc_t('dashboard_pages.preview_failed', 'Preview failed'),
-    'no_template_warning' => sc_t('dashboard_pages.no_template_warning', 'No Template'),
-    'select_template_message' => sc_t('dashboard_pages.select_template_message', 'Please select a certificate template.'),
-    'issue_confirm_title' => sc_t('dashboard_pages.issue_confirm_title', 'Issue Certificates?'),
-    'issue_confirm_text' => sc_t('dashboard_pages.issue_confirm_text', 'This will create certificates for all selected attendees.'),
-    'yes_issue' => sc_t('dashboard_pages.yes_issue', 'Yes, Issue Certificates'),
-    'cancel' => sc_t('dashboard_pages.cancel', 'Cancel'),
-    'connection_error' => sc_t('dashboard_pages.connection_error', 'Connection error'),
-    'error_issuing' => sc_t('dashboard_pages.error_issuing', 'Error issuing certificates'),
-    'sending_emails' => sc_t('dashboard_pages.sending_emails', 'Sending notification emails...'),
-    'certs_issued_emails_sent' => sc_t('dashboard_pages.certs_issued_emails_sent', 'Certificates issued and emails sent!'),
-    'certs_issued_emails_failed' => sc_t('dashboard_pages.certs_issued_emails_failed', 'Certificates issued but some emails failed.'),
-    'no_permission' => sc_t('dashboard_pages.no_permission', 'You do not have permission to access this page.'),
-    'default' => sc_t('dashboard_pages.default', 'Default'),
-);
-
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-    wp_die($t['no_permission']);
+    wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = $t['page_title'];
-get_template_part('template-parts/dashboard/components/dashboard', 'header');
+global $wpdb, $load_wd_list;
+$load_wd_list = true;
+$p = $wpdb->prefix;
 
-// Get all events for dropdown from custom table
-$events = SC_Event::get_all(array(
-    'status' => array('publish', 'completed'),
-    'orderby' => 'start_date',
-    'order' => 'DESC',
-    'per_page' => -1
-));
+$events = $wpdb->get_results("SELECT id, title, start_date FROM {$p}sc_events WHERE status IN ('publish', 'completed', 'draft') ORDER BY start_date DESC LIMIT 200");
+$workshops = $events ? $wpdb->get_results("SELECT id, event_id, title FROM {$p}sc_workshops WHERE event_id IN (" . implode(',', array_map('intval', wp_list_pluck($events, 'id'))) . ') ORDER BY start_date, title') : array();
+$by_event = array();
+foreach ($workshops as $w) {
+    $by_event[(int) $w->event_id][] = $w;
+}
+$templates = $wpdb->get_results("SELECT id, name, is_default FROM {$p}sc_certificate_templates WHERE is_active = 1 ORDER BY is_default DESC, name");
+$default_template = $templates ? (int) $templates[0]->id : 0;
 
-// Get all active templates
-$templates = SC_Certificate_Template::get_all(array(
-    'is_active' => 1,
-    'orderby' => 'name',
-    'order' => 'ASC'
-));
+$scope = '';
+if (!empty($_GET['workshop_id'])) {
+    $scope = 'workshop:' . absint($_GET['workshop_id']);
+} elseif (!empty($_GET['event_id'])) {
+    $scope = 'event:' . absint($_GET['event_id']);
+} elseif ($events) {
+    $scope = 'event:' . (int) $events[0]->id;
+}
 
-// Get default template
-$default_template = SC_Certificate_Template::get_default();
-?>
-
-<?php get_template_part('template-parts/dashboard/components/dashboard', 'sidebar'); ?>
-
-<!-- main page content body part -->
-<div id="main-content">
-    <div class="container-fluid">
-        <div class="block-header">
-            <div class="row">
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <h2><?php echo $t['page_title']; ?></h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/certificates'); ?>"><?php echo $t['certificates']; ?></a></li>
-                        <li class="breadcrumb-item active"><?php echo $t['issue']; ?></li>
-                    </ul>
-                </div>
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <div class="d-flex flex-row-reverse">
-                        <div class="page_action">
-                            <a href="<?php echo home_url('/event-manager-dashboard/certificates'); ?>" class="btn btn-secondary">
-                                <i class="fa fa-arrow-<?php echo is_rtl() ? 'right' : 'left'; ?>"></i> <?php echo $t['back_to_certificates']; ?>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row clearfix">
-            <!-- Left Column - Issue Settings -->
-            <div class="col-lg-8 col-md-12">
-                <!-- Select Event -->
-                <div class="card">
-                    <div class="header">
-                        <h2><i class="fa fa-calendar"></i> <?php echo $t['step1_select_event']; ?></h2>
-                    </div>
-                    <div class="body">
-                        <div class="form-group">
-                            <label for="event-select"><?php echo $t['event']; ?> <span class="text-danger">*</span></label>
-                            <select class="form-control form-control-lg" id="event-select">
-                                <option value=""><?php echo $t['select_event']; ?></option>
-                                <?php foreach ($events as $event): ?>
-                                    <option value="<?php echo $event->id; ?>" data-date="<?php echo esc_attr($event->start_date); ?>">
-                                        <?php echo esc_html($event->title); ?>
-                                        <?php if ($event->start_date): ?> (<?php echo date('M j, Y', strtotime($event->start_date)); ?>)<?php endif; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Event Statistics -->
-                <div class="card" id="event-stats-card" style="display: none;">
-                    <div class="header">
-                        <h2><i class="fa fa-bar-chart"></i> <?php echo $t['event_certificate_stats']; ?></h2>
-                    </div>
-                    <div class="body">
-                        <div class="row text-center" id="event-stats">
-                            <div class="col-md-3">
-                                <div class="p-3 bg-light rounded">
-                                    <h4 class="mb-0" id="stat-total-attendees">-</h4>
-                                    <small class="text-muted"><?php echo $t['total_attendees']; ?></small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="p-3 bg-success text-white rounded">
-                                    <h4 class="mb-0" id="stat-certificates-issued">-</h4>
-                                    <small><?php echo $t['certificates_issued']; ?></small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="p-3 bg-warning rounded">
-                                    <h4 class="mb-0" id="stat-pending">-</h4>
-                                    <small><?php echo $t['pending']; ?></small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="p-3 bg-danger text-white rounded">
-                                    <h4 class="mb-0" id="stat-revoked">-</h4>
-                                    <small><?php echo $t['revoked']; ?></small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Select Template -->
-                <div class="card" id="template-card" style="display: none;">
-                    <div class="header">
-                        <h2><i class="fa fa-file-text"></i> <?php echo $t['step2_select_template']; ?></h2>
-                    </div>
-                    <div class="body">
-                        <div class="form-group">
-                            <label for="template-select"><?php echo $t['certificate_template']; ?> <span class="text-danger">*</span></label>
-                            <select class="form-control" id="template-select">
-                                <?php if (empty($templates)): ?>
-                                    <option value=""><?php echo $t['no_templates_available']; ?></option>
-                                <?php else: ?>
-                                    <?php foreach ($templates as $template): ?>
-                                        <option value="<?php echo $template->id; ?>" <?php selected($default_template && $default_template->id == $template->id); ?>>
-                                            <?php echo esc_html($template->name); ?>
-                                            <?php if ($template->is_default): ?> (<?php echo $t['default']; ?>)<?php endif; ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </select>
-                            <?php if (empty($templates)): ?>
-                                <small class="text-danger">
-                                    <a href="<?php echo home_url('/event-manager-dashboard/certificate-template-create'); ?>"><?php echo $t['create_template_first']; ?></a>
-                                </small>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Select Attendees -->
-                <div class="card" id="attendees-card" style="display: none;">
-                    <div class="header">
-                        <h2><i class="fa fa-users"></i> <?php echo $t['step3_select_attendees']; ?></h2>
-                        <ul class="header-dropdown">
-                            <li class="dropdown">
-                                <a href="javascript:void(0);" class="dropdown-toggle" data-toggle="dropdown" role="button">
-                                    <i class="fa fa-ellipsis-v"></i>
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-right">
-                                    <li><a href="javascript:void(0);" id="select-all-link"><?php echo $t['select_all']; ?></a></li>
-                                    <li><a href="javascript:void(0);" id="select-none-link"><?php echo $t['select_none']; ?></a></li>
-                                    <li><a href="javascript:void(0);" id="select-checked-in-link"><?php echo $t['select_checked_in']; ?></a></li>
-                                    <li><a href="javascript:void(0);" id="select-pending-link"><?php echo $t['select_pending_only']; ?></a></li>
-                                </ul>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="body">
-                        <!-- Quick Filters -->
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <div class="input-group">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text"><i class="fa fa-search"></i></span>
-                                    </div>
-                                    <input type="text" class="form-control" id="attendee-search" placeholder="<?php echo esc_attr($t['search_attendees']); ?>">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <select class="form-control" id="attendee-filter">
-                                    <option value="all"><?php echo $t['all_attendees']; ?></option>
-                                    <option value="pending"><?php echo $t['without_certificate']; ?></option>
-                                    <option value="issued"><?php echo $t['with_certificate']; ?></option>
-                                    <option value="checked-in"><?php echo $t['checked_in_only']; ?></option>
-                                </select>
-                            </div>
-                            <div class="col-md-4 text-<?php echo is_rtl() ? 'left' : 'right'; ?>">
-                                <span class="badge badge-primary" id="selected-count">0 <?php echo $t['selected']; ?></span>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table table-hover table-sm" id="attendees-table">
-                                <thead class="thead-light sticky-top">
-                                    <tr>
-                                        <th width="40">
-                                            <div class="custom-control custom-checkbox">
-                                                <input type="checkbox" class="custom-control-input" id="select-all-attendees">
-                                                <label class="custom-control-label" for="select-all-attendees"></label>
-                                            </div>
-                                        </th>
-                                        <th><?php echo $t['attendee']; ?></th>
-                                        <th><?php echo $t['ticket']; ?></th>
-                                        <th><?php echo $t['checkin']; ?></th>
-                                        <th><?php echo $t['certificate']; ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="attendees-tbody">
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">
-                                            <?php echo $t['select_event_to_load']; ?>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Issue Button -->
-                <div class="card" id="issue-card" style="display: none;">
-                    <div class="body">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" id="send-emails-checkbox">
-                                    <label class="custom-control-label" for="send-emails-checkbox">
-                                        <strong><?php echo $t['send_notification_emails']; ?></strong> <?php echo $t['after_issuing']; ?>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-success btn-lg btn-block" id="issue-certificates-btn" disabled>
-                                    <i class="fa fa-certificate"></i> <?php echo $t['issue_certificates_btn']; ?>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column - Preview -->
-            <div class="col-lg-4 col-md-12">
-                <!-- Template Preview -->
-                <div class="card">
-                    <div class="header">
-                        <h2><i class="fa fa-eye"></i> <?php echo $t['template_preview']; ?></h2>
-                    </div>
-                    <div class="body" style="background: #f5f5f5; padding: 10px;">
-                        <div id="template-preview-container" style="max-width: 100%; overflow: hidden;">
-                            <div id="template-preview" style="background: white; transform-origin: top left; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                                <p class="text-center text-muted py-5"><?php echo $t['select_template_preview']; ?></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Issue Progress -->
-                <div class="card" id="progress-card" style="display: none;">
-                    <div class="header">
-                        <h2><i class="fa fa-tasks"></i> <?php echo $t['issue_progress']; ?></h2>
-                    </div>
-                    <div class="body">
-                        <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" id="issue-progress-bar">
-                                0%
-                            </div>
-                        </div>
-                        <div id="progress-status" class="text-center">
-                            <p class="mb-0"><i class="fa fa-spinner fa-spin"></i> <?php echo $t['preparing']; ?></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<script>
-// Translations for JavaScript
-var certIssueTranslations = {
-    loading_attendees: '<?php echo esc_js($t['loading_attendees']); ?>',
-    error_loading_attendees: '<?php echo esc_js($t['error_loading_attendees']); ?>',
-    no_attendees_found: '<?php echo esc_js($t['no_attendees_found']); ?>',
-    no_matching_attendees: '<?php echo esc_js($t['no_matching_attendees']); ?>',
-    yes: '<?php echo esc_js($t['yes']); ?>',
-    no: '<?php echo esc_js($t['no']); ?>',
-    issued: '<?php echo esc_js($t['issued']); ?>',
-    pending: '<?php echo esc_js($t['pending']); ?>',
-    selected: '<?php echo esc_js($t['selected']); ?>',
-    loading: '<?php echo esc_js($t['loading']); ?>',
-    preview_failed: '<?php echo esc_js($t['preview_failed']); ?>',
-    no_template_warning: '<?php echo esc_js($t['no_template_warning']); ?>',
-    select_template_message: '<?php echo esc_js($t['select_template_message']); ?>',
-    issue_confirm_title: '<?php echo esc_js($t['issue_confirm_title']); ?>',
-    issue_confirm_text: '<?php echo esc_js($t['issue_confirm_text']); ?>',
-    yes_issue: '<?php echo esc_js($t['yes_issue']); ?>',
-    cancel: '<?php echo esc_js($t['cancel']); ?>',
-    connection_error: '<?php echo esc_js($t['connection_error']); ?>',
-    error_issuing: '<?php echo esc_js($t['error_issuing']); ?>',
-    sending_emails: '<?php echo esc_js($t['sending_emails']); ?>',
-    certs_issued_emails_sent: '<?php echo esc_js($t['certs_issued_emails_sent']); ?>',
-    certs_issued_emails_failed: '<?php echo esc_js($t['certs_issued_emails_failed']); ?>',
-    issue_to_attendees: '<?php echo esc_js(sc_t('dashboard_pages.issue_to_attendees', 'Issue certificates to')); ?>',
-    attendees_text: '<?php echo esc_js(sc_t('dashboard_pages.attendees_text', 'attendees')); ?>'
+$dashboard_url = home_url('/event-manager-dashboard/');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 };
 
-jQuery(function($) {
-    // State
-    let selectedEvent = null;
-    let selectedTemplate = null;
-    let attendeesData = [];
-    const selectedAttendees = new Set();
+get_template_part('template-parts/dashboard/components/dashboard', 'header');
+get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
+?>
 
-    // Event selection
-    $('#event-select').on('change', function() {
-        selectedEvent = $(this).val();
+<div id="main-content">
+<div class="container-fluid">
 
-        if (selectedEvent) {
-            loadEventStats();
-            loadAttendees();
-            $('#template-card, #attendees-card, #issue-card').show();
-        } else {
-            $('#event-stats-card, #template-card, #attendees-card, #issue-card').hide();
-        }
-    });
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html(sc_t('dashboard_pages.issue_certificates', 'Issue certificates')); ?></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('dashboard_pages.issue_certificates_sub', 'Choose the event or workshop. Everyone who meets its certificate rules can get one in a single step; you can also pick people yourself.')); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-secondary" href="<?php echo esc_url($dashboard_url . 'certificates'); ?>"><?php echo esc_html(sc_t('dashboard_pages.issued_certificates', 'Issued certificates')); ?></a>
+        </div>
+    </div>
 
-    // Template selection
-    $('#template-select').on('change', function() {
-        selectedTemplate = $(this).val();
-        if (selectedTemplate) {
-            loadTemplatePreview();
-        }
-    });
+    <?php if (!$events): ?>
+        <div class="w-state"><p class="w-state__text"><?php echo esc_html(sc_t('dashboard_pages.no_events', 'No events yet.')); ?></p></div>
+    <?php else: ?>
+    <div id="issue-page">
+        <section class="w-issue">
+            <div class="w-issue__pick">
+                <div class="w-field">
+                    <label for="scope" class="w-field__label"><?php echo esc_html(sc_t('dashboard_pages.certificates_for', 'Certificates for')); ?></label>
+                    <select class="form-control" id="scope" data-w-filter="scope">
+                        <?php foreach ($events as $ev): ?>
+                            <optgroup label="<?php echo esc_attr($ev->title); ?>">
+                                <option value="event:<?php echo (int) $ev->id; ?>"><?php echo esc_html($ev->title . ' — ' . sc_t('dashboard_pages.the_event', 'the event')); ?></option>
+                                <?php foreach ($by_event[(int) $ev->id] ?? array() as $w): ?>
+                                    <option value="workshop:<?php echo (int) $w->id; ?>"><?php echo esc_html(sc_t('dashboard_pages.workshop', 'Workshop') . ': ' . $w->title); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="w-field">
+                    <label for="template" class="w-field__label"><?php echo esc_html(sc_t('dashboard_pages.template', 'Template')); ?></label>
+                    <select class="form-control" id="template">
+                        <?php if (!$templates): ?><option value=""><?php echo esc_html(sc_t('dashboard_pages.no_templates', 'No templates yet')); ?></option><?php endif; ?>
+                        <?php foreach ($templates as $tpl): ?>
+                            <option value="<?php echo (int) $tpl->id; ?>"><?php echo esc_html($tpl->name); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="w-field__help" id="template-note"></p>
+                </div>
+            </div>
 
-    // Load event stats
-    function loadEventStats() {
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_event_certificate_stats',
-                nonce: scDashboard.nonce,
-                event_id: selectedEvent
-            },
-            success: function(response) {
-                if (response.success) {
-                    const stats = response.data.stats;
-                    $('#stat-total-attendees').text(stats.total_attendees || 0);
-                    $('#stat-certificates-issued').text(stats.issued || 0);
-                    $('#stat-pending').text(stats.pending || 0);
-                    $('#stat-revoked').text(stats.revoked || 0);
-                    $('#event-stats-card').show();
-                }
-            }
-        });
+            <ul class="w-issue__rules" id="rules" aria-live="polite"></ul>
+
+            <div class="w-issue__go">
+                <div>
+                    <p class="w-issue__big" id="eligible-line">&nbsp;</p>
+                    <label class="w-check-line"><input type="checkbox" id="send-email"> <?php echo esc_html(sc_t('dashboard_pages.email_each_person', 'Email each person a link to their certificate')); ?></label>
+                </div>
+                <button type="button" class="btn btn-primary btn-lg" id="issue-all" disabled><?php echo esc_html(sc_t('dashboard_pages.issue_to_all_eligible', 'Issue to everyone eligible')); ?></button>
+            </div>
+            <div class="w-issue__progress" id="progress" hidden>
+                <span class="w-bar" aria-hidden="true"><span class="w-bar__fill" id="progress-fill" style="width:0"></span></span>
+                <span id="progress-text" role="status"></span>
+            </div>
+        </section>
+
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr(sc_t('dashboard_pages.attendees', 'Attendees')); ?>"></div>
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html(sc_t('dashboard_pages.search_attendees', 'Search name, email, phone or ticket code')); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.search_attendees', 'Search name, email, phone or ticket code')); ?>" autocomplete="off">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
+        </div>
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-bulkbar" data-w-bulk hidden></div>
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table><thead></thead><tbody></tbody></table>
+            </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+</div>
+</div>
+
+<?php if ($events): ?>
+<script>
+jQuery(function ($) {
+    'use strict';
+
+    var esc = WDList.esc;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var defaultTemplate = <?php echo (int) $default_template; ?>;
+    var L = <?php echo $js(array(
+        'eligible'     => sc_t('dashboard_pages.eligible', 'Eligible'),
+        'waiting'      => sc_t('dashboard_pages.dont_qualify_yet', 'Don’t qualify'),
+        'has'          => sc_t('dashboard_pages.have_certificate', 'Have a certificate'),
+        'all'          => sc_t('dashboard_pages.all', 'All'),
+        'attendee'     => sc_t('dashboard_pages.attendee', 'Attendee'),
+        'ticket'       => sc_t('dashboard_pages.ticket', 'Ticket'),
+        'checkin'      => sc_t('dashboard_pages.check_in', 'Check-in'),
+        'certificate'  => sc_t('dashboard_pages.certificate', 'Certificate'),
+        'checkedIn'    => sc_t('dashboard_pages.checked_in', 'Checked in'),
+        'notYet'       => sc_t('dashboard_pages.not_yet', 'Not yet'),
+        'ready'        => sc_t('dashboard_pages.ready_to_issue', 'Ready to issue'),
+        'why'          => array(
+            'cancelled'       => sc_t('dashboard_pages.why_cancelled', 'Registration cancelled'),
+            'unpaid'          => sc_t('dashboard_pages.why_unpaid', 'Payment not confirmed'),
+            'not_checked_in'  => sc_t('dashboard_pages.why_not_checked_in', 'Not checked in'),
+            'not_checked_out' => sc_t('dashboard_pages.why_not_checked_out', 'Not checked out'),
+            'not_ended'       => sc_t('dashboard_pages.why_not_ended', 'Event hasn’t ended'),
+        ),
+        'status'       => array(
+            'issued'     => sc_t('dashboard_pages.not_downloaded_yet', 'Not downloaded yet'),
+            'downloaded' => sc_t('dashboard_pages.downloaded', 'Downloaded'),
+            'revoked'    => sc_t('dashboard_pages.revoked', 'Revoked'),
+        ),
+        'ruleCheckin'  => sc_t('dashboard_pages.rule_checkin', 'People must be checked in'),
+        'ruleCheckout' => sc_t('dashboard_pages.rule_checkout', 'People must have checked out'),
+        'ruleEnded'    => sc_t('dashboard_pages.rule_ended', 'Only after it ends (%s)'),
+        'ruleEndedOk'  => sc_t('dashboard_pages.rule_ended_ok', 'It has ended'),
+        'rulePaid'     => sc_t('dashboard_pages.rule_paid', 'Active, confirmed registrations only'),
+        'offEvent'     => sc_t('dashboard_pages.certificates_off', 'Certificates are turned off here, so attendees can’t download theirs from My Account. What you issue can still be emailed. Turn them on in the event’s Certificates section.'),
+        'noRules'      => sc_t('dashboard_pages.no_extra_rules', 'No check-in required'),
+        'eligibleLine' => sc_t('dashboard_pages.n_eligible_line', '%1$s eligible · %2$s already have one'),
+        'noneEligible' => sc_t('dashboard_pages.none_eligible', 'Nobody is waiting for a certificate here.'),
+        'tplFromScope' => sc_t('dashboard_pages.template_from_settings', 'Set in this event’s certificate settings.'),
+        'tplNone'      => sc_t('dashboard_pages.template_not_set', 'No template set in its settings — choose one.'),
+        'issueAllN'    => sc_t('dashboard_pages.issue_to_n', 'Issue to %s people'),
+        'confirmAll'   => sc_t('dashboard_pages.confirm_issue_all', 'Issue certificates to %1$s people using “%2$s”?'),
+        'confirmEmail' => sc_t('dashboard_pages.confirm_issue_all_email', ' Each of them will also get an email.'),
+        'issuing'      => sc_t('dashboard_pages.issuing_progress', 'Issuing… %1$s of %2$s'),
+        'emailing'     => sc_t('dashboard_pages.emailing_progress', 'Sending emails… %1$s of %2$s'),
+        'doneIssued'   => sc_t('dashboard_pages.done_issued', '%s certificates issued.'),
+        'doneEmails'   => sc_t('dashboard_pages.done_emails', '%1$s emails sent, %2$s failed.'),
+        'issue'        => sc_t('dashboard_pages.issue_certificate', 'Issue certificate'),
+        'issueAnyway'  => sc_t('dashboard_pages.issue_anyway', 'Issue anyway'),
+        'confirmOverride' => sc_t('dashboard_pages.confirm_override', 'Some of these people don’t meet the rules (%s). Issue their certificates anyway? People with a cancelled or unpaid registration are always skipped.'),
+        'openCert'     => sc_t('dashboard_pages.open_in_certificates', 'Find in certificates'),
+        'openReg'      => sc_t('dashboard_pages.open_registration', 'Open registration'),
+        'skipped'      => sc_t('dashboard_pages.n_skipped', '%s skipped (already had one or didn’t qualify).'),
+        'noTemplate'   => sc_t('dashboard_pages.choose_template_first', 'Choose a template first.'),
+        'search'       => sc_t('general.search', 'Search'),
+        'emptyText'    => sc_t('dashboard_pages.no_attendees_here', 'No registrations here.'),
+        'failed'       => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
+
+    // The list keeps its filters in the URL; start from the page's chosen scope.
+    var q = new URLSearchParams(location.search);
+    if (!q.get('scope')) {
+        q.set('scope', <?php echo $js($scope); ?>);
+        q.delete('event_id'); q.delete('workshop_id');
+        history.replaceState(null, '', location.pathname + '?' + q.toString());
     }
 
-    // Load attendees for event
-    function loadAttendees() {
-        $('#attendees-tbody').html('<tr><td colspan="5" class="text-center py-4"><i class="fa fa-spinner fa-spin"></i> ' + certIssueTranslations.loading_attendees + '</td></tr>');
-        selectedAttendees.clear();
-        updateSelectedCount();
+    var scope = null, counts = null, busy = false;
+    var num = WDList.num;
+    function fmt(s) { var args = [].slice.call(arguments, 1); return s.replace(/%(\d)\$s/g, function (m, i) { return args[i - 1]; }).replace('%s', args[0]); }
+    function post(data) { return $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: $.extend({ nonce: scDashboard.nonce }, data) }); }
+    function day(d) { return new Date(String(d).replace(' ', 'T')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    function templateName() { return $('#template option:selected').text(); }
 
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_attendees_paginated',
-                nonce: scDashboard.nonce,
-                event_id: selectedEvent,
-                per_page: 1000
-            },
-            success: function(response) {
-                if (response.success) {
-                    attendeesData = response.data.attendees || [];
-                    renderAttendees(attendeesData);
-                } else {
-                    $('#attendees-tbody').html('<tr><td colspan="5" class="text-center text-danger py-4">' + certIssueTranslations.error_loading_attendees + '</td></tr>');
-                }
-            }
-        });
+    function renderSummary(data) {
+        scope = data.scope; counts = data.counts;
+        var rules = [];
+        if (!scope.enabled) { rules.push('<li class="is-warn">' + esc(L.offEvent) + '</li>'); }
+        rules.push('<li>' + esc(L.rulePaid) + '</li>');
+        rules.push('<li>' + esc(scope.require_checkin ? L.ruleCheckin : L.noRules) + '</li>');
+        if (scope.require_checkout) { rules.push('<li>' + esc(L.ruleCheckout) + '</li>'); }
+        if (scope.require_ended) { rules.push('<li' + (scope.ended ? '' : ' class="is-warn"') + '>' + esc(scope.ended ? L.ruleEndedOk : fmt(L.ruleEnded, day(scope.end_date))) + '</li>'); }
+        $('#rules').html(rules.join(''));
+        $('#eligible-line').text(counts.eligible ? fmt(L.eligibleLine, num(counts.eligible), num(counts.has)) : L.noneEligible);
+        $('#issue-all').prop('disabled', !counts.eligible || busy).text(counts.eligible ? fmt(L.issueAllN, num(counts.eligible)) : L.issueAllN.replace('%s', '0'));
+    }
+    var lastScopeKey = null;
+    function syncTemplate(data) {
+        if (lastScopeKey === list.state().filters.scope) { return; }
+        lastScopeKey = list.state().filters.scope;
+        var id = data.scope.template_id;
+        if (id && $('#template option[value="' + id + '"]').length) { $('#template').val(String(id)); $('#template-note').text(L.tplFromScope); }
+        else { $('#template').val(String(defaultTemplate)); $('#template-note').text(L.tplNone); }
     }
 
-    function renderAttendees(attendees) {
-        if (!attendees || attendees.length === 0) {
-            $('#attendees-tbody').html('<tr><td colspan="5" class="text-center text-muted py-4">' + certIssueTranslations.no_attendees_found + '</td></tr>');
-            return;
-        }
-
-        const filter = $('#attendee-filter').val();
-        const search = $('#attendee-search').val().toLowerCase();
-
-        let filtered = attendees.filter(function(a) {
-            // Apply filter
-            if (filter === 'pending' && a.has_certificate) return false;
-            if (filter === 'issued' && !a.has_certificate) return false;
-            if (filter === 'checked-in' && !a.checked_in) return false;
-
-            // Apply search
-            if (search) {
-                const name = (a.name || '').toLowerCase();
-                const email = (a.email || '').toLowerCase();
-                return name.includes(search) || email.includes(search);
-            }
-
-            return true;
-        });
-
-        if (filtered.length === 0) {
-            $('#attendees-tbody').html('<tr><td colspan="5" class="text-center text-muted py-4">' + certIssueTranslations.no_matching_attendees + '</td></tr>');
-            return;
-        }
-
-        let html = '';
-        filtered.forEach(function(attendee) {
-            const isChecked = selectedAttendees.has(String(attendee.id)) ? 'checked' : '';
-            const isDisabled = attendee.has_certificate ? 'disabled' : '';
-            const rowClass = attendee.has_certificate ? 'table-success' : '';
-
-            // Check-in badge
-            let checkinBadge = attendee.checked_in
-                ? '<span class="badge badge-success"><i class="fa fa-check"></i> ' + certIssueTranslations.yes + '</span>'
-                : '<span class="badge badge-secondary">' + certIssueTranslations.no + '</span>';
-
-            // Certificate badge
-            let certBadge = attendee.has_certificate
-                ? '<span class="badge badge-success"><i class="fa fa-certificate"></i> ' + certIssueTranslations.issued + '</span>'
-                : '<span class="badge badge-warning">' + certIssueTranslations.pending + '</span>';
-
-            html += `
-                <tr class="${rowClass}">
-                    <td>
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input attendee-checkbox" id="att-${attendee.id}" value="${attendee.id}" ${isChecked} ${isDisabled}>
-                            <label class="custom-control-label" for="att-${attendee.id}"></label>
-                        </div>
-                    </td>
-                    <td>
-                        <strong>${escapeHtml(attendee.name)}</strong>
-                        <br><small class="text-muted">${escapeHtml(attendee.email || '')}</small>
-                    </td>
-                    <td><small>${escapeHtml(attendee.ticket_name || '-')}</small></td>
-                    <td>${checkinBadge}</td>
-                    <td>${certBadge}</td>
-                </tr>
-            `;
-        });
-
-        $('#attendees-tbody').html(html);
-        syncSelectAllCheckbox();
+    function progress(text, done, total) {
+        $('#progress').prop('hidden', false);
+        $('#progress-text').text(text);
+        $('#progress-fill').css('width', total ? Math.min(100, Math.round(done / total * 100)) + '%' : '0');
     }
-
-    // Filter and search handlers
-    $('#attendee-filter, #attendee-search').on('change input', function() {
-        renderAttendees(attendeesData);
-    });
-
-    // Checkbox handling
-    function updateSelectedCount() {
-        const count = selectedAttendees.size;
-        $('#selected-count').text(count + ' ' + certIssueTranslations.selected);
-        $('#issue-certificates-btn').prop('disabled', count === 0);
-    }
-
-    function syncSelectAllCheckbox() {
-        const checkboxes = $('.attendee-checkbox:not(:disabled)');
-        if (checkboxes.length === 0) {
-            $('#select-all-attendees').prop('checked', false);
-            return;
-        }
-        const allChecked = checkboxes.length === checkboxes.filter(':checked').length;
-        $('#select-all-attendees').prop('checked', allChecked);
-    }
-
-    $('#select-all-attendees').on('change', function() {
-        const isChecked = $(this).prop('checked');
-        $('.attendee-checkbox:not(:disabled)').each(function() {
-            const id = String($(this).val());
-            $(this).prop('checked', isChecked);
-            if (isChecked) {
-                selectedAttendees.add(id);
-            } else {
-                selectedAttendees.delete(id);
-            }
-        });
-        updateSelectedCount();
-    });
-
-    $(document).on('change', '.attendee-checkbox', function() {
-        const id = String($(this).val());
-        if ($(this).prop('checked')) {
-            selectedAttendees.add(id);
-        } else {
-            selectedAttendees.delete(id);
-        }
-        updateSelectedCount();
-        syncSelectAllCheckbox();
-    });
-
-    // Quick selection links
-    $('#select-all-link').on('click', function() {
-        $('.attendee-checkbox:not(:disabled)').prop('checked', true).each(function() {
-            selectedAttendees.add(String($(this).val()));
-        });
-        updateSelectedCount();
-        syncSelectAllCheckbox();
-    });
-
-    $('#select-none-link').on('click', function() {
-        $('.attendee-checkbox').prop('checked', false);
-        selectedAttendees.clear();
-        updateSelectedCount();
-        syncSelectAllCheckbox();
-    });
-
-    $('#select-checked-in-link').on('click', function() {
-        $('.attendee-checkbox').prop('checked', false);
-        selectedAttendees.clear();
-        attendeesData.forEach(function(a) {
-            if (a.checked_in && !a.has_certificate) {
-                $('#att-' + a.id).prop('checked', true);
-                selectedAttendees.add(String(a.id));
-            }
-        });
-        updateSelectedCount();
-        syncSelectAllCheckbox();
-    });
-
-    $('#select-pending-link').on('click', function() {
-        $('.attendee-checkbox').prop('checked', false);
-        selectedAttendees.clear();
-        attendeesData.forEach(function(a) {
-            if (!a.has_certificate) {
-                $('#att-' + a.id).prop('checked', true);
-                selectedAttendees.add(String(a.id));
-            }
-        });
-        updateSelectedCount();
-        syncSelectAllCheckbox();
-    });
-
-    // Load template preview
-    function loadTemplatePreview() {
-        $('#template-preview').html('<div class="text-center py-5"><i class="fa fa-spinner fa-spin"></i> ' + certIssueTranslations.loading + '</div>');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_preview_certificate_template',
-                nonce: scDashboard.nonce,
-                template_id: selectedTemplate
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#template-preview').html(response.data.html);
-                    $('#template-preview').css('transform', 'scale(0.3)');
-                } else {
-                    $('#template-preview').html('<div class="alert alert-danger m-3">' + certIssueTranslations.preview_failed + '</div>');
-                }
-            }
-        });
-    }
-
-    // Issue certificates
-    $('#issue-certificates-btn').on('click', function() {
-        if (selectedAttendees.size === 0) return;
-
-        const templateId = $('#template-select').val();
-        if (!templateId) {
-            Swal.fire({
-                icon: 'warning',
-                title: certIssueTranslations.no_template_warning,
-                text: certIssueTranslations.select_template_message
+    function emailAll(ids) {
+        var sent = 0, failed = 0, i = 0;
+        function next() {
+            if (i >= ids.length) { return $.Deferred().resolve({ sent: sent, failed: failed }).promise(); }
+            var chunk = ids.slice(i, i + 50);
+            progress(fmt(L.emailing, num(i), num(ids.length)), i, ids.length);
+            return post({ action: 'sc_certificates_bulk', op: 'email', ids: chunk }).then(function (res) {
+                if (res.success) { sent += res.data.sent; failed += res.data.failed; } else { failed += chunk.length; }
+                i += 50;
+                return next();
             });
-            return;
         }
+        return next();
+    }
+    function finish(issued, ids, skipped) {
+        var withEmail = $('#send-email').is(':checked') && ids.length;
+        var after = withEmail ? emailAll(ids) : $.Deferred().resolve(null).promise();
+        return after.then(function (mail) {
+            var msg = fmt(L.doneIssued, num(issued));
+            if (skipped) { msg += ' ' + fmt(L.skipped, num(skipped)); }
+            if (mail) { msg += ' ' + fmt(L.doneEmails, num(mail.sent), num(mail.failed)); }
+            (mail && mail.failed ? showWarning : showSuccess)(msg);
+        }).always(function () {
+            busy = false;
+            $('#progress').prop('hidden', true);
+            list.reload();
+        });
+    }
 
-        Swal.fire({
-            title: certIssueTranslations.issue_confirm_title,
-            html: `<p>${certIssueTranslations.issue_to_attendees} <strong>${selectedAttendees.size}</strong> ${certIssueTranslations.attendees_text}?</p>
-                   <p class="text-muted">${certIssueTranslations.issue_confirm_text}</p>`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: certIssueTranslations.yes_issue,
-            cancelButtonText: certIssueTranslations.cancel
-        }).then((result) => {
-            if (result.isConfirmed) {
-                issueCertificates();
-            }
+    $('#issue-all').on('click', function () {
+        var template = $('#template').val();
+        if (!template) { showError(L.noTemplate); return; }
+        var total = counts.eligible;
+        showConfirm(fmt(L.confirmAll, num(total), templateName()) + ($('#send-email').is(':checked') ? L.confirmEmail : '')).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            busy = true;
+            $('#issue-all').prop('disabled', true);
+            var issued = 0, ids = [];
+            (function step() {
+                progress(fmt(L.issuing, num(issued), num(total)), issued, total);
+                post({ action: 'sc_issue_certificates', scope: list.state().filters.scope, template_id: template, all_eligible: 1 }).done(function (res) {
+                    if (!res.success) { busy = false; $('#progress').prop('hidden', true); showError(res.data && res.data.message || L.failed); list.reload(); return; }
+                    issued += res.data.issued;
+                    ids = ids.concat(res.data.ids);
+                    if (res.data.remaining > 0 && res.data.issued > 0) { step(); } else { finish(issued, ids, 0); }
+                }).fail(function () { busy = false; $('#progress').prop('hidden', true); showError(L.failed); list.reload(); });
+            })();
         });
     });
 
-    function issueCertificates() {
-        $('#progress-card').show();
-        $('#issue-certificates-btn').prop('disabled', true);
+    function issueSelected(ids, rows) {
+        var template = $('#template').val();
+        if (!template) { showError(L.noTemplate); return; }
+        var reasons = {};
+        rows.forEach(function (r) { if (!r.eligible && r.overridable) { r.why.forEach(function (w) { reasons[L.why[w]] = 1; }); } });
+        var needOverride = Object.keys(reasons).length > 0;
+        var ask = needOverride ? showConfirm(fmt(L.confirmOverride, Object.keys(reasons).join(', '))) : $.Deferred().resolve({ isConfirmed: true }).promise();
+        $.when(ask).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            busy = true;
+            progress(fmt(L.issuing, 0, num(ids.length)), 0, ids.length);
+            var issued = 0, skipped = 0, newIds = [], i = 0;
+            (function step() {
+                if (i >= ids.length) { finish(issued, newIds, skipped); return; }
+                post({ action: 'sc_issue_certificates', scope: list.state().filters.scope, template_id: template, ids: ids.slice(i, i + 200), override: needOverride ? 1 : 0 }).done(function (res) {
+                    if (!res.success) { busy = false; $('#progress').prop('hidden', true); showError(res.data && res.data.message || L.failed); return; }
+                    issued += res.data.issued; skipped += res.data.skipped + res.data.failed; newIds = newIds.concat(res.data.ids);
+                    i += 200;
+                    progress(fmt(L.issuing, num(issued), num(ids.length)), issued, ids.length);
+                    step();
+                }).fail(function () { busy = false; $('#progress').prop('hidden', true); showError(L.failed); });
+            })();
+        });
+    }
 
-        const templateId = $('#template-select').val();
-        const sendEmails = $('#send-emails-checkbox').is(':checked');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_bulk_issue_certificates',
-                nonce: scDashboard.nonce,
-                event_id: selectedEvent,
-                template_id: templateId,
-                attendee_ids: Array.from(selectedAttendees)
+    var list = WDList.create({
+        root: document.getElementById('issue-page'),
+        action: 'sc_certificate_candidates',
+        rowsKey: 'rows',
+        filters: ['scope', 'search'],
+        fixedFilters: ['scope'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        tabs: [
+            { key: 'eligible', label: L.eligible, params: { view: 'eligible' }, countKey: 'eligible' },
+            { key: 'waiting', label: L.waiting, params: { view: 'waiting' }, countKey: 'waiting' },
+            { key: 'has', label: L.has, params: { view: 'has' }, countKey: 'has' },
+            { key: 'all', label: L.all, params: { view: 'all' }, countKey: 'all' }
+        ],
+        emptyText: L.emptyText,
+        onData: function (data) { if (data.scope) { syncTemplate(data); renderSummary(data); } },
+        columns: [
+            {
+                label: L.attendee,
+                render: function (a) {
+                    return '<div class="w-stack"><a class="w-row-title" href="' + esc(dashboardUrl + 'attendee-edit?id=' + a.id) + '">' + esc(a.name) + '</a><span class="w-sub w-ltr w-truncate">' + esc(a.email) + '</span></div>';
+                }
             },
-            success: function(response) {
-                if (response.success) {
-                    $('#issue-progress-bar').css('width', '100%').text('100%');
-                    $('#progress-status').html('<p class="text-success mb-0"><i class="fa fa-check"></i> ' + response.data.message + '</p>');
-
-                    // Send emails if requested
-                    if (sendEmails && response.data.issued > 0) {
-                        sendBulkEmails();
-                    } else {
-                        // Reload data
-                        setTimeout(function() {
-                            loadEventStats();
-                            loadAttendees();
-                            selectedAttendees.clear();
-                            updateSelectedCount();
-                            $('#progress-card').hide();
-                            $('#issue-certificates-btn').prop('disabled', false);
-                        }, 2000);
+            { label: L.ticket, className: 'w-col-xl', render: function (a) { return '<span class="w-truncate">' + esc(a.ticket || '—') + '</span>'; } },
+            {
+                label: L.checkin,
+                render: function (a) { return a.checked_in ? '<span class="w-tag w-tag--teal">' + esc(L.checkedIn) + '</span>' : '<span class="text-muted">' + esc(L.notYet) + '</span>'; }
+            },
+            {
+                label: L.certificate,
+                render: function (a) {
+                    if (a.cert) {
+                        return '<div class="w-stack"><span class="w-mono w-nowrap">' + esc(a.cert.number) + '</span><span class="w-sub">' + esc(L.status[a.cert.status] || a.cert.status) + ' · ' + esc(day(a.cert.issued_at)) + '</span></div>';
                     }
-                } else {
-                    $('#progress-status').html('<p class="text-danger mb-0"><i class="fa fa-times"></i> ' + (response.data.message || certIssueTranslations.error_issuing) + '</p>');
-                    $('#issue-certificates-btn').prop('disabled', false);
+                    if (a.eligible) { return '<span class="w-tag w-tag--primary">' + esc(L.ready) + '</span>'; }
+                    return a.why.map(function (w) { return '<span class="w-tag w-tag--gold">' + esc(L.why[w] || w) + '</span>'; }).join(' ');
                 }
-            },
-            error: function() {
-                $('#progress-status').html('<p class="text-danger mb-0"><i class="fa fa-times"></i> ' + certIssueTranslations.connection_error + '</p>');
-                $('#issue-certificates-btn').prop('disabled', false);
             }
-        });
-    }
-
-    function sendBulkEmails() {
-        $('#progress-status').html('<p class="mb-0"><i class="fa fa-envelope"></i> ' + certIssueTranslations.sending_emails + '</p>');
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_bulk_send_certificate_emails',
-                nonce: scDashboard.nonce,
-                event_id: selectedEvent,
-                unsent_only: true
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#progress-status').html('<p class="text-success mb-0"><i class="fa fa-check"></i> ' + certIssueTranslations.certs_issued_emails_sent + '</p>');
-                } else {
-                    $('#progress-status').html('<p class="text-warning mb-0"><i class="fa fa-warning"></i> ' + certIssueTranslations.certs_issued_emails_failed + '</p>');
-                }
-
-                setTimeout(function() {
-                    loadEventStats();
-                    loadAttendees();
-                    selectedAttendees.clear();
-                    updateSelectedCount();
-                    $('#progress-card').hide();
-                    $('#issue-certificates-btn').prop('disabled', false);
-                }, 2000);
+        ],
+        rowMenu: function (a) {
+            var items = [];
+            if (!a.cert) {
+                items.push({ label: a.eligible ? L.issue : L.issueAnyway, disabled: !a.overridable || busy, onSelect: function () { issueSelected([a.id], [a]); } });
+            } else {
+                items.push({ label: L.openCert, href: dashboardUrl + 'certificates?search=' + encodeURIComponent(a.cert.number) });
             }
-        });
-    }
-
-    // Helpers
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // Initialize template preview if default exists
-    if ($('#template-select').val()) {
-        selectedTemplate = $('#template-select').val();
-        loadTemplatePreview();
-    }
+            items.push({ label: L.openReg, href: dashboardUrl + 'attendee-edit?id=' + a.id });
+            return items;
+        },
+        bulkActions: [
+            { key: 'issue', label: L.issue, run: function (ids, rows) { issueSelected(ids, rows.filter(Boolean)); } }
+        ],
+        chips: function (state) {
+            return state.filters.search ? [{ label: L.search, value: state.filters.search, clear: function (l) { l.setFilter('search', ''); } }] : [];
+        }
+    });
 });
 </script>
+<?php endif; ?>
 
 <?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>
