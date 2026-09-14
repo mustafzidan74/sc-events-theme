@@ -1894,18 +1894,42 @@ function sc_add_lazy_loading_script() {
         }
         </style>
         <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var images = document.querySelectorAll('img[loading="lazy"]');
-            images.forEach(function(img) {
-                if (img.complete) {
-                    img.classList.add('loaded');
-                } else {
-                    img.addEventListener('load', function() {
-                        img.classList.add('loaded');
-                    });
+        (function () {
+            // Images rendered later by JavaScript (dashboard lists, sliders) must fade in too;
+            // the first version only looked once at DOMContentLoaded, so those stayed invisible.
+            // "load" doesn't bubble, so listen in the capture phase; errors reveal the alt text.
+            function reveal(e) {
+                if (e.target && e.target.tagName === 'IMG') {
+                    e.target.classList.add('loaded');
                 }
+            }
+            document.addEventListener('load', reveal, true);
+            document.addEventListener('error', reveal, true);
+            function scan(root) {
+                root.querySelectorAll('img[loading="lazy"]:not(.loaded)').forEach(function (img) {
+                    if (img.complete) {
+                        img.classList.add('loaded');
+                    }
+                });
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+                scan(document);
+                new MutationObserver(function (mutations) {
+                    mutations.forEach(function (m) {
+                        m.addedNodes.forEach(function (node) {
+                            if (node.nodeType !== 1) {
+                                return;
+                            }
+                            if (node.tagName === 'IMG') {
+                                if (node.complete) { node.classList.add('loaded'); }
+                            } else {
+                                scan(node);
+                            }
+                        });
+                    });
+                }).observe(document.body, { childList: true, subtree: true });
             });
-        });
+        })();
         </script>
         <?php
     }

@@ -760,3 +760,7 @@
   .w-dash .btn-group > .btn { border-radius: var(--w-radius-sm) !important; margin-inline-start: 0 !important; }
   .w-dash .btn-group > .btn + .btn { margin-inline-start: 4px !important; }
 }
+
+/* Confirmations and alerts sit above dialogs: modals here stack at 10000, and a
+   SweetAlert opened from inside one (e.g. "Delete" in an edit dialog) was hidden under it. */
+.w-dash .swal2-container { z-index: 10060 !important; }

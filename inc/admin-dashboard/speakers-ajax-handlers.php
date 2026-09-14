@@ -568,131 +568,6 @@ function sc_get_organizer() {
     wp_send_json_success(array('organizer' => $organizer_data));
 }
 
-/**
- * Save organizer to custom table
- */
-add_action('wp_ajax_sc_save_organizer', 'sc_save_organizer');
-function sc_save_organizer() {
-    // Support both nonce types
-    $nonce_valid = false;
-    if (isset($_POST['sc_organizer_nonce']) && wp_verify_nonce($_POST['sc_organizer_nonce'], 'sc_organizer_action')) {
-        $nonce_valid = true;
-    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        $nonce_valid = true;
-    }
-
-    if (!$nonce_valid) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    global $wpdb;
-    $table = $wpdb->prefix . 'sc_organizers';
-
-    // Support both field naming conventions
-    $organizer_id = isset($_POST['organizer_id']) ? intval($_POST['organizer_id']) : 0;
-    $organizer_name = isset($_POST['organizer_name']) ? sanitize_text_field($_POST['organizer_name']) : (isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '');
-    $organizer_email = isset($_POST['organizer_email']) ? sanitize_email($_POST['organizer_email']) : (isset($_POST['email']) ? sanitize_email($_POST['email']) : '');
-    $organizer_phone = isset($_POST['organizer_phone']) ? sanitize_text_field($_POST['organizer_phone']) : (isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '');
-    $organizer_website = isset($_POST['organizer_website']) ? esc_url_raw($_POST['organizer_website']) : (isset($_POST['website']) ? esc_url_raw($_POST['website']) : '');
-    $organizer_description = isset($_POST['organizer_description']) ? wp_kses_post($_POST['organizer_description']) : (isset($_POST['description']) ? wp_kses_post($_POST['description']) : '');
-    $organizer_address = isset($_POST['organizer_address']) ? sanitize_textarea_field($_POST['organizer_address']) : (isset($_POST['address']) ? sanitize_textarea_field($_POST['address']) : '');
-    if (empty($organizer_name)) {
-        wp_send_json_error(array('message' => __('Organizer name is required.', 'sc_events')));
-    }
-
-    // Check logo - support both file upload and media library ID
-    $has_logo_file = isset($_FILES['organizer_logo']) && !empty($_FILES['organizer_logo']['name']);
-    $has_logo_id = isset($_POST['logo']) && intval($_POST['logo']) > 0;
-    if (!$has_logo_id) {
-        $has_logo_id = isset($_POST['image']) && intval($_POST['image']) > 0;
-    }
-
-    // Get existing organizer logo if updating
-    $existing_logo = 0;
-    if ($organizer_id > 0) {
-        $existing = $wpdb->get_row($wpdb->prepare("SELECT logo FROM $table WHERE id = %d", $organizer_id));
-        if (!$existing) {
-            wp_send_json_error(array('message' => __('Organizer not found.', 'sc_events')));
-        }
-        $existing_logo = intval($existing->logo);
-    }
-
-    // Build social links array - support both naming conventions
-    $social_links = array();
-    $social_platforms = array('facebook', 'twitter', 'linkedin', 'instagram', 'youtube');
-    foreach ($social_platforms as $platform) {
-        $url = isset($_POST['organizer_' . $platform]) ? esc_url_raw($_POST['organizer_' . $platform]) : '';
-        if (empty($url)) {
-            $url = isset($_POST[$platform]) ? esc_url_raw($_POST[$platform]) : '';
-        }
-        if (!empty($url)) {
-            $social_links[$platform] = $url;
-        }
-    }
-
-    // Handle logo - either file upload or media library ID
-    $logo_id = 0;
-    if ($has_logo_file) {
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-        require_once(ABSPATH . 'wp-admin/includes/media.php');
-
-        $attachment_id = media_handle_upload('organizer_logo', 0);
-        if (!is_wp_error($attachment_id)) {
-            $logo_id = $attachment_id;
-        }
-    } elseif ($has_logo_id) {
-        $logo_id = isset($_POST['logo']) && intval($_POST['logo']) > 0 ? intval($_POST['logo']) : intval($_POST['image']);
-    }
-
-    // Generate slug
-    $slug = sanitize_title($organizer_name);
-    $original_slug = $slug;
-    $counter = 1;
-    while ($wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE slug = %s AND id != %d", $slug, $organizer_id))) {
-        $slug = $original_slug . '-' . $counter;
-        $counter++;
-    }
-
-    $data = array(
-        'name' => $organizer_name,
-        'slug' => $slug,
-        'email' => $organizer_email,
-        'phone' => $organizer_phone,
-        'website' => $organizer_website,
-        'description' => $organizer_description,
-        'address' => $organizer_address,
-        'social_links' => wp_json_encode($social_links),
-        'is_active' => 1,
-        'updated_at' => current_time('mysql')
-    );
-
-    if ($logo_id > 0) {
-        $data['logo'] = $logo_id;
-    }
-
-    if ($organizer_id > 0) {
-        // Update existing organizer
-        $result = $wpdb->update($table, $data, array('id' => $organizer_id));
-        $message = __('Organizer updated successfully.', 'sc_events');
-    } else {
-        // Create new organizer
-        $data['created_at'] = current_time('mysql');
-        $result = $wpdb->insert($table, $data);
-        $organizer_id = $wpdb->insert_id;
-        $message = __('Organizer created successfully.', 'sc_events');
-    }
-
-    if ($result === false) {
-        wp_send_json_error(array('message' => __('Failed to save organizer.', 'sc_events')));
-    }
-
-    wp_send_json_success(array('message' => $message, 'organizer_id' => $organizer_id));
-}
 
 /**
  * Delete organizer from custom table
@@ -730,89 +605,6 @@ function sc_delete_organizer() {
     wp_send_json_success(array('message' => __('Organizer deleted successfully.', 'sc_events')));
 }
 
-/**
- * Get organizers with pagination
- */
-add_action('wp_ajax_sc_get_organizers_paginated', 'sc_get_organizers_paginated');
-function sc_get_organizers_paginated() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
-    }
-
-    if (!SC_Event_Manager_Dashboard::is_event_manager()) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
-    }
-
-    global $wpdb;
-    $table = $wpdb->prefix . 'sc_organizers';
-
-    $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
-    $per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 50;
-    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-    $offset = ($page - 1) * $per_page;
-
-    $where = "WHERE is_active = 1";
-    if (!empty($search)) {
-        $search_like = '%' . $wpdb->esc_like($search) . '%';
-        $where .= $wpdb->prepare(" AND (name LIKE %s OR description LIKE %s)", $search_like, $search_like);
-    }
-
-    $total = $wpdb->get_var("SELECT COUNT(*) FROM $table $where");
-    $organizers = $wpdb->get_results($wpdb->prepare(
-        "SELECT * FROM $table $where ORDER BY name ASC LIMIT %d OFFSET %d",
-        $per_page, $offset
-    ));
-
-    // Get events count for each organizer from the pivot table (only count existing events)
-    $pivot_table = $wpdb->prefix . 'sc_event_organizers';
-    $organizer_ids = array_column($organizers, 'id');
-    $events_counts = array();
-    if (!empty($organizer_ids)) {
-        // Sanitize and prepare organizer IDs
-        $organizer_ids = array_map('intval', $organizer_ids);
-        $organizer_ids = array_filter($organizer_ids);
-
-        if (!empty($organizer_ids)) {
-            $events_table = $wpdb->prefix . 'sc_events';
-            // Use prepared statement with placeholders for IN clause
-            $placeholders = implode(',', array_fill(0, count($organizer_ids), '%d'));
-            $counts = $wpdb->get_results($wpdb->prepare("
-                SELECT eo.organizer_id, COUNT(DISTINCT eo.event_id) as count
-                FROM $pivot_table eo
-                INNER JOIN $events_table e ON eo.event_id = e.id
-                WHERE eo.organizer_id IN ($placeholders)
-                GROUP BY eo.organizer_id
-            ", $organizer_ids));
-            foreach ($counts as $row) {
-                $events_counts[$row->organizer_id] = intval($row->count);
-            }
-        }
-    }
-
-    $organizers_data = array();
-    foreach ($organizers as $organizer) {
-        $logo_url = $organizer->logo ? wp_get_attachment_url($organizer->logo) : '';
-
-        $organizers_data[] = array(
-            'ID' => $organizer->id,
-            'name' => $organizer->name,
-            'email' => $organizer->email,
-            'phone' => $organizer->phone,
-            'website' => $organizer->website,
-            'description' => $organizer->description,
-            'logo_url' => $logo_url,
-            'events_count' => isset($events_counts[$organizer->id]) ? $events_counts[$organizer->id] : 0
-        );
-    }
-
-    wp_send_json_success(array(
-        'organizers' => $organizers_data,
-        'total' => intval($total),
-        'pages' => ceil($total / $per_page),
-        'current_page' => $page,
-        'per_page' => $per_page
-    ));
-}
 
 // ==========================================
 // CATEGORIES HANDLERS
@@ -892,13 +684,13 @@ function sc_save_category() {
     }
 
     $category_id = isset($_POST['category_id']) ? intval($_POST['category_id']) : 0;
-    $category_name = isset($_POST['category_name']) ? sanitize_text_field($_POST['category_name']) : '';
-    $category_slug = isset($_POST['category_slug']) ? sanitize_title($_POST['category_slug']) : '';
-    $category_description = isset($_POST['category_description']) ? sanitize_textarea_field($_POST['category_description']) : '';
-    $category_color = isset($_POST['category_color']) ? sanitize_hex_color($_POST['category_color']) : '';
+    $category_name = isset($_POST['category_name']) ? sanitize_text_field(wp_unslash($_POST['category_name'])) : '';
+    $category_slug = isset($_POST['category_slug']) ? sanitize_title(wp_unslash($_POST['category_slug'])) : '';
+    $category_description = isset($_POST['category_description']) ? sanitize_textarea_field(wp_unslash($_POST['category_description'])) : '';
+    $category_color = isset($_POST['category_color']) ? sanitize_hex_color(wp_unslash($_POST['category_color'])) : '';
 
     if (empty($category_name)) {
-        wp_send_json_error(array('message' => __('Category name is required.', 'sc_events')));
+        wp_send_json_error(array('message' => __('Category name is required.', 'sc_events'), 'errors' => array('category_name' => __('Enter a name.', 'sc_events'))));
     }
 
     $args = array('description' => $category_description);
@@ -956,6 +748,11 @@ function sc_delete_category() {
     }
 
     $result = wp_delete_term($category_id, 'sc_event_category');
+    if ($result && !is_wp_error($result)) {
+        // Events keep categories by term id; drop the links to the deleted term.
+        global $wpdb;
+        $wpdb->delete($wpdb->prefix . 'sc_event_categories', array('category_id' => $category_id), array('%d'));
+    }
 
     if (is_wp_error($result)) {
         wp_send_json_error(array('message' => $result->get_error_message()));
@@ -1037,7 +834,8 @@ function sc_get_categories_paginated() {
     foreach ($categories as $category) {
         $category_data = array(
             'term_id' => $category->term_id,
-            'name' => $category->name,
+            // WordPress stores term names HTML-encoded (& becomes &amp;); send plain text.
+            'name' => wp_specialchars_decode($category->name, ENT_QUOTES),
             'slug' => $category->slug,
             'description' => $category->description,
             'count' => isset($events_counts[$category->term_id]) ? $events_counts[$category->term_id] : 0
@@ -1059,3 +857,6 @@ function sc_get_categories_paginated() {
         'per_page' => $per_page
     ));
 }
+
+// Organizers list, save and bulk actions.
+require_once __DIR__ . '/organizers-dashboard.php';
