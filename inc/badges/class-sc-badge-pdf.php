@@ -24,6 +24,7 @@ class SC_Badge_PDF {
     private $badge_height;
     private $primary_color;
     private $logo_path;
+    private $measure;
 
     // Badge dimensions in mm
     const SIZE_STANDARD = array(101.6, 76.2);  // 4" x 3"
@@ -39,6 +40,7 @@ class SC_Badge_PDF {
         'vip'       => array(243, 156, 18),
         'speaker'   => array(46, 204, 113),
         'organizer' => array(155, 89, 182),
+        'exhibitor' => array(22, 160, 133),
     );
 
     // Type labels
@@ -47,6 +49,7 @@ class SC_Badge_PDF {
         'vip'       => 'VIP',
         'speaker'   => 'SPEAKER',
         'organizer' => 'ORGANIZER',
+        'exhibitor' => 'EXHIBITOR',
     );
 
     public function __construct($config) {
@@ -101,7 +104,7 @@ class SC_Badge_PDF {
             $this->render_grid_layout($pdf);
         }
 
-        $filename = 'badges-' . sanitize_title($this->event['title'] ?? 'event') . '.pdf';
+        $filename = 'badges-' . sanitize_title($this->event['title'] ?? 'event') . (!empty($this->config['part']) ? '-part-' . (int) $this->config['part'] : '') . '.pdf';
 
         if ($output_mode === 'F' && !empty($filepath)) {
             return $pdf->Output($filepath, 'F');
@@ -514,9 +517,13 @@ class SC_Badge_PDF {
      * Calculate font size to fit text in given width
      */
     private function calculate_font_size($text, $max_width, $max_size, $min_size) {
-        $pdf_temp = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf_temp->setPrintHeader(false);
-        $pdf_temp->setPrintFooter(false);
+        // One measuring document for the whole job; a new TCPDF per badge made big jobs crawl.
+        if (!$this->measure) {
+            $this->measure = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+            $this->measure->setPrintHeader(false);
+            $this->measure->setPrintFooter(false);
+        }
+        $pdf_temp = $this->measure;
 
         for ($size = $max_size; $size >= $min_size; $size--) {
             $pdf_temp->SetFont('dejavusans', 'B', $size);

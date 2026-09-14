@@ -1,6 +1,7 @@
 <?php
 /**
- * Badge / Lanyard Printing Page
+ * Badge printing — who to print (list pattern over sc_badges_people) and how it looks,
+ * then a PDF from sc_badges_prepare (inc/admin-dashboard/badges-ajax-handlers.php).
  *
  * @package sc_events
  */
@@ -13,1050 +14,524 @@ if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-// Get events for dropdown
-$events = SC_Event::get_all(array(
-    'status' => array('publish', 'completed'),
-    'limit' => 1000,
-    'orderby' => 'start_date',
-    'order' => 'DESC',
+global $wpdb, $load_wd_list, $load_wd_form;
+$load_wd_list = true;
+$load_wd_form = true;
+$p = $wpdb->prefix;
+
+$events = $wpdb->get_results($wpdb->prepare(
+    "SELECT id, title, start_date, logo_image, extra_fields, COALESCE(end_date, start_date) >= %s AS current FROM {$p}sc_events
+     WHERE status IN ('publish', 'completed', 'draft') ORDER BY start_date DESC LIMIT 200",
+    current_time('Y-m-d')
 ));
+$event_ids = array_map('intval', wp_list_pluck($events, 'id'));
+$tickets = $event_ids ? $wpdb->get_results("SELECT id, event_id, workshop_id, name FROM {$p}sc_tickets WHERE event_id IN (" . implode(',', $event_ids) . ') ORDER BY sort_order, id') : array();
 
+// The event people are most likely printing for: the next one still running, else the latest.
+$default_event = 0;
+foreach ($events as $ev) {
+    if ((int) $ev->current) {
+        $default_event = (int) $ev->id;
+    }
+}
+if (!$default_event && $events) {
+    $default_event = (int) $events[0]->id;
+}
+
+$event_data = array();
+foreach ($events as $ev) {
+    $questions = json_decode((string) $ev->extra_fields, true);
+    $labels = array();
+    foreach (is_array($questions) ? $questions : array() as $q) {
+        if (is_array($q) && !empty($q['label'])) {
+            $labels[] = (string) $q['label'];
+        }
+    }
+    $event_data[(int) $ev->id] = array(
+        'title'     => $ev->title,
+        'questions' => $labels,
+        'logo'      => $ev->logo_image ? array('id' => (int) $ev->logo_image, 'url' => (string) wp_get_attachment_image_url((int) $ev->logo_image, 'medium')) : null,
+        'tickets'   => array(),
+    );
+}
+foreach ($tickets as $t) {
+    $event_data[(int) $t->event_id]['tickets'][] = array('id' => (int) $t->id, 'name' => $t->name, 'workshop' => (int) $t->workshop_id > 0);
+}
+
+$views = sc_badges_views();
 $dashboard_url = home_url('/event-manager-dashboard/');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
 
-// Translations
-$t = array(
-    'page_title'        => sc_t('badges.page_title', 'Badge Printing'),
-    'select_event'      => sc_t('badges.select_event', 'Select Event'),
-    'choose_event'      => sc_t('badges.choose_event', '-- Choose Event --'),
-    'choose_design'     => sc_t('badges.choose_design', 'Choose Badge Design'),
-    'customize'         => sc_t('badges.customize', 'Customize'),
-    'select_people'     => sc_t('badges.select_people', 'Select People'),
-    'attendees'         => sc_t('badges.attendees', 'Attendees'),
-    'speakers'          => sc_t('badges.speakers', 'Speakers'),
-    'organizers'        => sc_t('badges.organizers', 'Organizers'),
-    'generate_pdf'      => sc_t('badges.generate_pdf', 'Generate Badges PDF'),
-    'preview'           => sc_t('badges.preview', 'Badge Preview'),
-    'primary_color'     => sc_t('badges.primary_color', 'Primary Color'),
-    'event_logo'        => sc_t('badges.event_logo', 'Event Logo'),
-    'upload_logo'       => sc_t('badges.upload_logo', 'Upload Logo'),
-    'remove_logo'       => sc_t('badges.remove_logo', 'Remove'),
-    'include_qr'        => sc_t('badges.include_qr', 'Include QR Code'),
-    'include_event'     => sc_t('badges.include_event', 'Include Event Name'),
-    'badge_size'        => sc_t('badges.badge_size', 'Badge Size'),
-    'standard_size'     => sc_t('badges.standard_size', 'Standard (4" × 3")'),
-    'id_card_size'      => sc_t('badges.id_card_size', 'ID Card (3.4" × 2.1")'),
-    'layout'            => sc_t('badges.layout', 'Print Layout'),
-    'grid_layout'       => sc_t('badges.grid_layout', '6 per page (A4)'),
-    'single_layout'     => sc_t('badges.single_layout', '1 per page'),
-    'select_all'        => sc_t('badges.select_all', 'Select All'),
-    'select_none'       => sc_t('badges.select_none', 'Deselect All'),
-    'selected'          => sc_t('badges.selected', 'selected'),
-    'generating'        => sc_t('badges.generating', 'Generating badges...'),
-    'no_attendees'      => sc_t('badges.no_attendees', 'No attendees found for this event.'),
-    'no_speakers'       => sc_t('badges.no_speakers', 'No speakers assigned to this event.'),
-    'no_organizers'     => sc_t('badges.no_organizers', 'No organizers assigned to this event.'),
-    'corporate'         => sc_t('badges.corporate', 'Corporate'),
-    'modern'            => sc_t('badges.modern', 'Modern'),
-    'elegant'           => sc_t('badges.elegant', 'Elegant'),
-    'info'              => sc_t('badges.info', 'Information'),
-    'search'            => sc_t('badges.search', 'Search...'),
-    'name'              => sc_t('badges.name', 'Name'),
-    'email'             => sc_t('badges.email', 'Email'),
-    'ticket'            => sc_t('badges.ticket', 'Ticket'),
-    'type'              => sc_t('badges.type', 'Type'),
-    'title'             => sc_t('badges.title', 'Title'),
-    'company'           => sc_t('badges.company', 'Company'),
-);
-
-$page_title = $t['page_title'];
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="block-header">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <h2><?php echo esc_html($t['page_title']); ?></h2>
-                <ul class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo esc_url($dashboard_url . 'home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                    <li class="breadcrumb-item active"><?php echo esc_html($t['page_title']); ?></li>
-                </ul>
-            </div>
+
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html(sc_t('badges.page_title', 'Badges')); ?></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('badges.subtitle', 'Print name badges for attendees, speakers, exhibitors and organizers. Attendee and exhibitor badges carry the QR code the scanner reads.')); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <button type="button" class="btn btn-primary" data-print-all><i class="fa fa-file-pdf-o" aria-hidden="true"></i> <span data-print-label><?php echo esc_html(sc_t('badges.download_pdf', 'Download PDF')); ?></span></button>
         </div>
     </div>
 
-    <div class="row clearfix">
-        <!-- Main Column -->
-        <div class="col-lg-8 col-md-12">
-
-            <!-- Step 1: Select Event -->
-            <div class="card">
-                <div class="header">
-                    <h2><i class="fa fa-calendar mr-2"></i> <?php echo esc_html($t['select_event']); ?></h2>
-                </div>
-                <div class="body">
-                    <select id="badge-event-select" class="form-control">
-                        <option value=""><?php echo esc_html($t['choose_event']); ?></option>
-                        <?php foreach ($events as $event): ?>
-                        <option value="<?php echo (int)$event->id; ?>">
-                            <?php echo esc_html($event->title); ?>
-                            <?php if (!empty($event->start_date)): ?>
-                                (<?php echo esc_html(date_i18n('Y-m-d', strtotime($event->start_date))); ?>)
-                            <?php endif; ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <div id="event-loading" class="text-center mt-3" style="display:none;">
-                        <i class="fa fa-spinner fa-spin fa-2x"></i>
-                    </div>
-                </div>
+    <div class="w-form-layout w-form-layout--noseq w-badges">
+        <div class="w-form-main" id="badge-people">
+            <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr(sc_t('badges.who', 'Who to print')); ?>"></div>
+            <div class="w-toolbar">
+                <select class="form-control w-badges__event" data-w-filter="event_id" aria-label="<?php echo esc_attr(sc_t('events.event', 'Event')); ?>">
+                    <?php if (!$events): ?><option value=""><?php echo esc_html(sc_t('dashboard_pages.no_events', 'No events yet')); ?></option><?php endif; ?>
+                    <?php foreach ($events as $ev): ?>
+                        <option value="<?php echo (int) $ev->id; ?>"><?php echo esc_html($ev->title); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label class="w-search">
+                    <span class="sr-only"><?php echo esc_html(sc_t('general.search', 'Search')); ?></span>
+                    <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                    <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr(sc_t('badges.search', 'Search name, email or code')); ?>" autocomplete="off">
+                    <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+                </label>
+                <select class="form-control" data-w-filter="ticket" id="ticket-filter" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.ticket', 'Ticket')); ?>"></select>
+                <select class="form-control" data-w-filter="checkin" id="checkin-filter" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.check_in', 'Check-in')); ?>">
+                    <option value=""><?php echo esc_html(sc_t('badges.everyone', 'Checked in or not')); ?></option>
+                    <option value="out"><?php echo esc_html(sc_t('dashboard_pages.not_checked_in', 'Not checked in')); ?></option>
+                    <option value="in"><?php echo esc_html(sc_t('dashboard_pages.checked_in', 'Checked in')); ?></option>
+                </select>
             </div>
-
-            <!-- Step 2: Choose Design -->
-            <div class="card" id="design-card" style="display:none;">
-                <div class="header">
-                    <h2><i class="fa fa-paint-brush mr-2"></i> <?php echo esc_html($t['choose_design']); ?></h2>
+            <div class="w-chips" data-w-chips hidden></div>
+            <div class="w-bulkbar" data-w-bulk hidden></div>
+            <div class="w-table-card" data-w-card aria-live="polite">
+                <div class="w-table-card__progress" data-w-progress hidden></div>
+                <div class="w-table-scroll" data-w-scroll>
+                    <table class="w-table" data-w-table><thead></thead><tbody></tbody></table>
                 </div>
-                <div class="body">
-                    <div class="row" id="design-options">
-                        <!-- Corporate -->
-                        <div class="col-md-4 mb-3">
-                            <div class="design-option selected" data-design="corporate">
-                                <div class="design-preview design-corporate">
-                                    <div class="dp-bar"></div>
-                                    <div class="dp-name">John Doe</div>
-                                    <div class="dp-sub">Software Engineer</div>
-                                    <div class="dp-bottom">
-                                        <span class="dp-type dp-type-attendee">ATTENDEE</span>
-                                        <span class="dp-qr"><i class="fa fa-qrcode"></i></span>
-                                    </div>
-                                </div>
-                                <div class="design-label"><?php echo esc_html($t['corporate']); ?></div>
-                            </div>
-                        </div>
-                        <!-- Modern -->
-                        <div class="col-md-4 mb-3">
-                            <div class="design-option" data-design="modern">
-                                <div class="design-preview design-modern">
-                                    <div class="dp-strip"></div>
-                                    <div class="dp-content">
-                                        <div class="dp-name">John Doe</div>
-                                        <div class="dp-sub">Software Engineer</div>
-                                        <div class="dp-bottom">
-                                            <span class="dp-type dp-type-speaker">SPEAKER</span>
-                                            <span class="dp-qr"><i class="fa fa-qrcode"></i></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="design-label"><?php echo esc_html($t['modern']); ?></div>
-                            </div>
-                        </div>
-                        <!-- Elegant -->
-                        <div class="col-md-4 mb-3">
-                            <div class="design-option" data-design="elegant">
-                                <div class="design-preview design-elegant">
-                                    <div class="dp-circle">JD</div>
-                                    <div class="dp-name">John Doe</div>
-                                    <div class="dp-sub">Speaker</div>
-                                    <div class="dp-bottom">
-                                        <span class="dp-type">SPEAKER</span>
-                                        <span class="dp-qr"><i class="fa fa-qrcode"></i></span>
-                                    </div>
-                                </div>
-                                <div class="design-label"><?php echo esc_html($t['elegant']); ?></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="w-state" data-w-state hidden></div>
+                <div class="w-pager" data-w-pager hidden></div>
             </div>
-
-            <!-- Step 3: Customize -->
-            <div class="card" id="customize-card" style="display:none;">
-                <div class="header">
-                    <h2><i class="fa fa-sliders mr-2"></i> <?php echo esc_html($t['customize']); ?></h2>
-                </div>
-                <div class="body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label><?php echo esc_html($t['primary_color']); ?></label>
-                                <div class="d-flex align-items-center">
-                                    <input type="color" id="badge-color" value="#1a73e8" class="form-control" style="width:50px;height:38px;padding:2px;cursor:pointer;">
-                                    <span class="ml-2" id="color-hex-display">#1a73e8</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label><?php echo esc_html($t['event_logo']); ?></label>
-                                <div>
-                                    <button type="button" id="upload-logo-btn" class="btn btn-sm btn-outline-primary">
-                                        <i class="fa fa-upload"></i> <?php echo esc_html($t['upload_logo']); ?>
-                                    </button>
-                                    <button type="button" id="remove-logo-btn" class="btn btn-sm btn-outline-danger ml-1" style="display:none;">
-                                        <i class="fa fa-times"></i> <?php echo esc_html($t['remove_logo']); ?>
-                                    </button>
-                                    <input type="hidden" id="badge-logo-url" value="">
-                                    <img id="logo-preview" src="" style="display:none;max-height:30px;margin-left:10px;vertical-align:middle;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label><?php echo esc_html($t['badge_size']); ?></label>
-                                <div>
-                                    <label class="fancy-radio mr-3">
-                                        <input type="radio" name="badge_size" value="standard" checked>
-                                        <span><i></i> <?php echo esc_html($t['standard_size']); ?></span>
-                                    </label>
-                                    <label class="fancy-radio">
-                                        <input type="radio" name="badge_size" value="id_card">
-                                        <span><i></i> <?php echo esc_html($t['id_card_size']); ?></span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label><?php echo esc_html($t['layout']); ?></label>
-                                <div>
-                                    <label class="fancy-radio mr-3">
-                                        <input type="radio" name="layout_mode" value="grid" checked>
-                                        <span><i></i> <?php echo esc_html($t['grid_layout']); ?></span>
-                                    </label>
-                                    <label class="fancy-radio">
-                                        <input type="radio" name="layout_mode" value="single">
-                                        <span><i></i> <?php echo esc_html($t['single_layout']); ?></span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label class="fancy-checkbox">
-                                <input type="checkbox" id="include-qr" checked>
-                                <span><?php echo esc_html($t['include_qr']); ?></span>
-                            </label>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="fancy-checkbox">
-                                <input type="checkbox" id="include-event-name" checked>
-                                <span><?php echo esc_html($t['include_event']); ?></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 4: Select People -->
-            <div class="card" id="people-card" style="display:none;">
-                <div class="header">
-                    <h2><i class="fa fa-users mr-2"></i> <?php echo esc_html($t['select_people']); ?>
-                        <span class="badge badge-primary ml-2" id="selected-count" style="display:none;">0 <?php echo esc_html($t['selected']); ?></span>
-                    </h2>
-                </div>
-                <div class="body">
-                    <!-- Tabs -->
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" data-toggle="tab" href="#tab-attendees" role="tab">
-                                <i class="fa fa-users"></i> <?php echo esc_html($t['attendees']); ?>
-                                <span class="badge badge-secondary ml-1" id="count-attendees">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item" id="speakers-tab-li">
-                            <a class="nav-link" data-toggle="tab" href="#tab-speakers" role="tab">
-                                <i class="fa fa-microphone"></i> <?php echo esc_html($t['speakers']); ?>
-                                <span class="badge badge-secondary ml-1" id="count-speakers">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item" id="organizers-tab-li">
-                            <a class="nav-link" data-toggle="tab" href="#tab-organizers" role="tab">
-                                <i class="fa fa-building"></i> <?php echo esc_html($t['organizers']); ?>
-                                <span class="badge badge-secondary ml-1" id="count-organizers">0</span>
-                            </a>
-                        </li>
-                    </ul>
-
-                    <!-- Selection Controls -->
-                    <div class="d-flex align-items-center justify-content-between mt-3 mb-2 flex-wrap" style="gap:8px;">
-                        <div>
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-select-all"><?php echo esc_html($t['select_all']); ?></button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-select-none"><?php echo esc_html($t['select_none']); ?></button>
-                        </div>
-                        <div>
-                            <input type="text" id="people-search" class="form-control form-control-sm" placeholder="<?php echo esc_attr($t['search']); ?>" style="width:200px;">
-                        </div>
-                    </div>
-
-                    <!-- Tab Content -->
-                    <div class="tab-content">
-                        <div class="tab-pane active" id="tab-attendees" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-sm" id="attendees-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:30px;"><input type="checkbox" id="check-all-attendees"></th>
-                                            <th><?php echo esc_html($t['name']); ?></th>
-                                            <th><?php echo esc_html($t['email']); ?></th>
-                                            <th><?php echo esc_html($t['ticket']); ?></th>
-                                            <th><?php echo esc_html($t['type']); ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                                <div id="no-attendees" class="text-center text-muted py-3" style="display:none;">
-                                    <?php echo esc_html($t['no_attendees']); ?>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane" id="tab-speakers" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-sm" id="speakers-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:30px;"><input type="checkbox" id="check-all-speakers"></th>
-                                            <th><?php echo esc_html($t['name']); ?></th>
-                                            <th><?php echo esc_html($t['title']); ?></th>
-                                            <th><?php echo esc_html($t['company']); ?></th>
-                                            <th><?php echo esc_html($t['type']); ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                                <div id="no-speakers" class="text-center text-muted py-3" style="display:none;">
-                                    <?php echo esc_html($t['no_speakers']); ?>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane" id="tab-organizers" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-sm" id="organizers-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:30px;"><input type="checkbox" id="check-all-organizers"></th>
-                                            <th><?php echo esc_html($t['name']); ?></th>
-                                            <th><?php echo esc_html($t['type']); ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                                <div id="no-organizers" class="text-center text-muted py-3" style="display:none;">
-                                    <?php echo esc_html($t['no_organizers']); ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Generate Button -->
-            <div id="generate-section" style="display:none;">
-                <button type="button" id="generate-btn" class="btn btn-lg btn-success btn-block" disabled>
-                    <i class="fa fa-file-pdf-o mr-2"></i> <?php echo esc_html($t['generate_pdf']); ?>
-                </button>
-                <div id="generate-loading" class="text-center mt-3" style="display:none;">
-                    <i class="fa fa-spinner fa-spin fa-2x text-success"></i>
-                    <p class="mt-2 text-muted"><?php echo esc_html($t['generating']); ?></p>
-                </div>
-            </div>
-
         </div>
 
-        <!-- Sidebar Column -->
-        <div class="col-lg-4 col-md-12">
+        <aside class="w-form-aside w-badges__aside" id="badge-settings">
+            <div class="w-aside-card">
+                <span class="w-aside-card__title"><?php echo esc_html(sc_t('badges.preview', 'Preview')); ?></span>
+                <div class="w-bprev-wrap"><div class="w-bprev" id="badge-preview" aria-hidden="true"></div></div>
+                <p class="w-field__help mt-2 mb-0" id="preview-note"></p>
+            </div>
 
-            <!-- Badge Preview -->
-            <div class="card" id="preview-card" style="display:none;">
-                <div class="header">
-                    <h2><i class="fa fa-eye mr-2"></i> <?php echo esc_html($t['preview']); ?></h2>
+            <div class="w-aside-card">
+                <span class="w-aside-card__title"><?php echo esc_html(sc_t('badges.print', 'Print')); ?></span>
+                <p class="w-badges__count" id="print-count"></p>
+                <div class="w-field" id="part-field" hidden>
+                    <label for="print-part"><?php echo esc_html(sc_t('badges.part', 'Part')); ?></label>
+                    <select class="form-control" id="print-part"></select>
+                    <p class="w-field__help"><?php echo esc_html(sc_t('badges.part_help', 'Big lists come in PDFs of 500 badges so they open and print reliably.')); ?></p>
                 </div>
-                <div class="body text-center" style="padding:15px;">
-                    <div id="badge-preview-container"></div>
+                <button type="button" class="btn btn-primary btn-block" data-print-all><i class="fa fa-file-pdf-o" aria-hidden="true"></i> <span data-print-label><?php echo esc_html(sc_t('badges.download_pdf', 'Download PDF')); ?></span></button>
+                <p class="w-field__help mt-2 mb-0"><?php echo esc_html(sc_t('badges.tick_help', 'To print only some people, tick them in the list and choose Print ticked.')); ?></p>
+            </div>
+
+            <details class="w-badges__more" id="badge-design" open>
+            <summary class="w-badges__summary"><?php echo esc_html(sc_t('badges.design_settings', 'Design, content and paper')); ?></summary>
+            <div class="w-aside-card">
+                <span class="w-aside-card__title"><?php echo esc_html(sc_t('badges.design', 'Design')); ?></span>
+                <div class="w-choice w-choice--stack" role="radiogroup" aria-label="<?php echo esc_attr(sc_t('badges.design', 'Design')); ?>">
+                    <?php foreach (array(
+                        'corporate' => array(sc_t('badges.corporate', 'Corporate'), sc_t('badges.corporate_help', 'Colour bar with your logo, name centred')),
+                        'modern'    => array(sc_t('badges.modern', 'Modern'), sc_t('badges.modern_help', 'Side stripe in the badge-type colour')),
+                        'elegant'   => array(sc_t('badges.elegant', 'Elegant'), sc_t('badges.elegant_help', 'Full colour with photo or initials')),
+                    ) as $value => $label): ?>
+                        <label class="w-choice__item"><input type="radio" name="design" value="<?php echo esc_attr($value); ?>"><span class="w-choice__box"><span><?php echo esc_html($label[0]); ?><span class="w-choice__sub"><?php echo esc_html($label[1]); ?></span></span></span></label>
+                    <?php endforeach; ?>
                 </div>
             </div>
 
-            <!-- Info Card -->
-            <div class="card" id="info-card" style="display:none;">
-                <div class="header">
-                    <h2><i class="fa fa-info-circle mr-2"></i> <?php echo esc_html($t['info']); ?></h2>
-                </div>
-                <div class="body">
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2"><i class="fa fa-users text-primary mr-2"></i> <?php echo esc_html($t['attendees']); ?>: <strong id="info-attendees">0</strong></li>
-                        <li class="mb-2"><i class="fa fa-microphone text-success mr-2"></i> <?php echo esc_html($t['speakers']); ?>: <strong id="info-speakers">0</strong></li>
-                        <li class="mb-2"><i class="fa fa-building text-purple mr-2"></i> <?php echo esc_html($t['organizers']); ?>: <strong id="info-organizers">0</strong></li>
-                    </ul>
+            <div class="w-aside-card">
+                <span class="w-aside-card__title"><?php echo esc_html(sc_t('badges.content', 'Content')); ?></span>
+                <div class="w-fields">
+                    <div class="w-field">
+                        <label for="badge-subtitle"><?php echo esc_html(sc_t('badges.under_name', 'Under the attendee name')); ?></label>
+                        <select class="form-control" id="badge-subtitle" name="subtitle"></select>
+                    </div>
+                    <div class="w-field">
+                        <span class="w-field__label"><?php echo esc_html(sc_t('badges.event_logo', 'Logo')); ?></span>
+                        <div class="w-badges__logo">
+                            <span class="w-logo-thumb" id="logo-thumb"><img src="" alt="" hidden><span class="w-logo-thumb--empty" data-none><?php echo esc_html(sc_t('badges.no_logo', 'None')); ?></span></span>
+                            <button type="button" class="btn btn-sm btn-secondary" id="logo-choose"><?php echo esc_html(sc_t('dashboard_pages.replace', 'Choose')); ?></button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="logo-remove" hidden><?php echo esc_html(sc_t('dashboard_pages.remove', 'Remove')); ?></button>
+                        </div>
+                        <p class="w-field__help"><?php echo esc_html(sc_t('badges.logo_help', 'Starts as the event logo.')); ?></p>
+                    </div>
+                    <div class="w-field">
+                        <label for="badge-color"><?php echo esc_html(sc_t('badges.primary_color', 'Colour')); ?></label>
+                        <input type="color" class="form-control w-color" id="badge-color" name="primary_color" value="#1a73e8">
+                    </div>
+                    <label class="w-switch"><input type="checkbox" name="include_qr" value="1"><span class="w-switch__track" aria-hidden="true"></span><span class="w-switch__text"><strong><?php echo esc_html(sc_t('badges.include_qr', 'QR code')); ?></strong><span><?php echo esc_html(sc_t('badges.include_qr_help', 'Attendees and exhibitors only — the scanner reads these.')); ?></span></span></label>
+                    <label class="w-switch"><input type="checkbox" name="include_event" value="1"><span class="w-switch__track" aria-hidden="true"></span><span class="w-switch__text"><strong><?php echo esc_html(sc_t('badges.include_event', 'Event name')); ?></strong></span></label>
+                    <label class="w-switch" data-elegant-only><input type="checkbox" name="include_photos" value="1"><span class="w-switch__track" aria-hidden="true"></span><span class="w-switch__text"><strong><?php echo esc_html(sc_t('badges.include_photos', 'Photos and logos')); ?></strong><span><?php echo esc_html(sc_t('badges.include_photos_help', 'Speaker photos and company logos in the circle.')); ?></span></span></label>
                 </div>
             </div>
 
-        </div>
+            <div class="w-aside-card">
+                <span class="w-aside-card__title"><?php echo esc_html(sc_t('badges.paper', 'Paper')); ?></span>
+                <div class="w-fields">
+                    <div class="w-choice" role="radiogroup" aria-label="<?php echo esc_attr(sc_t('badges.badge_size', 'Badge size')); ?>">
+                        <label class="w-choice__item"><input type="radio" name="badge_size" value="standard"><span class="w-choice__box"><span><?php echo esc_html(sc_t('badges.standard', 'Lanyard')); ?><span class="w-choice__sub">102 × 76 mm</span></span></span></label>
+                        <label class="w-choice__item"><input type="radio" name="badge_size" value="id_card"><span class="w-choice__box"><span><?php echo esc_html(sc_t('badges.id_card', 'ID card')); ?><span class="w-choice__sub">86 × 54 mm</span></span></span></label>
+                    </div>
+                    <div class="w-choice" role="radiogroup" aria-label="<?php echo esc_attr(sc_t('badges.layout', 'Print layout')); ?>">
+                        <label class="w-choice__item"><input type="radio" name="layout_mode" value="grid"><span class="w-choice__box"><span><?php echo esc_html(sc_t('badges.grid', '6 per A4')); ?><span class="w-choice__sub"><?php echo esc_html(sc_t('badges.grid_help', 'With cut lines')); ?></span></span></span></label>
+                        <label class="w-choice__item"><input type="radio" name="layout_mode" value="single"><span class="w-choice__box"><span><?php echo esc_html(sc_t('badges.single', '1 per page')); ?><span class="w-choice__sub"><?php echo esc_html(sc_t('badges.single_help', 'Badge printers')); ?></span></span></span></label>
+                    </div>
+                </div>
+            </div>
+            </details>
+        </aside>
     </div>
 
 </div>
 </div>
-
-<!-- Styles -->
-<style>
-/* Design picker */
-.design-option {
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-}
-.design-option:hover {
-    border-color: #1a73e8;
-    box-shadow: 0 2px 8px rgba(26,115,232,0.15);
-}
-.design-option.selected {
-    border-color: #1a73e8;
-    box-shadow: 0 2px 12px rgba(26,115,232,0.25);
-    background: #f8faff;
-}
-.design-label {
-    font-weight: 600;
-    font-size: 13px;
-    margin-top: 6px;
-    color: #333;
-}
-
-/* Design preview thumbnails */
-.design-preview {
-    width: 100%;
-    height: 120px;
-    border-radius: 6px;
-    position: relative;
-    overflow: hidden;
-    font-family: 'Inter', Arial, sans-serif;
-    background: #fff;
-    border: 1px solid #eee;
-}
-
-/* Corporate preview */
-.design-corporate .dp-bar {
-    height: 22px;
-    background: var(--badge-color, #1a73e8);
-}
-.design-corporate .dp-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #212121;
-    margin-top: 10px;
-    text-align: center;
-}
-.design-corporate .dp-sub {
-    font-size: 9px;
-    color: #888;
-    text-align: center;
-}
-.design-corporate .dp-bottom {
-    position: absolute;
-    bottom: 6px;
-    left: 8px;
-    right: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Modern preview */
-.design-modern {
-    display: flex;
-}
-.design-modern .dp-strip {
-    width: 16px;
-    background: var(--badge-type-color, #2ecc71);
-    flex-shrink: 0;
-}
-.design-modern .dp-content {
-    padding: 10px 8px;
-    flex: 1;
-    position: relative;
-}
-.design-modern .dp-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #212121;
-}
-.design-modern .dp-sub {
-    font-size: 9px;
-    color: #888;
-    margin-top: 2px;
-}
-.design-modern .dp-bottom {
-    position: absolute;
-    bottom: 6px;
-    left: 8px;
-    right: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Elegant preview */
-.design-elegant {
-    background: var(--badge-color, #1a73e8);
-    text-align: center;
-    padding-top: 8px;
-}
-.design-elegant .dp-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.9);
-    color: var(--badge-color, #1a73e8);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-}
-.design-elegant .dp-name {
-    font-size: 12px;
-    font-weight: 700;
-    color: #fff;
-    margin-top: 6px;
-}
-.design-elegant .dp-sub {
-    font-size: 9px;
-    color: rgba(255,255,255,0.7);
-}
-.design-elegant .dp-bottom {
-    position: absolute;
-    bottom: 6px;
-    left: 8px;
-    right: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.design-elegant .dp-type {
-    background: rgba(255,255,255,0.9);
-    color: var(--badge-color, #1a73e8);
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 8px;
-    font-weight: 700;
-}
-.design-elegant .dp-qr {
-    color: rgba(255,255,255,0.8);
-}
-
-/* Type badges in previews */
-.dp-type {
-    font-size: 8px;
-    font-weight: 700;
-    color: #fff;
-    padding: 1px 6px;
-    border-radius: 3px;
-}
-.dp-type-attendee { background: #3498db; }
-.dp-type-vip { background: #f39c12; }
-.dp-type-speaker { background: #2ecc71; }
-.dp-type-organizer { background: #9b59b6; }
-.dp-qr { font-size: 18px; color: #ccc; }
-
-/* Badge preview in sidebar */
-#badge-preview-container .badge-preview-box {
-    display: inline-block;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    font-family: 'Inter', Arial, sans-serif;
-    text-align: center;
-}
-
-/* People table */
-#people-card .table th,
-#people-card .table td {
-    vertical-align: middle;
-    font-size: 13px;
-}
-#people-card .table .badge {
-    font-size: 10px;
-}
-.text-purple { color: #9b59b6 !important; }
-
-/* Responsive */
-@media (max-width: 767px) {
-    .design-preview { height: 100px; }
-    #people-search { width: 100% !important; margin-top: 5px; }
-}
-</style>
 
 <script>
-(function() {
+jQuery(function ($) {
     'use strict';
 
-    // State
-    var selectedEvent = null;
-    var selectedDesign = 'corporate';
-    var eventTitle = '';
-    var attendeesData = [];
-    var speakersData = [];
-    var organizersData = [];
-    var selectedPeople = {}; // {key: {id, type}} where key = type-id
+    var esc = WDList.esc;
+    var events = <?php echo $js($event_data); ?>;
+    var views = <?php echo $js($views); ?>;
+    var perPdf = <?php echo (int) SC_BADGES_PER_PDF; ?>;
+    var L = <?php echo $js(array(
+        'views'      => array('attendee' => sc_t('badges.attendees', 'Attendees'), 'speaker' => sc_t('badges.speakers', 'Speakers'), 'company' => sc_t('badges.exhibitors', 'Exhibitors'), 'organizer' => sc_t('badges.organizers', 'Organizers')),
+        'types'      => array('attendee' => 'ATTENDEE', 'vip' => 'VIP', 'speaker' => 'SPEAKER', 'exhibitor' => 'EXHIBITOR', 'organizer' => 'ORGANIZER'),
+        'name'       => sc_t('badges.name', 'Name'),
+        'onBadge'    => sc_t('badges.on_badge', 'Under the name'),
+        'type'       => sc_t('badges.type', 'Badge'),
+        'checkin'    => sc_t('dashboard_pages.check_in', 'Check-in'),
+        'in'         => sc_t('dashboard_pages.checked_in', 'Checked in'),
+        'notYet'     => sc_t('dashboard_pages.not_yet', 'Not yet'),
+        'noQr'       => sc_t('badges.no_qr', 'No QR'),
+        'workshop'   => sc_t('dashboard_pages.workshop', 'Workshop'),
+        'eventTickets' => sc_t('badges.event_tickets', 'Event tickets (one badge each)'),
+        'allTickets' => sc_t('badges.all_tickets', 'All tickets, workshops too'),
+        'ticketLine' => sc_t('badges.ticket_name', 'Ticket name'),
+        'nothing'    => sc_t('badges.nothing', 'Nothing'),
+        'answer'     => sc_t('badges.answer_to', 'Answer: %s'),
+        'printAll'   => sc_t('badges.print_all', 'Download %s badges'),
+        'printOne'   => sc_t('badges.print_one', 'Download 1 badge'),
+        'printPart'  => sc_t('badges.print_part', 'Download part %1$d of %2$d'),
+        'countAll'   => sc_t('badges.count_all', '%1$s %2$s match the filters.'),
+        'partOpt'    => sc_t('badges.part_option', 'Part %1$d — badges %2$s–%3$s'),
+        'printTicked' => sc_t('badges.print_ticked', 'Print ticked'),
+        'tooMany'    => sc_t('badges.too_many', 'Tick at most 500 people at a time, or print by part.'),
+        'nobody'     => sc_t('badges.nobody', 'Nobody to print. Change the filters.'),
+        'generating' => sc_t('badges.generating', 'Preparing the PDF…'),
+        'ready'      => sc_t('badges.ready', 'PDF ready — %d badges. Your download is starting.'),
+        'sample'     => sc_t('badges.sample', 'Sample badge — tick or search to see a real one.'),
+        'showing'    => sc_t('badges.showing', 'Showing %s.'),
+        'qrOff'      => sc_t('badges.qr_off', 'Speakers and organizers print without a QR code: the scanner only reads tickets and company badges.'),
+        'emptyText'  => sc_t('badges.empty', 'Nobody here for this event yet.'),
+        'search'     => sc_t('general.search', 'Search'),
+        'chooseLogo' => sc_t('badges.event_logo', 'Logo'),
+        'failed'     => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
 
-    // DOM ready
-    $(document).ready(function() {
-        updateDesignColors();
+    /* ------------------------------------------------------------ settings */
 
-        // Event selection
-        $('#badge-event-select').on('change', function() {
-            var eventId = $(this).val();
-            if (!eventId) {
-                resetAll();
-                return;
-            }
-            selectedEvent = parseInt(eventId);
-            eventTitle = $(this).find('option:selected').text().trim();
-            loadEventPeople(selectedEvent);
-        });
+    var STORE = 'scBadgeSettings';
+    var defaults = { design: 'corporate', badge_size: 'standard', layout_mode: 'grid', primary_color: '#1a73e8', include_qr: true, include_event: true, include_photos: true, subtitle: 'ticket' };
+    var settings = $.extend({}, defaults);
+    try { $.extend(settings, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (x) { /* storage blocked */ }
+    var logo = null; // {id, url} — per event, not remembered
+    var list = null;
+    var lastRows = [];
+    var ticked = [];
+    var aside = $('#badge-settings');
 
-        // Design selection
-        $(document).on('click', '.design-option', function() {
-            $('.design-option').removeClass('selected');
-            $(this).addClass('selected');
-            selectedDesign = $(this).data('design');
-            updateBadgePreview();
-        });
+    function writeSettings() {
+        aside.find('input[name="design"][value="' + settings.design + '"]').prop('checked', true);
+        aside.find('input[name="badge_size"][value="' + settings.badge_size + '"]').prop('checked', true);
+        aside.find('input[name="layout_mode"][value="' + settings.layout_mode + '"]').prop('checked', true);
+        $('#badge-color').val(/^#[0-9a-f]{6}$/i.test(settings.primary_color) ? settings.primary_color : defaults.primary_color);
+        ['include_qr', 'include_event', 'include_photos'].forEach(function (k) { aside.find('input[name="' + k + '"]').prop('checked', !!settings[k]); });
+    }
+    function readSettings() {
+        settings.design = aside.find('input[name="design"]:checked').val() || 'corporate';
+        settings.badge_size = aside.find('input[name="badge_size"]:checked').val() || 'standard';
+        settings.layout_mode = aside.find('input[name="layout_mode"]:checked').val() || 'grid';
+        settings.primary_color = $('#badge-color').val();
+        ['include_qr', 'include_event', 'include_photos'].forEach(function (k) { settings[k] = aside.find('input[name="' + k + '"]').is(':checked'); });
+        settings.subtitle = $('#badge-subtitle').val() || '';
+        try { localStorage.setItem(STORE, JSON.stringify(settings)); } catch (x) { /* storage blocked */ }
+    }
+    writeSettings();
+    // Phones: preview and print first, the design settings folded away.
+    if (window.matchMedia('(max-width: 991.98px)').matches) { document.getElementById('badge-design').removeAttribute('open'); }
 
-        // Color change
-        $('#badge-color').on('input', function() {
-            $('#color-hex-display').text($(this).val());
-            updateDesignColors();
-            updateBadgePreview();
-        });
-
-        // Logo upload
-        $('#upload-logo-btn').on('click', function() {
-            var frame = wp.media({
-                title: '<?php echo esc_js($t['upload_logo']); ?>',
-                multiple: false,
-                library: { type: 'image' }
+    function setLogo(value) {
+        logo = value && value.id ? value : null;
+        $('#logo-thumb img').attr('src', logo ? logo.url : '').prop('hidden', !logo);
+        $('#logo-thumb [data-none]').prop('hidden', !!logo);
+        $('#logo-remove').prop('hidden', !logo);
+        renderPreview();
+    }
+    var frame = null;
+    $('#logo-choose').on('click', function () {
+        if (!window.wp || !wp.media) { return; }
+        if (!frame) {
+            frame = wp.media({ title: L.chooseLogo, library: { type: 'image' }, multiple: false });
+            frame.on('select', function () {
+                var att = frame.state().get('selection').first().toJSON();
+                setLogo({ id: att.id, url: att.sizes && att.sizes.medium ? att.sizes.medium.url : att.url });
             });
-            frame.on('select', function() {
-                var attachment = frame.state().get('selection').first().toJSON();
-                $('#badge-logo-url').val(attachment.url);
-                $('#logo-preview').attr('src', attachment.url).show();
-                $('#remove-logo-btn').show();
-                updateBadgePreview();
-            });
-            frame.open();
+        }
+        frame.open();
+    });
+    $('#logo-remove').on('click', function () { setLogo(null); });
+
+    /* --------------------------------------------------------- event bits */
+
+    function currentEvent() { return events[(list ? list.state().filters.event_id : '') || initialEvent] || null; }
+
+    function fillEventControls(eventId, keepTicket) {
+        var ev = events[eventId];
+        var ticketSel = $('#ticket-filter');
+        var current = keepTicket ? ticketSel.val() : '';
+        var opts = '<option value="">' + esc(L.eventTickets) + '</option><option value="all">' + esc(L.allTickets) + '</option>';
+        (ev ? ev.tickets : []).forEach(function (t) {
+            opts += '<option value="' + t.id + '">' + esc((t.workshop ? L.workshop + ': ' : '') + t.name) + '</option>';
         });
+        ticketSel.html(opts).val(current);
 
-        $('#remove-logo-btn').on('click', function() {
-            $('#badge-logo-url').val('');
-            $('#logo-preview').hide();
-            $(this).hide();
-            updateBadgePreview();
-        });
+        var sub = $('#badge-subtitle');
+        var subOpts = '<option value="ticket">' + esc(L.ticketLine) + '</option><option value="">' + esc(L.nothing) + '</option>';
+        (ev ? ev.questions : []).forEach(function (q) { subOpts += '<option value="' + esc(q) + '">' + esc(L.answer.replace('%s', q)) + '</option>'; });
+        sub.html(subOpts);
+        sub.val(sub.find('option').filter(function () { return this.value === settings.subtitle; }).length ? settings.subtitle : 'ticket');
+        setLogo(ev && ev.logo && ev.logo.url ? ev.logo : null);
+    }
 
-        // Checkboxes & options
-        $('#include-qr, #include-event-name').on('change', function() { updateBadgePreview(); });
-        $('input[name="badge_size"], input[name="layout_mode"]').on('change', function() { updateBadgePreview(); });
+    // Open on the most likely event rather than an empty page.
+    var initialEvent = <?php echo (int) $default_event; ?>;
+    (function () {
+        var q = new URLSearchParams(location.search);
+        if (!q.get('event_id') || !events[q.get('event_id')]) {
+            if (!initialEvent) { return; }
+            q.set('event_id', initialEvent);
+            history.replaceState(null, '', location.pathname + '?' + q.toString());
+        } else {
+            initialEvent = +q.get('event_id');
+        }
+        fillEventControls(initialEvent, false);
+        if (q.get('ticket')) { $('#ticket-filter').val(q.get('ticket')); }
+    })();
 
-        // Select all / none / VIP
-        $('#btn-select-all').on('click', function() { selectPeople('all'); });
-        $('#btn-select-none').on('click', function() { selectPeople('none'); });
+    /* --------------------------------------------------------------- list */
 
-        // Check-all checkboxes
-        $('#check-all-attendees').on('change', function() { toggleAll('attendee', this.checked); });
-        $('#check-all-speakers').on('change', function() { toggleAll('speaker', this.checked); });
-        $('#check-all-organizers').on('change', function() { toggleAll('organizer', this.checked); });
-
-
-        // Search
-        $('#people-search').on('input', function() {
-            var term = $(this).val().toLowerCase();
-            filterPeopleTable(term);
-        });
-
-        // Individual checkbox
-        $(document).on('change', '.person-check', function() {
-            var key = $(this).data('key');
-            var id = $(this).data('id');
-            var type = $(this).data('type');
-
-            if (this.checked) {
-                selectedPeople[key] = { id: id, type: type };
-            } else {
-                delete selectedPeople[key];
+    function tone(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) % 4; } return h; }
+    function initials(name) { return String(name || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '?'; }
+    var TAG = { attendee: '', vip: 'w-tag--gold', speaker: 'w-tag--teal', exhibitor: 'w-tag--primary', organizer: '' };
+    list = WDList.create({
+        root: document.getElementById('badge-people'),
+        action: 'sc_badges_people',
+        rowsKey: 'rows',
+        filters: ['event_id', 'search', 'ticket', 'checkin'],
+        fixedFilters: ['event_id'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        tabs: views.map(function (v) { return { key: v, label: L.views[v], params: { view: v }, countKey: v }; }),
+        extraParams: function () { return { subtitle: $('#badge-subtitle').val() || '' }; },
+        emptyText: L.emptyText,
+        onFiltersChange: function (f) {
+            if (f.event_id && +f.event_id !== +($('#ticket-filter').data('event') || 0)) {
+                $('#ticket-filter').data('event', +f.event_id);
+                fillEventControls(+f.event_id, true);
             }
-            updateSelectedCount();
-        });
-
-        // Generate
-        $('#generate-btn').on('click', function() { generateBadges(); });
+        },
+        onData: function (data, api) {
+            var view = api.state().tab;
+            lastRows = data.rows || [];
+            ticked = ticked.filter(function (r) { return r._view === view; });
+            $('#ticket-filter').prop('hidden', view !== 'attendee');
+            $('#checkin-filter').prop('hidden', view === 'speaker' || view === 'organizer');
+            renderPrint();
+            renderPreview();
+        },
+        columns: [
+            {
+                label: L.name,
+                render: function (r) {
+                    var pic = r.photo
+                        ? '<span class="w-person__avatar w-badges__pic"><img src="' + esc(r.photo) + '" alt=""></span>'
+                        : '<span class="w-person__avatar" data-tone="' + tone(r.name) + '">' + esc(initials(r.name)) + '</span>';
+                    return '<div class="w-person">' + pic + '<span class="w-person__text"><span class="w-row-title">' + esc(r.name) + '</span>' +
+                        (r.meta ? '<span class="w-sub w-ltr w-truncate">' + esc(r.meta) + '</span>' : '') + '</span></div>';
+                }
+            },
+            {
+                label: L.onBadge,
+                render: function (r) {
+                    if (!r.sub && !r.detail) { return '<span class="text-muted">—</span>'; }
+                    return '<div class="w-stack"><span class="w-truncate">' + esc(r.sub || r.detail) + '</span>' + (r.sub && r.detail ? '<span class="w-sub w-truncate">' + esc(r.detail) + '</span>' : '') + '</div>';
+                }
+            },
+            {
+                label: L.type,
+                render: function (r) {
+                    return '<div class="w-stack w-nowrap"><span class="w-tag ' + TAG[r.badge] + '">' + esc(L.types[r.badge] || r.badge) + '</span>' +
+                        (r.workshop ? '<span class="w-sub">' + esc(L.workshop) + '</span>' : (!r.qr ? '<span class="w-sub">' + esc(L.noQr) + '</span>' : '')) + '</div>';
+                }
+            },
+            {
+                label: L.checkin, className: 'w-col-xl',
+                render: function (r) {
+                    if (r.checked_in === null) { return '<span class="text-muted">—</span>'; }
+                    return r.checked_in ? '<span class="w-tag w-tag--teal">' + esc(L.in) + '</span>' : '<span class="text-muted">' + esc(L.notYet) + '</span>';
+                }
+            }
+        ],
+        bulkActions: [
+            {
+                key: 'print', label: L.printTicked, icon: 'M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z',
+                run: function (ids) {
+                    if (ids.length > perPdf) { showError(L.tooMany); return; }
+                    print(ids, 1);
+                }
+            }
+        ],
+        chips: function (state) {
+            var f = state.filters, chips = [];
+            if (f.search) { chips.push({ label: L.search, value: f.search, clear: function (l) { l.setFilter('search', ''); } }); }
+            if (f.ticket) { chips.push({ label: L.ticketLine, value: $('#ticket-filter option:selected').text(), clear: function (l) { l.setFilter('ticket', ''); } }); }
+            if (f.checkin) { chips.push({ label: L.checkin, value: $('#checkin-filter option:selected').text(), clear: function (l) { l.setFilter('checkin', ''); } }); }
+            return chips;
+        }
     });
 
-    // Load people for event
-    function loadEventPeople(eventId) {
-        $('#event-loading').show();
-        resetPeopleData();
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_badge_people',
-                nonce: scDashboard.nonce,
-                event_id: eventId
-            },
-            success: function(response) {
-                $('#event-loading').hide();
-                if (!response.success) {
-                    toastr.error(response.data ? response.data.message : 'Error loading data');
-                    return;
-                }
-
-                attendeesData = response.data.attendees || [];
-                speakersData = response.data.speakers || [];
-                organizersData = response.data.organizers || [];
-
-                // Update counts
-                $('#count-attendees').text(attendeesData.length);
-                $('#count-speakers').text(speakersData.length);
-                $('#count-organizers').text(organizersData.length);
-                $('#info-attendees').text(attendeesData.length);
-                $('#info-speakers').text(speakersData.length);
-                $('#info-organizers').text(organizersData.length);
-
-                // Show/hide tabs
-                if (speakersData.length === 0) $('#speakers-tab-li').hide(); else $('#speakers-tab-li').show();
-                if (organizersData.length === 0) $('#organizers-tab-li').hide(); else $('#organizers-tab-li').show();
-
-                // Render tables
-                renderAttendees();
-                renderSpeakers();
-                renderOrganizers();
-
-                // Show sections
-                $('#design-card, #customize-card, #people-card, #generate-section, #preview-card, #info-card').show();
-
-                updateBadgePreview();
-            },
-            error: function() {
-                $('#event-loading').hide();
-                toastr.error('Failed to load data. Please try again.');
-            }
+    // Preview follows the first ticked row.
+    $('#badge-people').on('change', '[data-w-check], [data-w-check-all]', function () {
+        var view = list.state().tab;
+        setTimeout(function () {
+            var ids = $('#badge-people [data-w-check]:checked').map(function () { return this.value; }).get();
+            ticked = lastRows.filter(function (r) { return ids.indexOf(String(r.id)) > -1; }).map(function (r) { return $.extend({ _view: view }, r); });
+            renderPreview();
         });
-    }
+    });
 
-    // Render attendees table
-    function renderAttendees() {
-        var tbody = $('#attendees-table tbody');
-        tbody.empty();
+    /* ------------------------------------------------------------- print */
 
-        if (attendeesData.length === 0) {
-            $('#attendees-table').hide();
-            $('#no-attendees').show();
-            return;
+    function renderPrint() {
+        var data = list.data();
+        var total = data ? data.total : 0;
+        var parts = Math.ceil(total / perPdf);
+        var view = list.state().tab;
+        $('#print-count').text(L.countAll.replace('%1$s', WDList.num(total)).replace('%2$s', String(L.views[view] || '').toLowerCase()));
+        var partSel = $('#print-part');
+        var keep = Math.min(+partSel.val() || 1, Math.max(parts, 1));
+        $('#part-field').prop('hidden', parts < 2);
+        var opts = '';
+        for (var i = 1; i <= parts; i++) {
+            opts += '<option value="' + i + '">' + esc(L.partOpt.replace('%1$d', i).replace('%2$s', WDList.num((i - 1) * perPdf + 1)).replace('%3$s', WDList.num(Math.min(i * perPdf, total)))) + '</option>';
         }
-        $('#attendees-table').show();
-        $('#no-attendees').hide();
+        partSel.html(opts).val(keep);
+        var label = parts > 1 ? L.printPart.replace('%1$d', keep).replace('%2$d', parts) : (total === 1 ? L.printOne : L.printAll.replace('%s', WDList.num(total)));
+        $('[data-print-label]').text(label);
+        $('[data-print-all]').prop('disabled', !total);
+    }
+    $('#print-part').on('change', renderPrint);
 
-        attendeesData.forEach(function(att) {
-            var key = 'attendee-' + att.id;
-            var typeLabel = att.is_vip ? '<span class="badge" style="background:#f39c12;color:#fff;">VIP</span>' : '<span class="badge" style="background:#3498db;color:#fff;">ATTENDEE</span>';
-            tbody.append(
-                '<tr data-searchable="' + escapeHtml((att.name + ' ' + att.email).toLowerCase()) + '">' +
-                '<td><input type="checkbox" class="person-check" data-key="' + key + '" data-id="' + att.id + '" data-type="attendee"></td>' +
-                '<td>' + escapeHtml(att.name) + '</td>' +
-                '<td><small class="text-muted">' + escapeHtml(att.email) + '</small></td>' +
-                '<td><small>' + escapeHtml(att.ticket_name) + '</small></td>' +
-                '<td>' + typeLabel + '</td>' +
-                '</tr>'
-            );
+    var busy = false;
+    function print(ids, part) {
+        if (busy) { return; }
+        readSettings();
+        var p = list.params();
+        var body = $.extend({}, p, settings, {
+            action: 'sc_badges_prepare', nonce: scDashboard.nonce, view: list.state().tab, part: part,
+            logo_id: logo ? logo.id : '', ids: ids,
+            include_qr: settings.include_qr ? '1' : '0', include_event: settings.include_event ? '1' : '0', include_photos: settings.include_photos ? '1' : '0'
         });
+        busy = true;
+        var btns = $('[data-print-all]').prop('disabled', true);
+        if (window.toastr) { toastr.info(L.generating); }
+        $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: body })
+            .done(function (res) {
+                if (!res.success) { showError(res.data && res.data.message ? res.data.message : L.failed); return; }
+                if (window.toastr) { toastr.success(L.ready.replace('%d', res.data.count)); }
+                // The PDF is sent as an attachment, so the page stays put.
+                window.location.href = res.data.download_url;
+            })
+            .fail(function () { showError(L.failed); })
+            .always(function () { busy = false; btns.prop('disabled', false); renderPrint(); });
     }
+    $('[data-print-all]').on('click', function () {
+        var data = list.data();
+        if (!data || !data.total) { showError(L.nobody); return; }
+        print([], +$('#print-part').val() || 1);
+    });
 
-    // Render speakers table
-    function renderSpeakers() {
-        var tbody = $('#speakers-table tbody');
-        tbody.empty();
+    /* ----------------------------------------------------------- preview */
 
-        if (speakersData.length === 0) {
-            $('#speakers-table').hide();
-            $('#no-speakers').show();
-            return;
+    var qrCache = {};
+    function qrImg(code) {
+        if (!code || !window.QRCode || !QRCode.toDataURL) { return ''; }
+        if (!qrCache[code]) {
+            var sync = true;
+            // The callback can run straight away; only re-render when it comes later.
+            QRCode.toDataURL(code, { width: 160, margin: 0 }, function (err, url) { if (!err) { qrCache[code] = url; if (!sync) { renderPreview(); } } });
+            sync = false;
         }
-        $('#speakers-table').show();
-        $('#no-speakers').hide();
-
-        speakersData.forEach(function(spk) {
-            var key = 'speaker-' + spk.id;
-            tbody.append(
-                '<tr data-searchable="' + escapeHtml((spk.name + ' ' + spk.title + ' ' + spk.company).toLowerCase()) + '">' +
-                '<td><input type="checkbox" class="person-check" data-key="' + key + '" data-id="' + spk.id + '" data-type="speaker"></td>' +
-                '<td>' + escapeHtml(spk.name) + '</td>' +
-                '<td><small>' + escapeHtml(spk.title || '') + '</small></td>' +
-                '<td><small>' + escapeHtml(spk.company || '') + '</small></td>' +
-                '<td><span class="badge" style="background:#2ecc71;color:#fff;">SPEAKER</span></td>' +
-                '</tr>'
-            );
-        });
+        return qrCache[code];
     }
+    var TYPE_COLOR = { attendee: '#3498db', vip: '#f39c12', speaker: '#2ecc71', exhibitor: '#16a085', organizer: '#9b59b6' };
 
-    // Render organizers table
-    function renderOrganizers() {
-        var tbody = $('#organizers-table tbody');
-        tbody.empty();
-
-        if (organizersData.length === 0) {
-            $('#organizers-table').hide();
-            $('#no-organizers').show();
-            return;
-        }
-        $('#organizers-table').show();
-        $('#no-organizers').hide();
-
-        organizersData.forEach(function(org) {
-            var key = 'organizer-' + org.id;
-            tbody.append(
-                '<tr data-searchable="' + escapeHtml(org.name.toLowerCase()) + '">' +
-                '<td><input type="checkbox" class="person-check" data-key="' + key + '" data-id="' + org.id + '" data-type="organizer"></td>' +
-                '<td>' + escapeHtml(org.name) + '</td>' +
-                '<td><span class="badge" style="background:#9b59b6;color:#fff;">ORGANIZER</span></td>' +
-                '</tr>'
-            );
-        });
-    }
-
-    // Select helpers
-    function selectPeople(mode) {
-        var activeTab = $('.tab-pane.active').attr('id');
-        var tableId = '#attendees-table';
-        if (activeTab === 'tab-speakers') tableId = '#speakers-table';
-        if (activeTab === 'tab-organizers') tableId = '#organizers-table';
-
-        if (mode === 'all') {
-            $(tableId + ' .person-check:visible').prop('checked', true).trigger('change');
-        } else if (mode === 'none') {
-            $(tableId + ' .person-check').prop('checked', false).trigger('change');
-        }
-    }
-
-    function toggleAll(type, checked) {
-        var tableId = '#' + type + 's-table';
-        if (type === 'attendee') tableId = '#attendees-table';
-
-        $(tableId + ' .person-check:visible').each(function() {
-            this.checked = checked;
-            var key = $(this).data('key');
-            if (checked) {
-                selectedPeople[key] = { id: $(this).data('id'), type: $(this).data('type') };
-            } else {
-                delete selectedPeople[key];
-            }
-        });
-        updateSelectedCount();
-    }
-
-    function updateSelectedCount() {
-        var count = Object.keys(selectedPeople).length;
-        if (count > 0) {
-            $('#selected-count').text(count + ' <?php echo esc_js($t['selected']); ?>').show();
-            $('#generate-btn').prop('disabled', false);
-        } else {
-            $('#selected-count').hide();
-            $('#generate-btn').prop('disabled', true);
-        }
-    }
-
-    function filterPeopleTable(term) {
-        var activeTab = $('.tab-pane.active').attr('id');
-        var tableId = '#attendees-table';
-        if (activeTab === 'tab-speakers') tableId = '#speakers-table';
-        if (activeTab === 'tab-organizers') tableId = '#organizers-table';
-
-        $(tableId + ' tbody tr').each(function() {
-            var searchable = $(this).data('searchable') || '';
-            $(this).toggle(term === '' || searchable.indexOf(term) !== -1);
-        });
-    }
-
-    // Badge preview
-    function updateBadgePreview() {
-        var color = $('#badge-color').val();
-        var logoUrl = $('#badge-logo-url').val();
-        var includeQR = $('#include-qr').is(':checked');
-        var includeEvent = $('#include-event-name').is(':checked');
-
-        var name = 'John Doe';
-        var subtitle = 'Software Engineer';
-        var badgeType = 'attendee';
-
-        // Use first selected person data if available
-        var keys = Object.keys(selectedPeople);
-        if (keys.length > 0) {
-            var first = selectedPeople[keys[0]];
-            if (first.type === 'attendee') {
-                var att = attendeesData.find(function(a) { return a.id == first.id; });
-                if (att) { name = att.name; subtitle = att.company || att.ticket_name; badgeType = att.is_vip ? 'vip' : 'attendee'; }
-            } else if (first.type === 'speaker') {
-                var spk = speakersData.find(function(s) { return s.id == first.id; });
-                if (spk) { name = spk.name; subtitle = spk.title || spk.company; badgeType = 'speaker'; }
-            } else if (first.type === 'organizer') {
-                var org = organizersData.find(function(o) { return o.id == first.id; });
-                if (org) { name = org.name; subtitle = ''; badgeType = 'organizer'; }
-            }
-        }
-
-        var typeColors = { attendee: '#3498db', vip: '#f39c12', speaker: '#2ecc71', organizer: '#9b59b6' };
-        var typeLabels = { attendee: 'ATTENDEE', vip: 'VIP', speaker: 'SPEAKER', organizer: 'ORGANIZER' };
-        var tc = typeColors[badgeType] || '#3498db';
-        var tl = typeLabels[badgeType] || 'ATTENDEE';
-
-        var qrHtml = includeQR ? '<i class="fa fa-qrcode" style="font-size:28px;color:#999;"></i>' : '';
-        var eventHtml = includeEvent && eventTitle ? '<div style="font-size:7px;color:#aaa;text-align:center;position:absolute;bottom:2px;left:0;right:0;">' + escapeHtml(eventTitle.split('(')[0].trim()) + '</div>' : '';
-
+    function renderPreview() {
+        if (!list) { return; } // still setting up
+        readSettings();
+        var ev = currentEvent();
+        var row = ticked[0] || lastRows[0] || null;
+        var r = row || { name: 'Nour Hassan', sub: 'Cairo University', detail: 'Congress ticket', badge: 'attendee', qr: 'SAMPLE', photo: '' };
+        var design = settings.design;
+        var color = settings.primary_color;
+        var tc = TYPE_COLOR[r.badge] || TYPE_COLOR.attendee;
+        var qr = settings.include_qr && r.qr ? qrImg(r.qr) : '';
+        var qrHtml = settings.include_qr && r.qr ? '<span class="w-bprev__qr">' + (qr ? '<img src="' + qr + '" alt="">' : '') + '</span>' : '';
+        var evHtml = settings.include_event && ev ? '<span class="w-bprev__event">' + esc(ev.title) + '</span>' : '';
+        var label = '<span class="w-bprev__type" style="' + (design === 'elegant' ? 'color:' + tc : 'background:' + tc) + '">' + esc(L.types[r.badge] || '') + '</span>';
+        var logoHtml = logo ? '<img class="w-bprev__logo" src="' + esc(logo.url) + '" alt="">' : '';
         var html = '';
 
-        if (selectedDesign === 'corporate') {
-            html = '<div class="badge-preview-box" style="width:260px;height:195px;position:relative;background:#fff;">' +
-                '<div style="background:' + color + ';height:24px;display:flex;align-items:center;padding:0 8px;">' +
-                (logoUrl ? '<img src="' + logoUrl + '" style="height:16px;object-fit:contain;">' : '') +
-                '</div>' +
-                '<div style="padding-top:22px;text-align:center;">' +
-                '<div style="font-size:16px;font-weight:700;color:#212121;">' + escapeHtml(name) + '</div>' +
-                '<div style="font-size:10px;color:#888;margin-top:3px;">' + escapeHtml(subtitle) + '</div>' +
-                '</div>' +
-                '<div style="position:absolute;bottom:16px;left:10px;"><span style="background:' + tc + ';color:#fff;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;">' + tl + '</span></div>' +
-                '<div style="position:absolute;bottom:10px;right:10px;">' + qrHtml + '</div>' +
-                eventHtml +
-                '</div>';
-        } else if (selectedDesign === 'modern') {
-            html = '<div class="badge-preview-box" style="width:260px;height:195px;position:relative;background:#fff;display:flex;">' +
-                '<div style="width:16px;background:' + tc + ';flex-shrink:0;"></div>' +
-                '<div style="flex:1;padding:14px 10px;position:relative;">' +
-                '<div style="font-size:16px;font-weight:700;color:#212121;">' + escapeHtml(name) + '</div>' +
-                '<div style="font-size:10px;color:#888;margin-top:3px;">' + escapeHtml(subtitle) + '</div>' +
-                '<div style="position:absolute;bottom:16px;left:10px;"><span style="background:' + tc + ';color:#fff;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;">' + tl + '</span></div>' +
-                '<div style="position:absolute;bottom:10px;right:10px;">' + qrHtml + '</div>' +
-                (includeEvent && eventTitle ? '<div style="position:absolute;bottom:2px;left:10px;font-size:7px;color:#aaa;">' + escapeHtml(eventTitle.split('(')[0].trim()) + '</div>' : '') +
-                '</div>' +
-                '</div>';
-        } else if (selectedDesign === 'elegant') {
-            var initials = name.split(' ').slice(0, 2).map(function(w) { return w.charAt(0).toUpperCase(); }).join('');
-            html = '<div class="badge-preview-box" style="width:260px;height:195px;position:relative;background:' + color + ';text-align:center;padding-top:12px;">' +
-                '<div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.9);color:' + color + ';display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">' + initials + '</div>' +
-                '<div style="font-size:15px;font-weight:700;color:#fff;margin-top:8px;">' + escapeHtml(name) + '</div>' +
-                '<div style="font-size:10px;color:rgba(255,255,255,0.7);margin-top:2px;">' + escapeHtml(subtitle) + '</div>' +
-                '<div style="position:absolute;bottom:14px;left:10px;"><span style="background:rgba(255,255,255,0.9);color:' + color + ';padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;">' + tl + '</span></div>' +
-                '<div style="position:absolute;bottom:8px;right:10px;background:rgba(255,255,255,0.9);border-radius:3px;padding:3px;">' +
-                (includeQR ? '<i class="fa fa-qrcode" style="font-size:24px;color:#333;"></i>' : '') +
-                '</div>' +
-                (includeEvent && eventTitle ? '<div style="position:absolute;bottom:2px;left:0;right:0;font-size:7px;color:rgba(255,255,255,0.6);">' + escapeHtml(eventTitle.split('(')[0].trim()) + '</div>' : '') +
-                '</div>';
+        if (design === 'modern') {
+            html = '<span class="w-bprev__strip" style="background:' + tc + '"></span>' + logoHtml +
+                '<span class="w-bprev__name">' + esc(r.name) + '</span>' +
+                (r.sub ? '<span class="w-bprev__sub">' + esc(r.sub) + '</span>' : '') +
+                (r.detail ? '<span class="w-bprev__detail">' + esc(r.detail) + '</span>' : '') + label + qrHtml + evHtml;
+        } else if (design === 'elegant') {
+            var pic = settings.include_photos && r.photo ? '<img src="' + esc(r.photo) + '" alt="">' : esc(initials(r.name));
+            html = '<span class="w-bprev__circle" style="color:' + color + '">' + pic + '</span>' +
+                '<span class="w-bprev__name">' + esc(r.name) + '</span>' +
+                (r.sub ? '<span class="w-bprev__sub">' + esc(r.sub) + '</span>' : '') + label + qrHtml + evHtml;
+        } else {
+            html = '<span class="w-bprev__bar" style="background:' + color + '">' + logoHtml + '</span>' +
+                '<span class="w-bprev__name">' + esc(r.name) + '</span>' +
+                (r.sub ? '<span class="w-bprev__sub">' + esc(r.sub) + '</span>' : '') + label + qrHtml + evHtml;
         }
+        $('#badge-preview').attr('class', 'w-bprev w-bprev--' + design + ' w-bprev--' + settings.badge_size)
+            .css('background', design === 'elegant' ? color : '').html(html);
+        $('[data-elegant-only]').prop('hidden', design !== 'elegant');
 
-        $('#badge-preview-container').html(html);
+        var view = list ? list.state().tab : 'attendee';
+        var note = row ? L.showing.replace('%s', r.name) : L.sample;
+        if (settings.include_qr && (view === 'speaker' || view === 'organizer')) { note += ' ' + L.qrOff; }
+        $('#preview-note').text(note);
     }
 
-    function updateDesignColors() {
-        var color = $('#badge-color').val();
-        document.documentElement.style.setProperty('--badge-color', color);
-        // Update elegant preview
-        $('.design-elegant').css('background', color);
-        $('.design-elegant .dp-circle').css('color', color);
-        // Update corporate bar
-        $('.design-corporate .dp-bar').css('background', color);
-    }
-
-    // Generate badges
-    function generateBadges() {
-        var people = [];
-        Object.keys(selectedPeople).forEach(function(key) {
-            people.push(selectedPeople[key]);
-        });
-
-        if (people.length === 0) {
-            toastr.warning('Please select at least one person.');
-            return;
-        }
-
-        $('#generate-btn').prop('disabled', true);
-        $('#generate-loading').show();
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_prepare_badges',
-                nonce: scDashboard.nonce,
-                event_id: selectedEvent,
-                design: selectedDesign,
-                badge_size: $('input[name="badge_size"]:checked').val(),
-                primary_color: $('#badge-color').val(),
-                logo_url: $('#badge-logo-url').val(),
-                include_qr: $('#include-qr').is(':checked') ? '1' : '0',
-                include_event_name: $('#include-event-name').is(':checked') ? '1' : '0',
-                layout_mode: $('input[name="layout_mode"]:checked').val(),
-                people: JSON.stringify(people)
-            },
-            success: function(response) {
-                $('#generate-loading').hide();
-                $('#generate-btn').prop('disabled', false);
-
-                if (!response.success) {
-                    toastr.error(response.data ? response.data.message : 'Error generating badges');
-                    return;
-                }
-
-                toastr.success('Badges generated! (' + response.data.count + ' badges)');
-
-                // Open PDF in new tab
-                var link = document.createElement('a');
-                link.href = response.data.download_url;
-                link.target = '_blank';
-                link.click();
-            },
-            error: function() {
-                $('#generate-loading').hide();
-                $('#generate-btn').prop('disabled', false);
-                toastr.error('Failed to generate badges. Please try again.');
-            }
-        });
-    }
-
-    // Reset
-    function resetAll() {
-        selectedEvent = null;
-        eventTitle = '';
-        resetPeopleData();
-        $('#design-card, #customize-card, #people-card, #generate-section, #preview-card, #info-card').hide();
-    }
-
-    function resetPeopleData() {
-        attendeesData = [];
-        speakersData = [];
-        organizersData = [];
-        selectedPeople = {};
-        updateSelectedCount();
-        $('#attendees-table tbody, #speakers-table tbody, #organizers-table tbody').empty();
-        $('#count-attendees, #count-speakers, #count-organizers').text('0');
-    }
-
-    // Utility
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-})();
+    aside.on('change input', 'input', function () { renderPreview(); });
+    $('#badge-subtitle').on('change', function () { readSettings(); list.reload(true); });
+    renderPreview();
+});
 </script>
 
-<?php
-get_template_part('template-parts/dashboard/components/dashboard', 'footer');
-?>
+<?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>
