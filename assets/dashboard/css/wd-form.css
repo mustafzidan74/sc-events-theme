@@ -237,6 +237,13 @@
   direction: ltr;
 }
 .w-dash .w-affix .form-control { border: 0; border-radius: 0; box-shadow: none; min-width: 0; flex: 1; }
+.w-dash .w-affix select.form-control { flex: 0 0 auto; width: auto; min-width: 72px; border-inline-start: 1px solid var(--w-border-strong); background-color: var(--w-surface-2); }
+/* Quick-pick chips (e.g. booth sizes) */
+.w-chiprow { display: flex; flex-wrap: wrap; gap: 6px; }
+.w-dash .w-chipbtn { min-height: 32px; padding: 0 12px; border: 1px solid var(--w-border-strong); border-radius: 999px; background: var(--w-surface); color: var(--w-text-2); font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.w-dash .w-chipbtn:hover { color: var(--w-text); border-color: var(--w-text-3); }
+.w-dash .w-chipbtn[aria-pressed="true"] { border-color: var(--w-primary); background: var(--w-primary-soft); color: var(--w-primary-text); font-weight: 600; }
+.w-dash .w-chipbtn:focus-visible { box-shadow: var(--w-focus-ring); outline: 0; }
 
 /* Radio cards */
 .w-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }

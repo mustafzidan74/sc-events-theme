@@ -289,10 +289,12 @@
       var els = form.querySelectorAll('[name="' + CSS.escape(name) + '"]');
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
+        // Skip the hidden 0 that sits before a checkbox of the same name.
+        if (el.type === 'hidden' && els.length > 1) { continue; }
         if (el.type === 'radio' || el.type === 'checkbox') { if (el.checked) { return el.value; } }
         else { return el.value; }
       }
-      return '';
+      return els.length > 1 && els[0].type === 'hidden' ? els[0].value : '';
     }
 
     function applyShowIf() {

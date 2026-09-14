@@ -274,6 +274,7 @@ require get_template_directory() . '/inc/admin-dashboard/company-attendees-ajax-
 require get_template_directory() . '/inc/admin-dashboard/sessions-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/scanners-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/badges-ajax-handlers.php';
+require get_template_directory() . '/inc/admin-dashboard/booths-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/sponsors-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/partners-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/analytics-ajax-handlers.php';

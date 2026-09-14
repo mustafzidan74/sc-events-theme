@@ -1,6 +1,7 @@
 <?php
 /**
- * Dashboard Booth Bookings Management Page
+ * Booth bookings — list pattern over sc_booth_bookings_list, with confirm / check-in /
+ * payment / cancel from the row menu. Handlers: inc/admin-dashboard/booths-dashboard.php.
  *
  * @package sc_events
  */
@@ -9,493 +10,261 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = sc_t('booths.bookings', 'Booth Bookings');
+global $wpdb, $load_wd_list, $load_wd_form;
+$load_wd_list = true;
+$load_wd_form = true;
+
+$events = $wpdb->get_results("SELECT id, title FROM {$wpdb->prefix}sc_events WHERE status IN ('publish', 'completed', 'draft') ORDER BY start_date DESC LIMIT 200");
+$currency = get_option('sc_currency_code', 'EGP');
+$dashboard_url = home_url('/event-manager-dashboard/');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
-
-// Translations
-$t = array(
-    'bookings' => sc_t('booths.bookings', 'Bookings'),
-    'booths' => sc_t('nav.booths', 'Booths'),
-    'add_booking' => sc_t('booths.add_booking', 'Add Booking'),
-    'booking_ref' => sc_t('booths.booking_ref', 'Ref'),
-    'booth' => sc_t('booths.booth', 'Booth'),
-    'company' => sc_t('dashboard_pages.company', 'Company'),
-    'period' => sc_t('booths.period', 'Period'),
-    'amount' => sc_t('dashboard_pages.amount', 'Amount'),
-    'payment' => sc_t('dashboard_pages.payment', 'Payment'),
-    'status' => sc_t('dashboard_pages.status', 'Status'),
-    'actions' => sc_t('dashboard_pages.actions', 'Actions'),
-    'edit' => sc_t('dashboard_pages.edit', 'Edit'),
-    'view' => sc_t('dashboard_pages.view', 'View'),
-    'confirm' => sc_t('booths.confirm', 'Confirm'),
-    'check_in' => sc_t('dashboard_pages.check_in', 'Check In'),
-    'cancel' => sc_t('dashboard_pages.cancel', 'Cancel'),
-    'loading' => sc_t('dashboard_pages.loading', 'Loading...'),
-    'no_bookings' => sc_t('booths.no_bookings', 'No bookings found'),
-    'select_event' => sc_t('dashboard_pages.select_event', 'Select Event'),
-    'all_statuses' => sc_t('dashboard_pages.all_statuses', 'All Statuses'),
-    'all_payments' => sc_t('booths.all_payments', 'All Payments'),
-    'search' => sc_t('dashboard_pages.search', 'Search...'),
-    'refresh' => sc_t('dashboard_pages.refresh', 'Refresh'),
-    'total_bookings' => sc_t('booths.total_bookings', 'Total Bookings'),
-    'pending_bookings' => sc_t('booths.pending_bookings', 'Pending'),
-    'confirmed_bookings' => sc_t('booths.confirmed_bookings', 'Confirmed'),
-    'total_revenue' => sc_t('booths.total_revenue', 'Total Revenue'),
-    // Statuses
-    'pending' => sc_t('dashboard_pages.pending', 'Pending'),
-    'confirmed' => sc_t('booths.confirmed', 'Confirmed'),
-    'active' => sc_t('dashboard_pages.active', 'Active'),
-    'completed' => sc_t('dashboard_pages.completed', 'Completed'),
-    'cancelled' => sc_t('dashboard_pages.cancelled', 'Cancelled'),
-    // Payment statuses
-    'payment_pending' => sc_t('booths.payment_pending', 'Pending'),
-    'deposit_paid' => sc_t('booths.deposit_paid', 'Deposit Paid'),
-    'fully_paid' => sc_t('booths.fully_paid', 'Fully Paid'),
-    'overdue' => sc_t('booths.overdue', 'Overdue'),
-);
-
-// Get event ID from URL
-$event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
-
-// Get events for dropdown
-global $wpdb;
-$events = $wpdb->get_results("SELECT id, title FROM {$wpdb->prefix}sc_events WHERE status = 'publish' ORDER BY start_date DESC");
-
-// Auto-select if only one event
-if (!$event_id && count($events) === 1) {
-    $event_id = $events[0]->id;
-}
-
-// Get stats
-$total_bookings = 0;
-$pending_bookings = 0;
-$confirmed_bookings = 0;
-$total_revenue = 0;
-
-if ($event_id) {
-    $total_bookings = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}sc_booth_bookings WHERE event_id = %d", $event_id)) ?: 0;
-    $pending_bookings = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}sc_booth_bookings WHERE event_id = %d AND status = 'pending'", $event_id)) ?: 0;
-    $confirmed_bookings = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}sc_booth_bookings WHERE event_id = %d AND status IN ('confirmed', 'active')", $event_id)) ?: 0;
-    $total_revenue = $wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(total_amount), 0) FROM {$wpdb->prefix}sc_booth_bookings WHERE event_id = %d AND status != 'cancelled'", $event_id)) ?: 0;
-}
+get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
-<?php get_template_part('template-parts/dashboard/components/dashboard', 'sidebar'); ?>
-
 <div id="main-content">
-    <div class="container-fluid">
-        <div class="block-header">
-            <div class="row">
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <h2><?php echo $t['bookings']; ?></h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/booths'); ?>"><?php echo $t['booths']; ?></a></li>
-                        <li class="breadcrumb-item active"><?php echo $t['bookings']; ?></li>
-                    </ul>
-                </div>
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <div class="d-flex flex-row-reverse">
-                        <div class="page_action">
-                            <a href="<?php echo home_url('/event-manager-dashboard/booth-booking-create' . ($event_id ? '?event_id=' . $event_id : '')); ?>" class="btn btn-primary" <?php echo !$event_id ? 'disabled' : ''; ?>>
-                                <i class="fa fa-plus"></i> <?php echo $t['add_booking']; ?>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="container-fluid">
+
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html(sc_t('booths.bookings', 'Booth bookings')); ?><span class="w-page-head__count" data-w-total></span></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('booths.bookings_sub', 'Which company has which booth, what they owe and whether they have set up. Payments here are recorded by hand.')); ?></p>
         </div>
-
-        <!-- Event Selector -->
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label><strong><?php echo $t['select_event']; ?></strong></label>
-                    <select id="event-selector" class="form-control">
-                        <option value="">-- <?php echo $t['select_event']; ?> --</option>
-                        <?php foreach ($events as $event): ?>
-                            <option value="<?php echo $event->id; ?>" <?php selected($event_id, $event->id); ?>><?php echo esc_html($event->title); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-primary" id="new-link" href="<?php echo esc_url($dashboard_url . 'booth-booking-create'); ?>"><i class="fa fa-plus" aria-hidden="true"></i> <?php echo esc_html(sc_t('booths.new_booking', 'New booking')); ?></a>
         </div>
+    </div>
 
-        <!-- Statistics Cards -->
-        <div class="row clearfix" id="stats-row" style="<?php echo !$event_id ? 'display:none' : ''; ?>">
-            <div class="col-lg-3 col-md-6 col-sm-6 col-6">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <div class="stat-icon bg-primary">
-                            <i class="fa fa-file-text"></i>
-                        </div>
-                        <h3 class="stat-number" id="stat-total"><?php echo $total_bookings; ?></h3>
-                        <p class="stat-label"><?php echo $t['total_bookings']; ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-6 col-6">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <div class="stat-icon bg-warning">
-                            <i class="fa fa-clock-o"></i>
-                        </div>
-                        <h3 class="stat-number" id="stat-pending"><?php echo $pending_bookings; ?></h3>
-                        <p class="stat-label"><?php echo $t['pending_bookings']; ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-6 col-6">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <div class="stat-icon bg-success">
-                            <i class="fa fa-check-circle"></i>
-                        </div>
-                        <h3 class="stat-number" id="stat-confirmed"><?php echo $confirmed_bookings; ?></h3>
-                        <p class="stat-label"><?php echo $t['confirmed_bookings']; ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-6 col-6">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <div class="stat-icon bg-info">
-                            <i class="fa fa-money"></i>
-                        </div>
-                        <h3 class="stat-number" id="stat-revenue"><?php echo number_format($total_revenue); ?></h3>
-                        <p class="stat-label"><?php echo $t['total_revenue']; ?></p>
-                    </div>
-                </div>
-            </div>
+    <div id="bookings-list">
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr(sc_t('booths.bookings', 'Booth bookings')); ?>"></div>
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html(sc_t('booths.search_bookings', 'Search reference, company or booth')); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr(sc_t('booths.search_bookings', 'Search reference, company or booth')); ?>" autocomplete="off">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
+            <select class="form-control" data-w-filter="event_id" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.all_events', 'All events')); ?>">
+                <option value=""><?php echo esc_html(sc_t('dashboard_pages.all_events', 'All events')); ?></option>
+                <?php foreach ($events as $ev): ?>
+                    <option value="<?php echo (int) $ev->id; ?>"><?php echo esc_html($ev->title); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <select class="form-control" data-w-filter="payment" aria-label="<?php echo esc_attr(sc_t('booths.payment', 'Payment')); ?>">
+                <option value=""><?php echo esc_html(sc_t('booths.any_payment', 'Any payment')); ?></option>
+                <option value="unpaid"><?php echo esc_html(sc_t('booths.unpaid', 'Unpaid')); ?></option>
+                <option value="deposit_paid"><?php echo esc_html(sc_t('booths.deposit_paid', 'Deposit paid')); ?></option>
+                <option value="fully_paid"><?php echo esc_html(sc_t('booths.paid', 'Paid')); ?></option>
+                <option value="overdue"><?php echo esc_html(sc_t('booths.overdue', 'Overdue')); ?></option>
+            </select>
         </div>
-
-        <style>
-        .stat-card { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: transform 0.2s; margin-bottom: 20px; }
-        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 5px 20px rgba(0,0,0,0.12); }
-        .stat-card .card-body { padding: 20px 15px; }
-        .stat-icon { width: 50px; height: 50px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-        .stat-icon i { font-size: 22px; color: #fff; }
-        .stat-number { font-size: 28px; font-weight: 700; margin: 0 0 5px 0; color: #333; }
-        .stat-label { font-size: 13px; color: #888; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
-        .bg-primary { background: #3b82f6 !important; }
-        .bg-success { background: #22c55e !important; }
-        .bg-warning { background: #f59e0b !important; }
-        .bg-info { background: #06b6d4 !important; }
-        @media (max-width: 575px) {
-            .stat-card .card-body { padding: 15px 10px; }
-            .stat-icon { width: 40px; height: 40px; }
-            .stat-icon i { font-size: 18px; }
-            .stat-number { font-size: 20px; }
-            .stat-label { font-size: 10px; }
-        }
-        </style>
-
-        <!-- Bookings Table -->
-        <div class="row" id="content-row" style="<?php echo !$event_id ? 'display:none' : ''; ?>">
-            <div class="col-12">
-                <div class="card">
-                    <div class="header">
-                        <h2><i class="fa fa-calendar-check-o"></i> <?php echo $t['bookings']; ?></h2>
-                    </div>
-                    <div class="body">
-                        <!-- Filters -->
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <input type="text" class="form-control" id="search-bookings" placeholder="<?php echo $t['search']; ?>">
-                            </div>
-                            <div class="col-md-2">
-                                <select class="form-control" id="filter-status">
-                                    <option value=""><?php echo $t['all_statuses']; ?></option>
-                                    <option value="pending"><?php echo $t['pending']; ?></option>
-                                    <option value="confirmed"><?php echo $t['confirmed']; ?></option>
-                                    <option value="active"><?php echo $t['active']; ?></option>
-                                    <option value="completed"><?php echo $t['completed']; ?></option>
-                                    <option value="cancelled"><?php echo $t['cancelled']; ?></option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <select class="form-control" id="filter-payment">
-                                    <option value=""><?php echo $t['all_payments']; ?></option>
-                                    <option value="pending"><?php echo $t['payment_pending']; ?></option>
-                                    <option value="deposit_paid"><?php echo $t['deposit_paid']; ?></option>
-                                    <option value="fully_paid"><?php echo $t['fully_paid']; ?></option>
-                                    <option value="overdue"><?php echo $t['overdue']; ?></option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <button class="btn btn-outline-primary btn-block" id="btn-refresh">
-                                    <i class="fa fa-refresh"></i> <?php echo $t['refresh']; ?>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-hover" id="bookings-table">
-                                <thead>
-                                    <tr>
-                                        <th><?php echo $t['booking_ref']; ?></th>
-                                        <th><?php echo $t['booth']; ?></th>
-                                        <th><?php echo $t['company']; ?></th>
-                                        <th><?php echo $t['period']; ?></th>
-                                        <th><?php echo $t['amount']; ?></th>
-                                        <th><?php echo $t['payment']; ?></th>
-                                        <th><?php echo $t['status']; ?></th>
-                                        <th style="width: 150px;"><?php echo $t['actions']; ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="bookings-list">
-                                    <tr>
-                                        <td colspan="8" class="text-center">
-                                            <i class="fa fa-spinner fa-spin"></i> <?php echo $t['loading']; ?>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-bulkbar" data-w-bulk hidden></div>
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table><thead></thead><tbody></tbody></table>
             </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
         </div>
+    </div>
 
-        <!-- No Event Selected Message -->
-        <div class="row" id="no-event-message" style="<?php echo $event_id ? 'display:none' : ''; ?>">
-            <div class="col-12">
-                <div class="card">
-                    <div class="body text-center p-5">
-                        <i class="fa fa-calendar fa-4x text-muted mb-3"></i>
-                        <h4><?php _e('Please select an event to manage bookings', 'sc_events'); ?></h4>
-                        <p class="text-muted"><?php _e('Use the dropdown above to choose an event', 'sc_events'); ?></p>
+</div>
+</div>
+
+<div class="modal fade" id="payModal" tabindex="-1" role="dialog" aria-labelledby="pay-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="pay-form" novalidate autocomplete="off">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pay-title"><?php echo esc_html(sc_t('booths.record_payment', 'Record a payment')); ?></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.close', 'Close')); ?>"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <p class="w-issue__big" id="pay-summary"></p>
+                    <div class="w-field">
+                        <label for="pay-amount" class="w-field__label"><?php echo esc_html(sprintf(sc_t('booths.amount_received', 'Amount received (%s)'), $currency)); ?></label>
+                        <input type="number" class="form-control" id="pay-amount" name="amount" min="0.01" step="0.01" inputmode="decimal" required>
+                        <p class="w-field__help"><?php echo esc_html(sc_t('booths.payment_help', 'The first payment counts as the deposit; later ones go against the balance.')); ?></p>
                     </div>
                 </div>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal"><?php echo esc_html(sc_t('dashboard_pages.cancel', 'Cancel')); ?></button>
+                    <button type="submit" class="btn btn-primary" id="pay-go"><?php echo esc_html(sc_t('booths.record', 'Record')); ?></button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-var bookingsTranslations = <?php echo json_encode($t); ?>;
-var currentEventId = <?php echo $event_id ?: 0; ?>;
+jQuery(function ($) {
+    'use strict';
 
-jQuery(document).ready(function($) {
-    // Event selector change
-    $('#event-selector').on('change', function() {
-        var eventId = $(this).val();
-        if (eventId) {
-            window.location.href = '<?php echo home_url('/event-manager-dashboard/booth-bookings'); ?>?event_id=' + eventId;
-        } else {
-            $('#stats-row, #content-row').hide();
-            $('#no-event-message').show();
+    var esc = WDList.esc;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var eventTitles = <?php echo $js(array_reduce($events, function ($c, $e) { $c[(int) $e->id] = $e->title; return $c; }, array())); ?>;
+    var L = <?php echo $js(array(
+        'all'       => sc_t('dashboard_pages.all', 'All'),
+        'views'     => array('pending' => sc_t('booths.pending', 'Pending'), 'confirmed' => sc_t('booths.confirmed', 'Confirmed'), 'active' => sc_t('booths.set_up', 'At the booth'), 'done' => sc_t('booths.completed', 'Completed'), 'cancelled' => sc_t('dashboard_pages.status_cancelled', 'Cancelled')),
+        'status'    => array('pending' => sc_t('booths.pending', 'Pending'), 'confirmed' => sc_t('booths.confirmed', 'Confirmed'), 'active' => sc_t('booths.set_up', 'At the booth'), 'completed' => sc_t('booths.completed', 'Completed'), 'cancelled' => sc_t('dashboard_pages.status_cancelled', 'Cancelled'), 'no_show' => sc_t('booths.no_show', 'No-show')),
+        'payment'   => array('pending' => sc_t('booths.unpaid', 'Unpaid'), 'deposit_paid' => sc_t('booths.deposit_paid', 'Deposit paid'), 'fully_paid' => sc_t('booths.paid', 'Paid'), 'overdue' => sc_t('booths.overdue', 'Overdue'), 'refunded' => sc_t('payments.refunded', 'Refunded'), 'cancelled' => sc_t('dashboard_pages.status_cancelled', 'Cancelled')),
+        'booking'   => sc_t('booths.booking', 'Booking'),
+        'booth'     => sc_t('booths.booth', 'Booth'),
+        'amount'    => sc_t('booths.amount', 'Amount'),
+        'state'     => sc_t('dashboard_pages.status', 'Status'),
+        'event'     => sc_t('events.event', 'Event'),
+        'dueX'      => sc_t('booths.due_x', '%s due'),
+        'dueBy'     => sc_t('booths.due_by', 'by %s'),
+        'paidInFull' => sc_t('booths.paid_in_full', 'Paid in full'),
+        'edit'      => sc_t('dashboard_pages.edit', 'Open'),
+        'confirm'   => sc_t('booths.confirm', 'Confirm'),
+        'checkIn'   => sc_t('booths.check_in', 'Check in at the booth'),
+        'checkOut'  => sc_t('booths.check_out', 'Hand the booth back'),
+        'pay'       => sc_t('booths.record_payment', 'Record a payment'),
+        'cancel'    => sc_t('booths.cancel_booking', 'Cancel booking'),
+        'cancelAsk' => sc_t('booths.cancel_ask', 'Cancel booking %s? The booth becomes available again. Money already recorded stays on the booking.'),
+        'reasonPh'  => sc_t('booths.reason_ph', 'Reason (optional)'),
+        'paySummary' => sc_t('booths.pay_summary', '%1$s · %2$s still due'),
+        'payment_f' => sc_t('booths.payment', 'Payment'),
+        'search'    => sc_t('general.search', 'Search'),
+        'emptyText' => sc_t('booths.no_bookings', 'No booth bookings yet.'),
+        'failed'    => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
+    var ICON = {
+        doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6',
+        check: 'M20 6 9 17l-5-5',
+        in: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
+        out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+        cash: 'M2 6h20v12H2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+        x: 'M18 6 6 18M6 6l12 12'
+    };
+    var STATUS_TAG = { pending: 'w-tag--gold', confirmed: 'w-tag--primary', active: 'w-tag--teal', completed: '', cancelled: 'w-tag--red', no_show: 'w-tag--red' };
+    var PAY_TAG = { pending: '', deposit_paid: 'w-tag--gold', fully_paid: 'w-tag--teal', overdue: 'w-tag--red' };
+    var money = function (n, c) { return Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + c; };
+    var day = function (d) { return d ? new Date(String(d).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
+
+    function act(op, row, extra) {
+        return $.post(scDashboard.ajaxurl, $.extend({ action: 'sc_booth_booking_action', nonce: scDashboard.nonce, op: op, id: row.id }, extra || {}))
+            .done(function (res) {
+                if (!res.success) { showError(res.data && res.data.message || L.failed); return; }
+                showSuccess(res.data.message);
+                list.reload(true);
+            })
+            .fail(function () { showError(L.failed); });
+    }
+    function cancel(row) {
+        Swal.fire({
+            text: L.cancelAsk.replace('%s', row.ref), icon: 'warning', input: 'text', inputPlaceholder: L.reasonPh,
+            showCancelButton: true, confirmButtonText: L.cancel, confirmButtonColor: '#b42318'
+        }).then(function (r) { if (r.isConfirmed) { act('cancel', row, { reason: r.value || '' }); } });
+    }
+    var payRow = null;
+    function pay(row) {
+        payRow = row;
+        $('#pay-form .w-field__error').remove();
+        $('#pay-summary').text(L.paySummary.replace('%1$s', row.company.name + ' · ' + row.ref).replace('%2$s', money(row.due, row.currency)));
+        $('#pay-amount').val(row.due ? row.due : '').attr('max', row.due);
+        $('#payModal').modal('show');
+    }
+    $('#payModal').on('shown.bs.modal', function () { $('#pay-amount').trigger('focus').trigger('select'); });
+    $('#pay-form').on('submit', function (e) {
+        e.preventDefault();
+        var btn = $('#pay-go').prop('disabled', true);
+        $('#pay-form .w-field__error').remove();
+        $.post(scDashboard.ajaxurl, { action: 'sc_booth_booking_action', nonce: scDashboard.nonce, op: 'payment', id: payRow.id, amount: $('#pay-amount').val() })
+            .done(function (res) {
+                if (!res.success) {
+                    $('#pay-amount').closest('.w-field').append('<p class="w-field__error">' + esc(res.data && res.data.message || L.failed) + '</p>');
+                    return;
+                }
+                $('#payModal').modal('hide');
+                showSuccess(res.data.message);
+                list.reload(true);
+            })
+            .fail(function () { showError(L.failed); })
+            .always(function () { btn.prop('disabled', false); });
+    });
+
+    var list = WDList.create({
+        root: document.getElementById('bookings-list'),
+        action: 'sc_booth_bookings_list',
+        rowsKey: 'rows',
+        filters: ['search', 'event_id', 'payment'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        defaultSort: { orderby: 'created', order: 'desc' },
+        tabs: [{ key: 'all', label: L.all, params: { view: 'all' }, countKey: 'all' }].concat(['pending', 'confirmed', 'active', 'done', 'cancelled'].map(function (k) {
+            return { key: k, label: L.views[k], params: { view: k }, countKey: k };
+        })),
+        emptyText: L.emptyText,
+        onFiltersChange: function (f) {
+            $('#new-link').attr('href', dashboardUrl + 'booth-booking-create' + (f.event_id ? '?event_id=' + encodeURIComponent(f.event_id) : ''));
+        },
+        columns: [
+            {
+                label: L.booking, sort: 'created',
+                render: function (r) {
+                    return '<div class="w-stack"><a class="w-row-title" href="' + esc(dashboardUrl + 'booth-booking-edit?id=' + r.id) + '">' + esc(r.company.name || '—') + '</a>' +
+                        '<span class="w-sub w-mono w-nowrap">' + esc(r.ref) + ' · ' + esc(day(r.created)) + '</span></div>';
+                }
+            },
+            {
+                label: L.booth, sort: 'booth',
+                render: function (r) {
+                    return '<div class="w-person"><span class="w-boothchip" style="--c:' + esc(r.booth.color) + '">' + esc(r.booth.number || '—') + '</span><span class="w-sub w-truncate">' + esc(r.booth.type) + '</span></div>';
+                }
+            },
+            {
+                label: L.amount, sort: 'total',
+                render: function (r) {
+                    var sub = r.due > 0
+                        ? esc(L.dueX.replace('%s', money(r.due, r.currency))) + (r.due_date ? ' ' + esc(L.dueBy.replace('%s', day(r.due_date))) : '')
+                        : (r.total > 0 ? esc(L.paidInFull) : '');
+                    return '<div class="w-stack w-nowrap"><span>' + esc(money(r.total, r.currency)) + '</span><span class="w-sub">' + sub + '</span></div>';
+                }
+            },
+            {
+                label: L.event, className: 'w-col-xl',
+                render: function (r) { return '<span class="w-truncate">' + esc(r.event) + '</span>'; }
+            },
+            {
+                label: L.state,
+                render: function (r) {
+                    return '<div class="w-stack w-nowrap"><span class="w-tag ' + (STATUS_TAG[r.status] || '') + '">' + esc(L.status[r.status] || r.status) + '</span>' +
+                        '<span class="w-tag ' + (PAY_TAG[r.payment] || '') + '">' + esc(L.payment[r.payment] || r.payment) + '</span></div>';
+                }
+            }
+        ],
+        rowMenu: function (r) {
+            var live = ['pending', 'confirmed', 'active'].indexOf(r.status) > -1;
+            var items = [{ label: L.edit, icon: ICON.doc, href: dashboardUrl + 'booth-booking-edit?id=' + r.id }];
+            if (r.status === 'pending') { items.push({ label: L.confirm, icon: ICON.check, onSelect: function () { act('confirm', r); } }); }
+            if (r.status === 'pending' || r.status === 'confirmed') { items.push({ label: L.checkIn, icon: ICON.in, onSelect: function () { act('check_in', r); } }); }
+            if (r.status === 'active') { items.push({ label: L.checkOut, icon: ICON.out, onSelect: function () { act('check_out', r); } }); }
+            items.push({ label: L.pay, icon: ICON.cash, disabled: !(r.due > 0), onSelect: function () { pay(r); } });
+            if (live) {
+                items.push({ separator: true });
+                items.push({ label: L.cancel, icon: ICON.x, danger: true, onSelect: function () { cancel(r); } });
+            }
+            return items;
+        },
+        chips: function (state) {
+            var f = state.filters, chips = [];
+            if (f.search) { chips.push({ label: L.search, value: f.search, clear: function (l) { l.setFilter('search', ''); } }); }
+            if (f.event_id) { chips.push({ label: L.event, value: eventTitles[f.event_id] || ('#' + f.event_id), clear: function (l) { l.setFilter('event_id', ''); } }); }
+            if (f.payment) { chips.push({ label: L.payment_f, value: $('[data-w-filter="payment"] option:selected').text(), clear: function (l) { l.setFilter('payment', ''); } }); }
+            return chips;
         }
     });
-
-    // Load bookings
-    function loadBookings() {
-        if (!currentEventId) return;
-
-        var tbody = $('#bookings-list');
-        tbody.html('<tr><td colspan="8" class="text-center"><i class="fa fa-spinner fa-spin"></i> ' + bookingsTranslations.loading + '</td></tr>');
-
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_booth_bookings_get_all',
-                nonce: '<?php echo wp_create_nonce('sc_dashboard_nonce'); ?>',
-                event_id: currentEventId,
-                search: $('#search-bookings').val(),
-                status: $('#filter-status').val(),
-                payment_status: $('#filter-payment').val()
-            },
-            success: function(response) {
-                if (response.success && response.data.bookings) {
-                    var bookings = response.data.bookings;
-                    if (bookings.length === 0) {
-                        tbody.html('<tr><td colspan="8" class="text-center text-muted">' + bookingsTranslations.no_bookings + '</td></tr>');
-                        return;
-                    }
-
-                    var html = '';
-                    bookings.forEach(function(booking) {
-                        var statusBadge = getStatusBadge(booking.status);
-                        var paymentBadge = getPaymentBadge(booking.payment_status);
-
-                        html += '<tr>';
-                        html += '<td><strong>' + escapeHtml(booking.booking_ref) + '</strong></td>';
-                        html += '<td>' + escapeHtml(booking.booth_number || '-') + '</td>';
-                        html += '<td>' + escapeHtml(booking.company_name || '-') + '</td>';
-                        html += '<td>' + formatDate(booking.start_date) + ' - ' + formatDate(booking.end_date) + '</td>';
-                        html += '<td>' + formatCurrency(booking.total_amount) + '</td>';
-                        html += '<td>' + paymentBadge + '</td>';
-                        html += '<td>' + statusBadge + '</td>';
-                        html += '<td>';
-                        html += '<div class="btn-group">';
-                        html += '<a href="<?php echo home_url('/event-manager-dashboard/booth-booking-edit'); ?>?id=' + booking.id + '" class="btn btn-sm btn-outline-primary" title="' + bookingsTranslations.edit + '"><i class="fa fa-pencil"></i></a>';
-
-                        if (booking.status === 'pending') {
-                            html += '<button class="btn btn-sm btn-outline-success btn-confirm" data-id="' + booking.id + '" title="' + bookingsTranslations.confirm + '"><i class="fa fa-check"></i></button>';
-                        }
-                        if (booking.status === 'confirmed' && booking.payment_status === 'fully_paid') {
-                            html += '<button class="btn btn-sm btn-outline-info btn-checkin" data-id="' + booking.id + '" title="' + bookingsTranslations.check_in + '"><i class="fa fa-sign-in"></i></button>';
-                        }
-                        if (booking.status !== 'cancelled' && booking.status !== 'completed') {
-                            html += '<button class="btn btn-sm btn-outline-danger btn-cancel" data-id="' + booking.id + '" title="' + bookingsTranslations.cancel + '"><i class="fa fa-times"></i></button>';
-                        }
-
-                        html += '</div>';
-                        html += '</td>';
-                        html += '</tr>';
-                    });
-                    tbody.html(html);
-                } else {
-                    tbody.html('<tr><td colspan="8" class="text-center text-danger">Error loading data</td></tr>');
-                }
-            },
-            error: function() {
-                tbody.html('<tr><td colspan="8" class="text-center text-danger">Connection error</td></tr>');
-            }
-        });
-    }
-
-    // Status badge helper
-    function getStatusBadge(status) {
-        var badges = {
-            'pending': '<span class="badge badge-warning">Pending</span>',
-            'confirmed': '<span class="badge badge-primary">Confirmed</span>',
-            'active': '<span class="badge badge-success">Active</span>',
-            'completed': '<span class="badge badge-secondary">Completed</span>',
-            'cancelled': '<span class="badge badge-danger">Cancelled</span>'
-        };
-        return badges[status] || '<span class="badge badge-secondary">' + status + '</span>';
-    }
-
-    // Payment badge helper
-    function getPaymentBadge(status) {
-        var badges = {
-            'pending': '<span class="badge badge-warning">Pending</span>',
-            'deposit_paid': '<span class="badge badge-info">Deposit</span>',
-            'fully_paid': '<span class="badge badge-success">Paid</span>',
-            'overdue': '<span class="badge badge-danger">Overdue</span>'
-        };
-        return badges[status] || '<span class="badge badge-secondary">' + status + '</span>';
-    }
-
-    // Filters
-    $('#search-bookings').on('keyup', debounce(loadBookings, 500));
-    $('#filter-status, #filter-payment').on('change', loadBookings);
-    $('#btn-refresh').on('click', loadBookings);
-
-    // Confirm booking
-    $(document).on('click', '.btn-confirm', function() {
-        var bookingId = $(this).data('id');
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_booth_bookings_confirm',
-                nonce: '<?php echo wp_create_nonce('sc_dashboard_nonce'); ?>',
-                id: bookingId
-            },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({icon: 'success', title: 'Booking confirmed', timer: 1500, showConfirmButton: false});
-                    loadBookings();
-                } else {
-                    Swal.fire({icon: 'error', title: 'Error', text: response.data.message});
-                }
-            }
-        });
-    });
-
-    // Check-in
-    $(document).on('click', '.btn-checkin', function() {
-        var bookingId = $(this).data('id');
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_booth_bookings_check_in',
-                nonce: '<?php echo wp_create_nonce('sc_dashboard_nonce'); ?>',
-                id: bookingId
-            },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({icon: 'success', title: 'Checked in', timer: 1500, showConfirmButton: false});
-                    loadBookings();
-                } else {
-                    Swal.fire({icon: 'error', title: 'Error', text: response.data.message});
-                }
-            }
-        });
-    });
-
-    // Cancel booking
-    $(document).on('click', '.btn-cancel', function() {
-        var bookingId = $(this).data('id');
-        Swal.fire({
-            title: 'Cancel Booking',
-            text: 'Are you sure you want to cancel this booking?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Yes, cancel it'
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: ajaxurl,
-                    type: 'POST',
-                    data: {
-                        action: 'sc_booth_bookings_cancel',
-                        nonce: '<?php echo wp_create_nonce('sc_dashboard_nonce'); ?>',
-                        id: bookingId,
-                        reason: 'Cancelled by admin'
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({icon: 'success', title: 'Booking cancelled', timer: 1500, showConfirmButton: false});
-                            loadBookings();
-                        } else {
-                            Swal.fire({icon: 'error', title: 'Error', text: response.data.message});
-                        }
-                    }
-                });
-            }
-        });
-    });
-
-    // Helper functions
-    function escapeHtml(text) {
-        if (!text) return '';
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function formatCurrency(amount) {
-        return parseFloat(amount || 0).toLocaleString('en-SA', {minimumFractionDigits: 2}) + ' SAR';
-    }
-
-    function formatDate(date) {
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('en-GB');
-    }
-
-    function debounce(func, wait) {
-        var timeout;
-        return function() {
-            clearTimeout(timeout);
-            timeout = setTimeout(func, wait);
-        };
-    }
-
-    // Initial load
-    if (currentEventId) {
-        loadBookings();
-    }
 });
 </script>
 

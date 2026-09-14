@@ -101,6 +101,17 @@ class SC_Booths_Module extends SC_Base_Module {
     }
 
     /**
+     * Every booth action changes or reads commercial data: event managers only.
+     * (A nonce alone let any dashboard account — e.g. scanner staff — edit booths and payments.)
+     */
+    private function verify_manager() {
+        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        if (!SC_Event_Manager_Dashboard::is_event_manager()) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')), 403);
+        }
+    }
+
+    /**
      * Initialize module
      */
     public function init() {
@@ -156,7 +167,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get all booth types
      */
     public function ajax_get_booth_types() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $args = array(
             'event_id'  => intval($_POST['event_id'] ?? 0) ?: null,
@@ -181,7 +192,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get single booth type
      */
     public function ajax_get_booth_type() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booth_type_id'] ?? 0);
 
@@ -202,7 +213,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Create booth type
      */
     public function ajax_create_booth_type() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $data = array(
             'event_id'           => intval($_POST['event_id'] ?? 0),
@@ -252,7 +263,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Update booth type
      */
     public function ajax_update_booth_type() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booth_type_id'] ?? 0);
 
@@ -310,7 +321,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Delete booth type
      */
     public function ajax_delete_booth_type() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booth_type_id'] ?? 0);
 
@@ -335,7 +346,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get all booths
      */
     public function ajax_get_booths() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $args = array(
             'event_id'      => intval($_POST['event_id'] ?? 0) ?: null,
@@ -361,7 +372,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get single booth
      */
     public function ajax_get_booth() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['id'] ?? $_POST['booth_id'] ?? 0);
 
@@ -395,7 +406,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Create booth
      */
     public function ajax_create_booth() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $data = array(
             'event_id'        => intval($_POST['event_id'] ?? 0),
@@ -448,7 +459,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Update booth
      */
     public function ajax_update_booth() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booth_id'] ?? 0);
 
@@ -510,7 +521,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Delete booth
      */
     public function ajax_delete_booth() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booth_id'] ?? 0);
 
@@ -531,7 +542,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Bulk create booths
      */
     public function ajax_bulk_create_booths() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $event_id = intval($_POST['event_id'] ?? 0);
         $booth_type_id = intval($_POST['booth_type_id'] ?? 0);
@@ -566,7 +577,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get available booths
      */
     public function ajax_get_available_booths() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $event_id = intval($_POST['event_id'] ?? 0);
 
@@ -589,7 +600,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get floor plan data
      */
     public function ajax_get_floor_plan() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $event_id = intval($_POST['event_id'] ?? 0);
 
@@ -614,7 +625,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Update booth position (for drag-drop on floor plan)
      */
     public function ajax_update_booth_position() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['id'] ?? $_POST['booth_id'] ?? 0);
         $position_x = intval($_POST['position_x'] ?? 0);
@@ -646,7 +657,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get all bookings
      */
     public function ajax_get_bookings() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $args = array(
             'event_id'       => intval($_POST['event_id'] ?? 0) ?: null,
@@ -675,7 +686,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get single booking
      */
     public function ajax_get_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
         $ref = sanitize_text_field($_POST['booking_ref'] ?? '');
@@ -703,7 +714,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Create booking
      */
     public function ajax_create_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $data = array(
             'event_id'              => intval($_POST['event_id'] ?? 0),
@@ -774,7 +785,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Update booking
      */
     public function ajax_update_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
 
@@ -838,7 +849,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Cancel booking
      */
     public function ajax_cancel_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
         $reason = sanitize_textarea_field($_POST['reason'] ?? '');
@@ -860,7 +871,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Confirm booking
      */
     public function ajax_confirm_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
 
@@ -886,7 +897,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Check in exhibitor
      */
     public function ajax_check_in_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
 
@@ -912,7 +923,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Check out exhibitor
      */
     public function ajax_check_out_booking() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
 
@@ -938,7 +949,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Record deposit payment
      */
     public function ajax_record_deposit() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
         $amount = floatval($_POST['amount'] ?? 0);
@@ -966,7 +977,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Record balance payment
      */
     public function ajax_record_payment() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['booking_id'] ?? 0);
         $amount = floatval($_POST['amount'] ?? 0);
@@ -998,7 +1009,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get booth statistics
      */
     public function ajax_get_stats() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $event_id = intval($_POST['event_id'] ?? 0);
 
@@ -1021,7 +1032,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get booths booked by a specific company attendee for an event
      */
     public function ajax_get_company_booked_booths() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         global $wpdb;
 
@@ -1094,7 +1105,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Check in visitor to booth
      */
     public function ajax_visitor_check_in() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $data = array(
             'event_id'         => intval($_POST['event_id'] ?? 0),
@@ -1133,7 +1144,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Check out visitor from booth
      */
     public function ajax_visitor_check_out() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $id = intval($_POST['visit_id'] ?? 0);
 
@@ -1163,7 +1174,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get visitor statistics for booth
      */
     public function ajax_get_visitor_stats() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $booth_id = intval($_POST['booth_id'] ?? 0);
         $date = sanitize_text_field($_POST['date'] ?? '');
@@ -1187,7 +1198,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get traffic data for booth
      */
     public function ajax_get_traffic_data() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $booth_id = intval($_POST['booth_id'] ?? 0);
         $date = sanitize_text_field($_POST['date'] ?? current_time('Y-m-d'));
@@ -1215,7 +1226,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Capture lead from visit
      */
     public function ajax_capture_lead() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $visit_id = intval($_POST['visit_id'] ?? 0);
 
@@ -1244,7 +1255,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get current visitors in booth
      */
     public function ajax_get_current_visitors() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $booth_id = intval($_POST['booth_id'] ?? 0);
 
@@ -1261,7 +1272,7 @@ class SC_Booths_Module extends SC_Base_Module {
      * Get top booths by visits
      */
     public function ajax_get_top_booths() {
-        check_ajax_referer('sc_dashboard_nonce', 'nonce');
+        $this->verify_manager();
 
         $event_id = intval($_POST['event_id'] ?? 0);
         $limit = intval($_POST['limit'] ?? 10);
