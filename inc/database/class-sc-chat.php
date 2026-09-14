@@ -748,11 +748,11 @@ class SC_Chat {
         // event_id can be 0 for global chat
         $event_id = intval($_POST['event_id'] ?? 0);
         $visitor_data = array(
-            'name' => sanitize_text_field($_POST['name'] ?? ''),
-            'email' => sanitize_email($_POST['email'] ?? ''),
-            'phone' => sanitize_text_field($_POST['phone'] ?? ''),
+            'name' => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
+            'email' => sanitize_email(wp_unslash($_POST['email'] ?? '')),
+            'phone' => sanitize_text_field(wp_unslash($_POST['phone'] ?? '')),
         );
-        $initial_message = sanitize_textarea_field($_POST['message'] ?? '');
+        $initial_message = sanitize_textarea_field(wp_unslash($_POST['message'] ?? ''));
 
         // Get or create conversation (event_id can be 0 for global chat)
         $conversation = $this->get_or_create_conversation($event_id, $visitor_data);
@@ -779,7 +779,7 @@ class SC_Chat {
         check_ajax_referer('sc_chat_nonce', 'nonce');
 
         $conversation_id = intval($_POST['conversation_id'] ?? 0);
-        $message = sanitize_textarea_field($_POST['message'] ?? '');
+        $message = sanitize_textarea_field(wp_unslash($_POST['message'] ?? ''));
         $sender_type = $this->party($_POST['sender_type'] ?? 'visitor');
 
         if (!$conversation_id || empty($message) || !$sender_type) {

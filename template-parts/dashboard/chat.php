@@ -1,6 +1,8 @@
 <?php
 /**
- * Chat Management Page - Real-time Conversations
+ * Chat inbox — conversations on the left, the thread on the right (one pane on phones).
+ * List/thread: sc_chat_inbox / sc_chat_thread (inc/admin-dashboard/chat-dashboard.php).
+ * Send, poll, upload, close/archive: SC_Chat actions (inc/database/class-sc-chat.php).
  *
  * @package sc_events
  */
@@ -9,754 +11,404 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$page_title = sc_t('dashboard_pages.chat_messages', 'Chat Messages');
+global $load_wd_list, $load_wd_form;
+$load_wd_list = true;
+$load_wd_form = true;
 
-// Translations
-$t = array(
-    'chat_messages' => sc_t('dashboard_pages.chat_messages', 'Chat Messages'),
-    'chat' => sc_t('dashboard_pages.chat', 'Chat'),
-    'total_conversations' => sc_t('dashboard_pages.total_conversations', 'Total Conversations'),
-    'active_conversations' => sc_t('dashboard_pages.active_conversations', 'Active Conversations'),
-    'unread_messages' => sc_t('dashboard_pages.unread_messages', 'Unread Messages'),
-    'conversations' => sc_t('dashboard_pages.conversations', 'Conversations'),
-    'all_status' => sc_t('dashboard_pages.all_status', 'All Status'),
-    'active' => sc_t('dashboard_pages.active', 'Active'),
-    'closed' => sc_t('dashboard_pages.closed', 'Closed'),
-    'archived' => sc_t('dashboard_pages.archived', 'Archived'),
-    'loading' => sc_t('dashboard_pages.loading', 'Loading...'),
-    'select_conversation' => sc_t('dashboard_pages.select_conversation', 'Select a conversation'),
-    'choose_conversation' => sc_t('dashboard_pages.choose_conversation', 'Choose a conversation from the list to view messages'),
-    'archive_conversation' => sc_t('dashboard_pages.archive_conversation', 'Archive Conversation'),
-    'restore_conversation' => sc_t('dashboard_pages.restore_conversation', 'Restore Conversation'),
-    'close_conversation' => sc_t('dashboard_pages.close_conversation', 'Close Conversation'),
-    'reopen_conversation' => sc_t('dashboard_pages.reopen_conversation', 'Reopen Conversation'),
-    'attach_file' => sc_t('dashboard_pages.attach_file', 'Attach file'),
-    'type_reply' => sc_t('dashboard_pages.type_reply', 'Type your reply...'),
-    'visitor' => sc_t('dashboard_pages.visitor', 'Visitor'),
-    'no_conversations' => sc_t('dashboard_pages.no_conversations', 'No conversations yet'),
-    'sending' => sc_t('dashboard_pages.sending', 'Sending...'),
-    'failed_send_message' => sc_t('dashboard_pages.failed_send_message', 'Failed to send message'),
-    'confirm_close_conversation' => sc_t('dashboard_pages.confirm_close_conversation', 'Are you sure you want to close this conversation?'),
-    'conversation_closed' => sc_t('dashboard_pages.conversation_closed', 'Conversation closed'),
-    'confirm_archive_conversation' => sc_t('dashboard_pages.confirm_archive_conversation', 'Are you sure you want to archive this conversation?'),
-    'conversation_archived' => sc_t('dashboard_pages.conversation_archived', 'Conversation archived'),
-    'conversation_restored' => sc_t('dashboard_pages.conversation_restored', 'Conversation restored'),
-    'conversation_reopened' => sc_t('dashboard_pages.conversation_reopened', 'Conversation reopened'),
-    'new_message' => sc_t('dashboard_pages.new_message', 'New Message'),
-    'file_size_limit' => sc_t('dashboard_pages.file_size_limit', 'File size exceeds 5MB limit'),
-    'uploading_image' => sc_t('dashboard_pages.uploading_image', 'Uploading image...'),
-    'uploading_file' => sc_t('dashboard_pages.uploading_file', 'Uploading file...'),
-    'failed_upload_file' => sc_t('dashboard_pages.failed_upload_file', 'Failed to upload file'),
-    'upload_failed' => sc_t('dashboard_pages.upload_failed', 'Upload failed. Please try again.'),
-    'download_file' => sc_t('dashboard_pages.download_file', 'Download File'),
-);
+$dashboard_url = home_url('/event-manager-dashboard/');
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
 
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
-
-// Get chat statistics
-$chat = sc_chat();
-$chat_stats = $chat->get_chat_stats();
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="block-header">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <h2><?php echo $t['chat_messages']; ?></h2>
-                <ul class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                    <li class="breadcrumb-item active"><?php echo $t['chat']; ?></li>
-                </ul>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <div class="d-flex flex-row-reverse">
-                    <div class="page_action"></div>
-                </div>
-            </div>
+
+    <div class="w-page-head w-chat__head">
+        <div>
+            <h1><?php echo esc_html(sc_t('nav.chat', 'Chat')); ?></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('chat.sub', 'Live chat from the website. New messages appear here within a few seconds; the visitor sees your reply in the chat window, and by email if they left one.')); ?></p>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card info-box-2">
-                <div class="icon" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color2) 100%);">
-                    <i class="fa fa-comments"></i>
-                </div>
-                <div class="content">
-                    <div class="text"><?php echo $t['total_conversations']; ?></div>
-                    <div class="number" id="stat-total"><?php echo intval($chat_stats['total']); ?></div>
-                </div>
+    <div class="w-chat" id="chat" data-mode="list">
+        <section class="w-chat__list" aria-label="<?php echo esc_attr(sc_t('chat.conversations', 'Conversations')); ?>">
+            <div class="w-tabs w-chat__tabs" role="tablist" id="chat-tabs"></div>
+            <label class="w-search w-chat__search">
+                <span class="sr-only"><?php echo esc_html(sc_t('chat.search', 'Search name, email, phone or message')); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" id="chat-search" placeholder="<?php echo esc_attr(sc_t('chat.search', 'Search name, email, phone or message')); ?>" autocomplete="off">
+            </label>
+            <ul class="w-chat__items" id="chat-items" role="listbox" aria-label="<?php echo esc_attr(sc_t('chat.conversations', 'Conversations')); ?>"></ul>
+            <button type="button" class="btn btn-secondary btn-sm w-chat__more" id="chat-more" hidden><?php echo esc_html(sc_t('chat.load_more', 'Load more')); ?></button>
+        </section>
+
+        <section class="w-chat__thread" aria-live="polite" aria-label="<?php echo esc_attr(sc_t('chat.conversation', 'Conversation')); ?>">
+            <div class="w-chat__empty" id="chat-empty">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>
+                <p><?php echo esc_html(sc_t('chat.pick', 'Choose a conversation to read and reply.')); ?></p>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card info-box-2">
-                <div class="icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                    <i class="fa fa-circle"></i>
+            <div class="w-chat__open" id="chat-open" hidden>
+                <header class="w-chat__bar">
+                    <button type="button" class="w-icon-btn w-chat__back" id="chat-back" aria-label="<?php echo esc_attr(sc_t('chat.back', 'Back to conversations')); ?>">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+                    </button>
+                    <div class="w-chat__who">
+                        <strong id="th-name"></strong>
+                        <span class="w-sub w-ltr" id="th-contact"></span>
+                        <span class="w-sub" id="th-meta"></span>
+                    </div>
+                    <div class="w-chat__actions">
+                        <a class="btn btn-sm btn-secondary" id="th-wa" href="#" target="_blank" rel="noopener" hidden>WhatsApp</a>
+                        <button type="button" class="btn btn-sm btn-secondary" data-conv-op="close" hidden><?php echo esc_html(sc_t('chat.close', 'Close')); ?></button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-conv-op="reopen" hidden><?php echo esc_html(sc_t('chat.reopen', 'Reopen')); ?></button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-conv-op="archive" hidden><?php echo esc_html(sc_t('chat.archive', 'Archive')); ?></button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-conv-op="restore" hidden><?php echo esc_html(sc_t('chat.restore', 'Restore')); ?></button>
+                    </div>
+                </header>
+                <div class="w-chat__messages" id="th-messages" tabindex="0">
+                    <button type="button" class="btn btn-link btn-sm w-chat__older" id="th-older" hidden><?php echo esc_html(sc_t('chat.older', 'Show earlier messages')); ?></button>
+                    <ol class="w-chat__stream" id="th-stream"></ol>
                 </div>
-                <div class="content">
-                    <div class="text"><?php echo $t['active_conversations']; ?></div>
-                    <div class="number" id="stat-active"><?php echo intval($chat_stats['active']); ?></div>
-                </div>
+                <form class="w-chat__composer" id="th-form" autocomplete="off">
+                    <p class="w-chat__closed" id="th-closed" hidden></p>
+                    <div class="w-chat__row">
+                        <button type="button" class="w-icon-btn" id="th-attach" aria-label="<?php echo esc_attr(sc_t('chat.attach', 'Attach a file')); ?>">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21.4 11.1l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>
+                        </button>
+                        <input type="file" id="th-file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.txt" hidden>
+                        <label class="sr-only" for="th-input"><?php echo esc_html(sc_t('chat.reply', 'Reply')); ?></label>
+                        <textarea class="form-control" id="th-input" rows="1" maxlength="5000" dir="auto" placeholder="<?php echo esc_attr(sc_t('chat.reply_ph', 'Write a reply — Enter to send, Shift+Enter for a new line')); ?>"></textarea>
+                        <button type="submit" class="btn btn-primary" id="th-send"><?php echo esc_html(sc_t('chat.send', 'Send')); ?></button>
+                    </div>
+                </form>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card info-box-2">
-                <div class="icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                    <i class="fa fa-envelope"></i>
-                </div>
-                <div class="content">
-                    <div class="text"><?php echo $t['unread_messages']; ?></div>
-                    <div class="number" id="stat-unread"><?php echo intval($chat_stats['unread'] ?? 0); ?></div>
-                </div>
-            </div>
-        </div>
+        </section>
     </div>
 
-    <!-- Main Chat Interface -->
-    <div class="row">
-        <!-- Conversations List -->
-        <div class="col-md-4">
-            <div class="card chat-sidebar-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fa fa-inbox mr-2"></i> <?php echo $t['conversations']; ?></h5>
-                    <span class="badge badge-primary" id="conversations-count">0</span>
-                </div>
-                <div class="card-body p-0">
-                    <!-- Filters -->
-                    <div class="chat-filters p-3 border-bottom">
-                        <select class="form-control form-control-sm" id="filter-status">
-                            <option value="all"><?php echo $t['all_status']; ?></option>
-                            <option value="active"><?php echo $t['active']; ?></option>
-                            <option value="closed"><?php echo $t['closed']; ?></option>
-                            <option value="archived"><?php echo $t['archived']; ?></option>
-                        </select>
-                    </div>
-                    <!-- Conversations List -->
-                    <div class="conversations-list" id="conversations-list">
-                        <div class="text-center p-4 text-muted">
-                            <i class="fa fa-spinner fa-spin"></i> <?php echo $t['loading']; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chat Area -->
-        <div class="col-md-8">
-            <div class="card chat-main-card">
-                <!-- Chat Header -->
-                <div class="card-header chat-header" id="chat-header" style="display: none;">
-                    <div class="chat-user-info">
-                        <div class="chat-user-avatar">
-                            <i class="fa fa-user"></i>
-                        </div>
-                        <div class="chat-user-details">
-                            <h6 id="chat-user-name">-</h6>
-                            <small id="chat-user-email">-</small>
-                        </div>
-                    </div>
-                    <div class="chat-actions">
-                        <span class="badge badge-success" id="chat-status"><?php echo $t['active']; ?></span>
-                        <button class="btn btn-sm btn-outline-secondary ml-2" id="archive-conversation-btn" title="<?php echo esc_attr($t['archive_conversation']); ?>">
-                            <i class="fa fa-archive"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-success ml-1" id="restore-conversation-btn" title="<?php echo esc_attr($t['restore_conversation']); ?>" style="display: none;">
-                            <i class="fa fa-undo"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger ml-1" id="close-conversation-btn" title="<?php echo esc_attr($t['close_conversation']); ?>">
-                            <i class="fa fa-times"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-primary ml-1" id="reopen-conversation-btn" title="<?php echo esc_attr($t['reopen_conversation']); ?>" style="display: none;">
-                            <i class="fa fa-envelope-open"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Messages Area -->
-                <div class="card-body chat-messages-area" id="chat-messages">
-                    <div class="chat-placeholder text-center p-5">
-                        <div class="chat-placeholder-icon">
-                            <i class="fa fa-comments fa-3x text-muted"></i>
-                        </div>
-                        <h5 class="mt-3 text-muted"><?php echo $t['select_conversation']; ?></h5>
-                        <p class="text-muted"><?php echo $t['choose_conversation']; ?></p>
-                    </div>
-                </div>
-
-                <!-- Input Area -->
-                <div class="card-footer chat-input-area" id="chat-input-area" style="display: none;">
-                    <input type="file" id="chat-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display: none;">
-                    <div class="input-group">
-                        <div class="input-group-prepend">
-                            <button class="btn btn-outline-secondary" id="attach-file-btn" title="<?php echo esc_attr($t['attach_file']); ?>">
-                                <i class="fa fa-paperclip"></i>
-                            </button>
-                        </div>
-                        <input type="text" class="form-control" id="message-input" placeholder="<?php echo esc_attr($t['type_reply']); ?>">
-                        <div class="input-group-append">
-                            <button class="btn btn-primary" id="send-message-btn">
-                                <i class="fa fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 </div>
-
-<!-- Chat Dashboard Styles -->
-<link rel="stylesheet" href="<?php echo esc_url(get_template_directory_uri()); ?>/assets/dashboard/css/chat.css">
-<!-- Inline styles moved to chat.css -->
-
 
 <script>
-// Chat Translations
-var chatTranslations = {
-    visitor: '<?php echo esc_js($t['visitor']); ?>',
-    no_conversations: '<?php echo esc_js($t['no_conversations']); ?>',
-    sending: '<?php echo esc_js($t['sending']); ?>',
-    failed_send_message: '<?php echo esc_js($t['failed_send_message']); ?>',
-    confirm_close_conversation: '<?php echo esc_js($t['confirm_close_conversation']); ?>',
-    conversation_closed: '<?php echo esc_js($t['conversation_closed']); ?>',
-    confirm_archive_conversation: '<?php echo esc_js($t['confirm_archive_conversation']); ?>',
-    conversation_archived: '<?php echo esc_js($t['conversation_archived']); ?>',
-    select_conversation: '<?php echo esc_js($t['select_conversation']); ?>',
-    choose_conversation: '<?php echo esc_js($t['choose_conversation']); ?>',
-    conversation_restored: '<?php echo esc_js($t['conversation_restored']); ?>',
-    conversation_reopened: '<?php echo esc_js($t['conversation_reopened']); ?>',
-    new_message: '<?php echo esc_js($t['new_message']); ?>',
-    file_size_limit: '<?php echo esc_js($t['file_size_limit']); ?>',
-    uploading_image: '<?php echo esc_js($t['uploading_image']); ?>',
-    uploading_file: '<?php echo esc_js($t['uploading_file']); ?>',
-    failed_upload_file: '<?php echo esc_js($t['failed_upload_file']); ?>',
-    upload_failed: '<?php echo esc_js($t['upload_failed']); ?>',
-    download_file: '<?php echo esc_js($t['download_file']); ?>',
-    active: '<?php echo esc_js($t['active']); ?>',
-    closed: '<?php echo esc_js($t['closed']); ?>',
-    archived: '<?php echo esc_js($t['archived']); ?>'
-};
+jQuery(function ($) {
+    'use strict';
 
-jQuery(document).ready(function($) {
-    var currentConversationId = null;
-    var lastMessageId = 0;
-    var pollingInterval = null;
-    var chatNonce = '<?php echo wp_create_nonce('sc_chat_nonce'); ?>';
+    var esc = WDList.esc;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var chatNonce = <?php echo $js(wp_create_nonce('sc_chat_nonce')); ?>;
+    var L = <?php echo $js(array(
+        'views'      => array('active' => sc_t('chat.active', 'Active'), 'unread' => sc_t('chat.unread', 'Unread'), 'closed' => sc_t('chat.closed', 'Closed'), 'archived' => sc_t('chat.archived', 'Archived')),
+        'visitor'    => sc_t('chat.visitor', 'Visitor'),
+        'you'        => sc_t('chat.you', 'You'),
+        'image'      => sc_t('chat.sent_image', 'Sent an image'),
+        'file'       => sc_t('chat.sent_file', 'Sent a file'),
+        'empty'      => array('active' => sc_t('chat.empty_active', 'No open conversations.'), 'unread' => sc_t('chat.empty_unread', 'Nothing waiting for a reply.'), 'closed' => sc_t('chat.empty_closed', 'No closed conversations.'), 'archived' => sc_t('chat.empty_archived', 'Nothing archived.')),
+        'noMatch'    => sc_t('chat.no_match', 'No conversations match.'),
+        'account'    => sc_t('chat.has_account', 'Signed in'),
+        'regs'       => sc_t('chat.n_registrations', '%s registrations'),
+        'oneReg'     => sc_t('chat.one_registration', '1 registration'),
+        'started'    => sc_t('chat.started', 'Started %s'),
+        'closedNote' => sc_t('chat.closed_note', 'This conversation is closed. Replying reopens it.'),
+        'archivedNote' => sc_t('chat.archived_note', 'This conversation is archived. Restore it to reply.'),
+        'unreadN'    => sc_t('chat.unread_n', '%s unread'),
+        'failed'     => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+        'sendFailed' => sc_t('chat.send_failed', 'The message was not sent. Try again.'),
+        'tooBig'     => sc_t('chat.too_big', 'Files can be up to 5 MB.'),
+        'uploading'  => sc_t('chat.uploading', 'Uploading…'),
+        'today'      => sc_t('chat.today', 'Today'),
+        'yesterday'  => sc_t('chat.yesterday', 'Yesterday'),
+    )); ?>;
 
-    // Load conversations (global chat - no event filter)
-    function loadConversations() {
-        var status = $('#filter-status').val();
+    var root = $('#chat');
+    var state = { view: 'active', search: '', page: 1, rows: [], counts: {}, current: null, lastId: 0, oldestId: 0, sending: false };
+    try { var saved = JSON.parse(sessionStorage.getItem('scChatView') || '{}'); if (L.views[saved.view]) { state.view = saved.view; } } catch (x) { /* storage blocked */ }
 
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_get_conversations',
-            nonce: chatNonce,
-            status: status
-        }, function(response) {
-            if (response.success) {
-                renderConversations(response.data.conversations);
-                updateStats(response.data.stats);
-            }
+    function tone(s) { var h = 0; s = String(s || ''); for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) % 4; } return h; }
+    function initials(name) { return String(name || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '?'; }
+    function toDate(d) { return new Date(String(d).replace(' ', 'T')); }
+    function shortWhen(d) {
+        if (!d) { return ''; }
+        var dt = toDate(d), now = new Date();
+        if (dt.toDateString() === now.toDateString()) { return dt.toTimeString().slice(0, 5); }
+        var days = Math.floor((now - dt) / 86400000);
+        if (days < 7) { return dt.toLocaleDateString('en-GB', { weekday: 'short' }); }
+        return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    function dayLabel(d) {
+        var dt = toDate(d), now = new Date(), y = new Date(now.getTime() - 86400000);
+        if (dt.toDateString() === now.toDateString()) { return L.today; }
+        if (dt.toDateString() === y.toDateString()) { return L.yesterday; }
+        return dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: dt.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+    }
+    function waNumber(phone) {
+        var d = String(phone || '').replace(/[^\d]/g, '');
+        if (/^00/.test(d)) { d = d.slice(2); }
+        if (/^01\d{9}$/.test(d)) { d = '2' + d; }
+        return d.length >= 10 ? d : '';
+    }
+    function post(data) { return $.post(scDashboard.ajaxurl, $.extend({ nonce: scDashboard.nonce }, data)); }
+    function chatPost(data) { return $.post(scDashboard.ajaxurl, $.extend({ nonce: chatNonce }, data)); }
+
+    /* ------------------------------------------------------------- inbox */
+
+    function renderTabs() {
+        $('#chat-tabs').html(Object.keys(L.views).map(function (k) {
+            var n = state.counts[k];
+            var on = k === state.view;
+            return '<button type="button" role="tab" class="w-tab" data-view="' + k + '" aria-selected="' + on + '" tabindex="' + (on ? 0 : -1) + '">' + esc(L.views[k]) +
+                (n !== undefined ? ' <span class="w-tab__count' + (k === 'unread' && n ? ' is-hot' : '') + '">' + n + '</span>' : '') + '</button>';
+        }).join(''));
+    }
+
+    function preview(r) {
+        if (!r.last) { return ''; }
+        var text = r.last.type === 'image' ? L.image : (r.last.type === 'file' ? L.file : r.last.text);
+        return (r.last.from === 'organizer' ? L.you + ': ' : '') + text.replace(/\s+/g, ' ');
+    }
+
+    function renderItems(append) {
+        var html = state.rows.map(function (r) {
+            var on = state.current && state.current.id === r.id;
+            return '<li role="option" aria-selected="' + on + '" class="w-chat__item' + (r.unread ? ' is-unread' : '') + (on ? ' is-open' : '') + '" data-id="' + r.id + '" tabindex="0">' +
+                '<span class="w-person__avatar" data-tone="' + tone(r.name || r.email) + '">' + esc(initials(r.name || r.email)) + '</span>' +
+                '<span class="w-chat__itembody"><span class="w-chat__itemtop"><span class="w-chat__itemname">' + esc(r.name || r.email || L.visitor) + '</span><span class="w-chat__itemtime">' + esc(shortWhen(r.last_at)) + '</span></span>' +
+                '<span class="w-chat__itemtext" dir="auto">' + esc(preview(r)) + '</span></span>' +
+                (r.unread ? '<span class="w-chat__badge" aria-label="' + esc(L.unreadN.replace('%s', r.unread)) + '">' + r.unread + '</span>' : '') + '</li>';
+        }).join('');
+        $('#chat-items').html(html || '<li class="w-chat__none">' + esc(state.search ? L.noMatch : L.empty[state.view]) + '</li>');
+    }
+
+    var inboxReq = null;
+    function loadInbox(opts) {
+        opts = opts || {};
+        if (inboxReq && !opts.silent) { inboxReq.abort(); }
+        var page = opts.more ? state.page + 1 : 1;
+        inboxReq = post({ action: 'sc_chat_inbox', view: state.view, search: state.search, page: page, per_page: opts.silent ? Math.max(30, state.rows.length) : 30 });
+        return inboxReq.done(function (res) {
+            if (!res.success) { return; }
+            state.page = page;
+            state.rows = opts.more ? state.rows.concat(res.data.rows) : res.data.rows;
+            state.counts = res.data.counts;
+            renderTabs();
+            renderItems();
+            $('#chat-more').prop('hidden', state.rows.length >= res.data.total);
         });
     }
 
-    // Render conversations list
-    function renderConversations(conversations) {
-        var $list = $('#conversations-list');
+    $('#chat-tabs').on('click', '[data-view]', function () {
+        state.view = this.getAttribute('data-view');
+        try { sessionStorage.setItem('scChatView', JSON.stringify({ view: state.view })); } catch (x) { /* storage blocked */ }
+        loadInbox();
+    });
+    var searchTimer = null;
+    $('#chat-search').on('input', function () {
+        clearTimeout(searchTimer);
+        var v = $.trim(this.value);
+        searchTimer = setTimeout(function () { state.search = v; loadInbox(); }, 300);
+    });
+    $('#chat-more').on('click', function () { loadInbox({ more: true }); });
+    $('#chat-items').on('click keydown', '.w-chat__item', function (e) {
+        if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') { return; }
+        e.preventDefault();
+        openThread(+this.getAttribute('data-id'));
+    });
 
-        if (conversations.length === 0) {
-            $list.html(`
-                <div class="no-conversations">
-                    <i class="fa fa-comments"></i>
-                    <p>${chatTranslations.no_conversations}</p>
-                </div>
-            `);
-            $('#conversations-count').text('0');
-            return;
+    /* ------------------------------------------------------------ thread */
+
+    function normalize(m) {
+        // Messages from polling come straight from the table.
+        if (m.from) { return m; }
+        var system = m.sender_type !== 'visitor' && m.sender_type !== 'organizer';
+        return { id: +m.id, from: system ? 'system' : m.sender_type, type: system ? 'system' : (m.message_type || 'text'), text: m.message || '', file_url: m.file_url || '', file_name: m.file_name || '', by: '', at: m.created_at };
+    }
+
+    function bubble(m) {
+        m = normalize(m);
+        if (m.type === 'system') {
+            return '<li class="w-chat__notice" data-mid="' + m.id + '" data-day="' + esc(String(m.at).slice(0, 10)) + '">' + esc(m.text) + '</li>';
         }
-
-        var html = '';
-        conversations.forEach(function(conv) {
-            var isActive = currentConversationId == conv.id ? 'active' : '';
-            var isUnread = conv.unread_organizer > 0 ? 'unread' : '';
-            var time = formatTime(conv.last_message_at || conv.created_at);
-
-            html += `
-                <div class="conversation-item ${isActive} ${isUnread}" data-id="${conv.id}">
-                    <div class="conversation-avatar">
-                        <i class="fa fa-user"></i>
-                    </div>
-                    <div class="conversation-info">
-                        <h6>${escapeHtml(conv.visitor_name || chatTranslations.visitor)}</h6>
-                        <div class="visitor-email">${escapeHtml(conv.visitor_email || '')}</div>
-                        <div class="last-message">${escapeHtml(conv.last_message || '...')}</div>
-                    </div>
-                    <div class="conversation-meta">
-                        <div class="time">${time}</div>
-                        ${conv.unread_organizer > 0 ? `<div class="unread-badge">${conv.unread_organizer}</div>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-
-        $list.html(html);
-        $('#conversations-count').text(conversations.length);
-    }
-
-    // Load messages for a conversation
-    function loadMessages(conversationId, isPolling) {
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_get_conversation_messages',
-            nonce: chatNonce,
-            conversation_id: conversationId
-        }, function(response) {
-            if (response.success) {
-                if (!isPolling) {
-                    renderChatHeader(response.data.conversation);
-                }
-                renderMessages(response.data.messages, isPolling);
-
-                // Update last message ID
-                var messages = response.data.messages;
-                if (messages.length > 0) {
-                    lastMessageId = messages[messages.length - 1].id;
-                }
-            }
-        });
-    }
-
-    // Render chat header
-    function renderChatHeader(conversation) {
-        $('#chat-header').show();
-        $('#chat-user-name').text(conversation.visitor_name || chatTranslations.visitor);
-        $('#chat-user-email').text(conversation.visitor_email || '');
-
-        var statusClass = conversation.status === 'active' ? 'badge-success' : (conversation.status === 'archived' ? 'badge-warning' : 'badge-secondary');
-        var statusText = conversation.status === 'active' ? chatTranslations.active : (conversation.status === 'archived' ? chatTranslations.archived : chatTranslations.closed);
-        $('#chat-status').removeClass('badge-success badge-secondary badge-warning').addClass(statusClass).text(statusText);
-
-        // Show/hide buttons based on status
-        if (conversation.status === 'archived') {
-            $('#archive-conversation-btn').hide();
-            $('#restore-conversation-btn').show();
-            $('#close-conversation-btn').hide();
-            $('#reopen-conversation-btn').hide();
-            $('#chat-input-area').hide();
-        } else if (conversation.status === 'closed') {
-            $('#archive-conversation-btn').show();
-            $('#restore-conversation-btn').hide();
-            $('#close-conversation-btn').hide();
-            $('#reopen-conversation-btn').show();
-            $('#chat-input-area').hide();
+        var body;
+        if (m.type === 'image' && m.file_url) {
+            body = '<a href="' + esc(m.file_url) + '" target="_blank" rel="noopener"><img class="w-chat__img" src="' + esc(m.file_url) + '" alt="' + esc(m.file_name) + '" loading="lazy"></a>';
+        } else if (m.type === 'file' && m.file_url) {
+            body = '<a class="w-chat__file" href="' + esc(m.file_url) + '" target="_blank" rel="noopener" download><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6"/></svg>' + esc(m.file_name || L.file) + '</a>';
         } else {
-            // Active
-            $('#archive-conversation-btn').show();
-            $('#restore-conversation-btn').hide();
-            $('#close-conversation-btn').show();
-            $('#reopen-conversation-btn').hide();
-            $('#chat-input-area').show();
+            body = '<span class="w-chat__text" dir="auto">' + esc(m.text) + '</span>';
         }
-
-        // Store current conversation status
-        currentConversationStatus = conversation.status;
+        var time = toDate(m.at).toTimeString().slice(0, 5);
+        return '<li class="w-chat__msg is-' + m.from + '" data-mid="' + m.id + '" data-day="' + esc(String(m.at).slice(0, 10)) + '">' + body +
+            '<span class="w-chat__time">' + esc((m.from === 'organizer' && m.by ? m.by + ' · ' : '') + time) + '</span></li>';
     }
 
-    var currentConversationStatus = null;
-
-    // Render messages
-    function renderMessages(messages, isPolling) {
-        var $container = $('#chat-messages');
-
-        if (!isPolling) {
-            $container.html('');
-        }
-
-        messages.forEach(function(msg) {
-            // Check if message already exists
-            if ($container.find(`[data-id="${msg.id}"]`).length > 0) return;
-
-            var time = formatTime(msg.created_at);
-            var contentHtml = '';
-            var extraClass = msg.message_type === 'system' ? ' system' : '';
-
-            // Handle different message types
-            if (msg.message_type === 'system') {
-                contentHtml = `<div class="message-content">${escapeHtml(msg.message)}</div>`;
-            } else if (msg.message_type === 'image' && msg.file_url) {
-                contentHtml = `
-                    <div class="message-content image-message">
-                        <a href="${escapeHtml(msg.file_url)}" target="_blank">
-                            <img src="${escapeHtml(msg.file_url)}" alt="Image">
-                        </a>
-                    </div>
-                `;
-            } else if (msg.message_type === 'file' && msg.file_url) {
-                contentHtml = `
-                    <div class="message-content file-message">
-                        <a href="${escapeHtml(msg.file_url)}" target="_blank" download>
-                            <i class="fa fa-file"></i>
-                            <span>${escapeHtml(msg.file_name || 'Download File')}</span>
-                        </a>
-                    </div>
-                `;
-            } else {
-                contentHtml = `<div class="message-content">${escapeHtml(msg.message)}</div>`;
-            }
-
-            var html = `
-                <div class="chat-message ${msg.sender_type}${extraClass}" data-id="${msg.id}">
-                    ${contentHtml}
-                    <div class="message-time">${time}</div>
-                </div>
-            `;
-            $container.append(html);
+    function withDays(html, messages, prevDay) {
+        var out = '', day = prevDay || '';
+        messages.forEach(function (m) {
+            m = normalize(m);
+            var d = String(m.at).slice(0, 10);
+            if (d !== day) { out += '<li class="w-chat__day"><span>' + esc(dayLabel(m.at)) + '</span></li>'; day = d; }
+            out += bubble(m);
         });
-
-        // Scroll to bottom
-        $container.scrollTop($container[0].scrollHeight);
-
-        // Refresh conversation list to update unread counts
-        if (isPolling) {
-            loadConversations();
-        }
+        return out;
     }
 
-    // Send message
-    function sendMessage() {
-        var message = $('#message-input').val().trim();
-        if (!message || !currentConversationId) return;
+    function scrollToEnd() { var el = document.getElementById('th-messages'); el.scrollTop = el.scrollHeight; }
+    function nearEnd() { var el = document.getElementById('th-messages'); return el.scrollHeight - el.scrollTop - el.clientHeight < 120; }
 
-        $('#message-input').val('');
+    function renderHeader(c) {
+        $('#th-name').text(c.name || c.email || L.visitor);
+        $('#th-contact').html([c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '', c.phone ? '<a href="tel:' + esc(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(c.phone) + '</a>' : ''].filter(Boolean).join(' · '));
+        var meta = [c.event, L.started.replace('%s', toDate(c.started).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))];
+        if (c.account) { meta.unshift(L.account); }
+        $('#th-meta').html(esc(meta.filter(Boolean).join(' · ')) + (c.registrations ? ' · <a href="' + esc(dashboardUrl + 'attendees?search=' + encodeURIComponent(c.email)) + '">' + esc(c.registrations === 1 ? L.oneReg : L.regs.replace('%s', c.registrations)) + '</a>' : ''));
+        var wa = waNumber(c.phone);
+        $('#th-wa').prop('hidden', !wa).attr('href', wa ? 'https://wa.me/' + wa : '#');
+        $('[data-conv-op="close"]').prop('hidden', c.status !== 'active');
+        $('[data-conv-op="reopen"]').prop('hidden', c.status !== 'closed');
+        $('[data-conv-op="archive"]').prop('hidden', c.status === 'archived');
+        $('[data-conv-op="restore"]').prop('hidden', c.status !== 'archived');
+        $('#th-closed').prop('hidden', c.status === 'active').text(c.status === 'archived' ? L.archivedNote : L.closedNote);
+        $('#th-input, #th-send, #th-attach').prop('disabled', c.status === 'archived');
+    }
 
-        // Optimistic UI update
-        var tempId = 'temp-' + Date.now();
-        var html = `
-            <div class="chat-message organizer" data-id="${tempId}">
-                <div class="message-content">${escapeHtml(message)}</div>
-                <div class="message-time">${chatTranslations.sending}</div>
-            </div>
-        `;
-        $('#chat-messages').append(html);
-        $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_send',
-            nonce: chatNonce,
-            conversation_id: currentConversationId,
-            message: message,
-            sender_type: 'organizer'
-        }, function(response) {
-            if (response.success) {
-                // Replace temp message with real one
-                $(`[data-id="${tempId}"]`).attr('data-id', response.data.message.id);
-                $(`[data-id="${response.data.message.id}"] .message-time`).text(formatTime(response.data.message.created_at));
-                loadConversations();
-            } else {
-                $(`[data-id="${tempId}"] .message-time`).text('Failed').css('color', '#ef4444');
-                toastr.error(response.data?.message || chatTranslations.failed_send_message);
-            }
-        }).fail(function() {
-            $(`[data-id="${tempId}"] .message-time`).text('Failed').css('color', '#ef4444');
-            toastr.error(chatTranslations.failed_send_message);
+    var threadReq = null;
+    function openThread(id) {
+        if (threadReq) { threadReq.abort(); }
+        root.attr('data-mode', 'thread');
+        $('#chat-empty').prop('hidden', true);
+        $('#chat-open').prop('hidden', false);
+        threadReq = post({ action: 'sc_chat_thread', id: id }).done(function (res) {
+            if (!res.success) { showError(res.data && res.data.message || L.failed); return; }
+            var c = res.data.conversation, msgs = res.data.messages;
+            state.current = c;
+            state.lastId = msgs.length ? msgs[msgs.length - 1].id : 0;
+            state.oldestId = msgs.length ? msgs[0].id : 0;
+            renderHeader(c);
+            $('#th-stream').html(withDays('', msgs));
+            $('#th-older').prop('hidden', !res.data.has_more);
+            scrollToEnd();
+            // Opening a conversation reads it.
+            state.rows.forEach(function (r) { if (r.id === c.id) { r.unread = 0; } });
+            if (state.counts.unread && c.unread) { state.counts.unread = Math.max(0, state.counts.unread - 1); }
+            renderTabs();
+            renderItems();
+            if (window.matchMedia('(min-width: 992px)').matches) { $('#th-input').trigger('focus'); }
         });
     }
+    $('#chat-back').on('click', function () { root.attr('data-mode', 'list'); state.current = null; renderItems(); });
 
-    // Close conversation
-    function closeConversation() {
-        if (!currentConversationId) return;
-
-        if (!confirm(chatTranslations.confirm_close_conversation)) return;
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_close_conversation',
-            nonce: chatNonce,
-            conversation_id: currentConversationId
-        }, function(response) {
-            if (response.success) {
-                toastr.success(chatTranslations.conversation_closed);
-                loadConversations();
-                $('#chat-status').removeClass('badge-success').addClass('badge-secondary').text(chatTranslations.closed);
-            }
+    $('#th-older').on('click', function () {
+        var el = document.getElementById('th-messages');
+        var before = el.scrollHeight;
+        post({ action: 'sc_chat_thread', id: state.current.id, before: state.oldestId }).done(function (res) {
+            if (!res.success) { return; }
+            var msgs = res.data.messages;
+            if (!msgs.length) { $('#th-older').prop('hidden', true); return; }
+            state.oldestId = msgs[0].id;
+            $('#th-stream .w-chat__day').first().remove();
+            $('#th-stream').prepend(withDays('', msgs));
+            $('#th-older').prop('hidden', !res.data.has_more);
+            el.scrollTop = el.scrollHeight - before;
         });
-    }
-
-    // Archive conversation
-    function archiveConversation() {
-        if (!currentConversationId) return;
-
-        if (!confirm(chatTranslations.confirm_archive_conversation)) return;
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_archive_conversation',
-            nonce: chatNonce,
-            conversation_id: currentConversationId
-        }, function(response) {
-            if (response.success) {
-                toastr.success(chatTranslations.conversation_archived);
-                loadConversations();
-                // Reset chat area
-                currentConversationId = null;
-                $('#chat-header').hide();
-                $('#chat-input-area').hide();
-                $('#chat-messages').html(`
-                    <div class="chat-placeholder text-center p-5">
-                        <div class="chat-placeholder-icon">
-                            <i class="fa fa-comments fa-3x text-muted"></i>
-                        </div>
-                        <h5 class="mt-3 text-muted">${chatTranslations.select_conversation}</h5>
-                        <p class="text-muted">${chatTranslations.choose_conversation}</p>
-                    </div>
-                `);
-            }
-        });
-    }
-
-    // Restore conversation from archive
-    function restoreConversation() {
-        if (!currentConversationId) return;
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_restore_conversation',
-            nonce: chatNonce,
-            conversation_id: currentConversationId
-        }, function(response) {
-            if (response.success) {
-                toastr.success(chatTranslations.conversation_restored);
-                loadConversations();
-                loadMessages(currentConversationId, false);
-            }
-        });
-    }
-
-    // Reopen closed conversation
-    function reopenConversation() {
-        if (!currentConversationId) return;
-
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_reopen_conversation',
-            nonce: chatNonce,
-            conversation_id: currentConversationId
-        }, function(response) {
-            if (response.success) {
-                toastr.success(chatTranslations.conversation_reopened);
-                loadConversations();
-                loadMessages(currentConversationId, false);
-            }
-        });
-    }
-
-    // Update stats
-    function updateStats(stats) {
-        $('#stat-total').text(stats.total || 0);
-        $('#stat-active').text(stats.active || 0);
-        $('#stat-unread').text(stats.unread || 0);
-    }
-
-    // Start polling for new messages
-    function startPolling() {
-        stopPolling();
-        pollingInterval = setInterval(function() {
-            if (currentConversationId) {
-                pollNewMessages();
-            }
-            loadConversations();
-        }, 5000);
-    }
-
-    function stopPolling() {
-        if (pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-        }
-    }
-
-    function pollNewMessages() {
-        $.post(scDashboard.ajaxurl, {
-            action: 'sc_chat_load',
-            nonce: chatNonce,
-            conversation_id: currentConversationId,
-            last_id: lastMessageId,
-            reader_type: 'organizer'
-        }, function(response) {
-            if (response.success && response.data.messages.length > 0) {
-                renderMessages(response.data.messages, true);
-                var messages = response.data.messages;
-                lastMessageId = messages[messages.length - 1].id;
-
-                // Play sound and show notification for new visitor messages
-                var visitorMessages = messages.filter(function(m) {
-                    return m.sender_type === 'visitor';
-                });
-                if (visitorMessages.length > 0) {
-                    playNotificationSound();
-                    var lastVisitorMsg = visitorMessages[visitorMessages.length - 1];
-                    toastr.info(lastVisitorMsg.message.substring(0, 50) + '...', chatTranslations.new_message);
-                }
-            }
-        });
-    }
-
-    // Play notification sound
-    function playNotificationSound() {
-        try {
-            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-            var oscillator = audioContext.createOscillator();
-            var gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-            oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.15);
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.4);
-        } catch (e) {
-            console.log('Audio not supported');
-        }
-    }
-
-    // Format time
-    function formatTime(dateString) {
-        if (!dateString) return '';
-        var date = new Date(dateString);
-        var now = new Date();
-        var diff = now - date;
-
-        if (diff < 86400000) { // Less than 24 hours
-            return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-        } else if (diff < 604800000) { // Less than 7 days
-            return date.toLocaleDateString([], {weekday: 'short'});
-        } else {
-            return date.toLocaleDateString([], {month: 'short', day: 'numeric'});
-        }
-    }
-
-    // Escape HTML
-    function escapeHtml(text) {
-        if (!text) return '';
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // Event Listeners
-    $('#filter-status').on('change', function() {
-        loadConversations();
     });
 
-    $(document).on('click', '.conversation-item', function() {
-        var id = $(this).data('id');
-        if (id === currentConversationId) return;
+    /* -------------------------------------------------------------- send */
 
-        currentConversationId = id;
-        lastMessageId = 0;
-
-        $('.conversation-item').removeClass('active');
-        $(this).addClass('active').removeClass('unread');
-
-        loadMessages(id, false);
-    });
-
-    $('#send-message-btn').on('click', sendMessage);
-
-    $('#message-input').on('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    $('#close-conversation-btn').on('click', closeConversation);
-    $('#archive-conversation-btn').on('click', archiveConversation);
-    $('#restore-conversation-btn').on('click', restoreConversation);
-    $('#reopen-conversation-btn').on('click', reopenConversation);
-
-    // File upload
-    $('#attach-file-btn').on('click', function() {
-        $('#chat-file-input').click();
-    });
-
-    $('#chat-file-input').on('change', function(e) {
-        var file = e.target.files[0];
-        if (file) {
-            uploadFile(file);
-        }
-    });
-
-    // Upload file function
-    function uploadFile(file) {
-        if (!file || !currentConversationId) return;
-
-        // Validate file size (5MB max)
-        if (file.size > 5 * 1024 * 1024) {
-            toastr.error(chatTranslations.file_size_limit);
-            return;
-        }
-
-        var isImage = file.type.startsWith('image/');
-        var tempId = 'temp-' + Date.now();
-
-        // Show uploading indicator
-        var html = `
-            <div class="chat-message organizer" data-id="${tempId}">
-                <div class="message-content">${isImage ? chatTranslations.uploading_image : chatTranslations.uploading_file}</div>
-                <div class="message-time"><i class="fa fa-spinner fa-spin"></i></div>
-            </div>
-        `;
-        $('#chat-messages').append(html);
-        $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
-
-        var formData = new FormData();
-        formData.append('action', 'sc_chat_upload_file');
-        formData.append('nonce', chatNonce);
-        formData.append('conversation_id', currentConversationId);
-        formData.append('sender_type', 'organizer');
-        formData.append('file', file);
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                $(`[data-id="${tempId}"]`).remove();
-                if (response.success) {
-                    renderMessages([response.data.message], true);
-                    lastMessageId = Math.max(lastMessageId, parseInt(response.data.message.id));
-                } else {
-                    toastr.error(response.data?.message || chatTranslations.failed_upload_file);
-                }
-            },
-            error: function() {
-                $(`[data-id="${tempId}"]`).remove();
-                toastr.error(chatTranslations.upload_failed);
-            },
-            complete: function() {
-                $('#chat-file-input').val('');
-            }
-        });
+    function appendMessages(msgs) {
+        if (!msgs.length) { return; }
+        var stick = nearEnd();
+        var lastDay = $('#th-stream [data-day]').last().attr('data-day');
+        var fresh = msgs.map(normalize).filter(function (m) { return !document.querySelector('#th-stream [data-mid="' + m.id + '"]'); });
+        if (!fresh.length) { return; }
+        $('#th-stream').append(withDays('', fresh, lastDay));
+        state.lastId = Math.max(state.lastId, fresh[fresh.length - 1].id);
+        if (stick) { scrollToEnd(); }
     }
 
-    // Initialize
-    loadConversations();
-    startPolling();
+    function send() {
+        var text = $.trim($('#th-input').val());
+        if (!text || !state.current || state.sending) { return; }
+        state.sending = true;
+        $('#th-send').prop('disabled', true);
+        var c = state.current;
+        var go = function () {
+            return chatPost({ action: 'sc_chat_send', conversation_id: c.id, message: text, sender_type: 'organizer' }).done(function (res) {
+                if (!res.success) { showError(res.data && res.data.message || L.sendFailed); return; }
+                $('#th-input').val('').trigger('input');
+                appendMessages([res.data.message]);
+                scrollToEnd();
+                loadInbox({ silent: true });
+            }).fail(function () { showError(L.sendFailed); });
+        };
+        // Replying to a closed conversation reopens it first.
+        var ready = c.status === 'closed' ? chatPost({ action: 'sc_chat_reopen_conversation', conversation_id: c.id }).then(function () { c.status = 'active'; renderHeader(c); }) : $.Deferred().resolve();
+        ready.then(go).always(function () { state.sending = false; $('#th-send').prop('disabled', false); });
+    }
+    $('#th-form').on('submit', function (e) { e.preventDefault(); send(); });
+    $('#th-input').on('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    }).on('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+    });
 
-    // Cleanup on page unload
-    $(window).on('beforeunload', stopPolling);
+    $('#th-attach').on('click', function () { $('#th-file').trigger('click'); });
+    $('#th-file').on('change', function () {
+        var file = this.files && this.files[0];
+        this.value = '';
+        if (!file || !state.current) { return; }
+        if (file.size > 5 * 1024 * 1024) { showError(L.tooBig); return; }
+        var fd = new FormData();
+        fd.append('action', 'sc_chat_upload_file');
+        fd.append('nonce', chatNonce);
+        fd.append('conversation_id', state.current.id);
+        fd.append('sender_type', 'organizer');
+        fd.append('file', file);
+        if (window.toastr) { toastr.info(L.uploading); }
+        fetch(scDashboard.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (res) {
+            if (!res.success) { showError(res.data && res.data.message || L.failed); return; }
+            appendMessages([res.data.message]);
+            scrollToEnd();
+        }).catch(function () { showError(L.failed); });
+    });
+
+    $('[data-conv-op]').on('click', function () {
+        var op = this.getAttribute('data-conv-op');
+        var c = state.current;
+        if (!c) { return; }
+        chatPost({ action: 'sc_chat_' + op + '_conversation', conversation_id: c.id }).done(function (res) {
+            if (!res.success) { showError(res.data && res.data.message || L.failed); return; }
+            if (window.toastr) { toastr.success(res.data.message); }
+            openThread(c.id);
+            loadInbox({ silent: true });
+        }).fail(function () { showError(L.failed); });
+    });
+
+    /* ----------------------------------------------------------- polling */
+
+    function poll() {
+        if (document.hidden) { return; }
+        if (state.current) {
+            chatPost({ action: 'sc_chat_load', conversation_id: state.current.id, last_id: state.lastId, reader_type: 'organizer' }).done(function (res) {
+                if (res.success && res.data.messages.length) { appendMessages(res.data.messages); }
+            });
+        }
+    }
+    setInterval(poll, 5000);
+    setInterval(function () { if (!document.hidden) { loadInbox({ silent: true }); } }, 15000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { poll(); loadInbox({ silent: true }); } });
+
+    var openId = +new URLSearchParams(location.search).get('conversation') || 0;
+    loadInbox().done(function () {
+        if (openId) { openThread(openId); }
+        else if (window.matchMedia('(min-width: 992px)').matches && state.rows.length) { openThread(state.rows[0].id); }
+    });
 });
 </script>
 
