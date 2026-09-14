@@ -615,7 +615,7 @@ function sc_scan_and_checkin() {
             }
             if (!empty($sc_attendee->workshop_id)) {
                 wp_send_json_error(array(
-                    'message' => __('This is a workshop ticket. Use the workshop scanner instead.', 'sc_events'),
+                    'message' => __('This is a workshop ticket. Choose its workshop in "Scanning at" and scan again.', 'sc_events'),
                     'title'   => 'Workshop Ticket',
                 ));
             }

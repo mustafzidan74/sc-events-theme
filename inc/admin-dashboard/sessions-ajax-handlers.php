@@ -875,105 +875,86 @@ function sc_session_checkout() {
 // GET SESSION REGISTRATIONS (attendees list)
 // ==========================================
 add_action('wp_ajax_sc_get_session_registrations', 'sc_get_session_registrations');
+/**
+ * One session's people for the list pattern: everyone registered for it plus
+ * anyone checked in without a registration, with their attendance.
+ *
+ * (The previous query joined certificates on a session_id column that table
+ * doesn't have, so it failed and the page always looked empty.)
+ */
 function sc_get_session_registrations() {
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
+    $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+    if (!wp_verify_nonce($nonce, 'sc_dashboard_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'sc_events')));
     }
-
     if (!SC_Event_Manager_Dashboard::is_event_manager()) {
         wp_send_json_error(array('message' => __('Permission denied.', 'sc_events')));
     }
 
-    $session_id = intval($_POST['session_id'] ?? 0);
+    global $wpdb;
+    $p = $wpdb->prefix;
+    $session_id = absint($_POST['session_id'] ?? 0);
     if (!$session_id) {
         wp_send_json_error(array('message' => __('Session ID is required.', 'sc_events')));
     }
+    $view = in_array($_POST['view'] ?? '', array('all', 'in', 'not_yet', 'out'), true) ? sanitize_key($_POST['view']) : 'all';
+    $search = trim(sanitize_text_field(wp_unslash($_POST['search'] ?? '')));
+    $page = max(1, absint($_POST['page'] ?? 1));
+    $per_page = min(200, max(10, absint($_POST['per_page'] ?? 50)));
 
-    global $wpdb;
-    $reg_table = $wpdb->prefix . 'sc_session_registrations';
-    $att_table = $wpdb->prefix . 'sc_session_attendance';
-    $attendees_table = $wpdb->prefix . 'sc_attendees';
-    $certs_table = $wpdb->prefix . 'sc_certificates';
+    $from = "FROM {$p}sc_attendees a
+        LEFT JOIN {$p}sc_session_registrations r ON r.attendee_id = a.id AND r.session_id = %d
+        LEFT JOIN {$p}sc_session_attendance sa ON sa.attendee_id = a.id AND sa.session_id = %d
+        WHERE (r.id IS NOT NULL OR sa.id IS NOT NULL)";
+    $values = array($session_id, $session_id);
+    // COALESCE so people with no attendance row count as not checked in (NOT NULL would drop them).
+    $in = '(sa.check_in_time IS NOT NULL OR COALESCE(sa.checked_in, 0) = 1)';
+    $out = '(sa.check_out_time IS NOT NULL OR COALESCE(sa.checked_out, 0) = 1)';
+    $views = array('all' => '1=1', 'in' => $in, 'not_yet' => "NOT $in", 'out' => $out);
+    $where = ' AND ' . $views[$view];
+    $search_values = array();
+    if ($search !== '') {
+        $like = '%' . $wpdb->esc_like($search) . '%';
+        $where .= ' AND (a.name LIKE %s OR a.email LIKE %s OR a.phone LIKE %s OR a.ticket_code LIKE %s)';
+        $search_values = array($like, $like, $like, $like);
+    }
 
+    $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) $from$where", array_merge($values, $search_values)));
     $rows = $wpdb->get_results($wpdb->prepare(
-        "SELECT
-            sr.id as registration_id,
-            sr.registration_code,
-            sr.status as reg_status,
-            sr.registered_at,
-            a.id as attendee_id,
-            a.name,
-            a.email,
-            a.phone,
-            a.ticket_name,
-            sa.check_in_time,
-            sa.check_out_time,
-            sa.attendance_minutes,
-            sa.attendance_percentage,
-            sa.earned_cme_hours,
-            sa.certificate_eligible,
-            sa.certificate_issued,
-            c.id as certificate_id,
-            c.certificate_number,
-            c.status as cert_status
-         FROM $reg_table sr
-         JOIN $attendees_table a ON sr.attendee_id = a.id
-         LEFT JOIN $att_table sa ON sr.session_id = sa.session_id AND sr.attendee_id = sa.attendee_id
-         LEFT JOIN $certs_table c ON c.attendee_id = sr.attendee_id AND c.session_id = sr.session_id AND c.status = 'issued'
-         WHERE sr.session_id = %d
-         ORDER BY a.name ASC",
-        $session_id
+        "SELECT a.id, a.name, a.email, a.phone, a.ticket_code, a.ticket_name,
+                r.status AS reg_status, r.registered_at,
+                COALESCE(sa.check_in_time, sa.checked_in_at) AS check_in_time,
+                COALESCE(sa.check_out_time, sa.checked_out_at) AS check_out_time,
+                sa.attendance_minutes, sa.attendance_percentage, COALESCE(sa.earned_cme_hours, sa.cme_earned) AS cme
+         $from$where ORDER BY a.name ASC, a.id ASC LIMIT %d OFFSET %d",
+        array_merge($values, $search_values, array($per_page, ($page - 1) * $per_page))
     ));
 
-    $data = array();
-    foreach ($rows as $row) {
-        $data[] = array(
-            'registration_id' => (int) $row->registration_id,
-            'registration_code' => $row->registration_code,
-            'reg_status' => $row->reg_status,
-            'registered_at' => $row->registered_at,
-            'attendee_id' => (int) $row->attendee_id,
-            'name' => $row->name,
-            'email' => $row->email,
-            'phone' => $row->phone,
-            'ticket_name' => $row->ticket_name,
-            'check_in_time' => $row->check_in_time,
-            'check_out_time' => $row->check_out_time,
-            'attendance_minutes' => (int) ($row->attendance_minutes ?? 0),
-            'attendance_percentage' => (float) ($row->attendance_percentage ?? 0),
-            'earned_cme_hours' => (float) ($row->earned_cme_hours ?? 0),
-            'certificate_eligible' => (bool) ($row->certificate_eligible ?? false),
-            'certificate_issued' => (bool) ($row->certificate_issued ?? false),
-            'certificate_id' => $row->certificate_id ? (int) $row->certificate_id : null,
-            'certificate_number' => $row->certificate_number,
+    $out_rows = array();
+    foreach ($rows as $r) {
+        $out_rows[] = array(
+            'id'          => (int) $r->id,
+            'name'        => $r->name,
+            'email'       => $r->email,
+            'phone'       => $r->phone,
+            'ticket_code' => $r->ticket_code,
+            'ticket_name' => $r->ticket_name,
+            'registered'  => $r->reg_status !== null,
+            'reg_status'  => $r->reg_status,
+            'in_at'       => $r->check_in_time,
+            'out_at'      => $r->check_out_time,
+            'minutes'     => $r->attendance_minutes !== null ? (int) $r->attendance_minutes : null,
+            'percent'     => $r->attendance_percentage !== null ? round((float) $r->attendance_percentage) : null,
+            'cme'         => $r->cme !== null ? (float) $r->cme : null,
         );
     }
 
-    // Get stats
-    $session = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}sc_sessions WHERE id = %d", $session_id
-    ));
-
-    $total_registered = count($data);
-    $total_checked_in = count(array_filter($data, fn($r) => $r['check_in_time']));
-    $total_checked_out = count(array_filter($data, fn($r) => $r['check_out_time']));
-    $total_eligible = count(array_filter($data, fn($r) => $r['certificate_eligible']));
-    $avg_attendance = $total_checked_out > 0
-        ? round(array_sum(array_column(array_filter($data, fn($r) => $r['check_out_time']), 'attendance_percentage')) / $total_checked_out, 1)
-        : 0;
-
-    wp_send_json_success(array(
-        'attendees' => $data,
-        'stats' => array(
-            'total_registered' => $total_registered,
-            'total_checked_in' => $total_checked_in,
-            'total_checked_out' => $total_checked_out,
-            'total_eligible' => $total_eligible,
-            'avg_attendance' => $avg_attendance,
-            'cme_hours' => $session ? (float) $session->cme_hours : 0,
-            'min_attendance' => $session ? (float) $session->min_attendance_percentage : 80,
-        ),
-    ));
+    $response = array('rows' => $out_rows, 'total' => $total, 'page' => $page, 'per_page' => $per_page);
+    if (!empty($_POST['with_counts'])) {
+        $c = $wpdb->get_row($wpdb->prepare("SELECT COUNT(*) AS all_rows, COALESCE(SUM($in), 0) AS in_rows, COALESCE(SUM($out), 0) AS out_rows, COALESCE(SUM(COALESCE(sa.earned_cme_hours, sa.cme_earned, 0)), 0) AS cme $from", $values));
+        $response['counts'] = array('all' => (int) $c->all_rows, 'in' => (int) $c->in_rows, 'not_yet' => (int) $c->all_rows - (int) $c->in_rows, 'out' => (int) $c->out_rows, 'cme' => round((float) $c->cme, 1));
+    }
+    wp_send_json_success($response);
 }
 
 // ==========================================

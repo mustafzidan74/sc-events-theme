@@ -708,6 +708,13 @@
 .w-dash .w-copy:focus-visible { box-shadow: var(--w-focus-ring); outline: 0; }
 .w-swatch { display: inline-block; width: 10px; height: 10px; margin-inline-end: 6px; border-radius: 50%; vertical-align: baseline; }
 .w-codecell { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.w-dash .w-inline-scan { max-width: 520px; margin: 0 0 20px; }
+.w-inline-scan .w-field__label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.w-inline-scan__row { display: flex; gap: 8px; }
+.w-inline-scan__row .form-control { flex: 1 1 auto; min-width: 0; }
+.w-page-head__eyebrow { margin: 0 0 2px; font-size: 13px; font-weight: 500; color: var(--w-text-3); }
+.w-page-head__eyebrow a { color: inherit; }
+.w-page-head__eyebrow a:hover { color: var(--w-primary); }
 
 /* Issue certificates: scope, rules and the issue-everyone action above the list */
 .w-dash .w-issue { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; padding: 20px; border: 1px solid var(--w-border); border-radius: var(--w-radius-lg); background: var(--w-surface); }

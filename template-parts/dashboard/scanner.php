@@ -255,6 +255,20 @@ if (class_exists('SC_Event')) {
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <?php
+                        // Workshops of the listed events: scanning at a workshop door accepts only that workshop's tickets.
+                        $scanner_workshops = array();
+                        if ($filtered_events) {
+                            global $wpdb;
+                            $ws_rows = $wpdb->get_results('SELECT id, event_id, title FROM ' . $wpdb->prefix . 'sc_workshops WHERE event_id IN (' . implode(',', array_map('intval', wp_list_pluck($filtered_events, 'id'))) . ") AND status <> 'cancelled' ORDER BY start_date, start_time, title");
+                            foreach ($ws_rows as $ws) {
+                                $scanner_workshops[(int) $ws->event_id][] = array('id' => (int) $ws->id, 'title' => $ws->title);
+                            }
+                        }
+                        ?>
+                        <select class="form-control form-control-sm ml-2" id="scanner-workshop-select" style="max-width: 300px; display: none;" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.scanning_at', 'Scanning at')); ?>">
+                            <option value=""><?php echo esc_html(sc_t('dashboard_pages.event_entrance', 'Event entrance')); ?></option>
+                        </select>
                         <span id="event-required-hint" class="text-danger ml-2" style="font-size: 12px;">
                             <i class="fa fa-exclamation-circle"></i> <?php echo $t['required']; ?>
                         </span>
@@ -481,6 +495,10 @@ jQuery(document).ready(function($) {
     let selectedEventId = $('#scanner-event-select').val() || null;
     let selectedGateId = null;
     let selectedSessionId = null;
+    let selectedWorkshopId = null;
+    const workshopsByEvent = <?php echo wp_json_encode($scanner_workshops, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    const urlWorkshopId = <?php echo isset($_GET['workshop_id']) ? (int) $_GET['workshop_id'] : 0; ?>;
+    let urlSessionId = <?php echo isset($_GET['session_id']) ? (int) $_GET['session_id'] : 0; ?>;
 
     // Module availability flags (set from PHP)
     const venuesEnabled = <?php echo $venues_enabled ? 'true' : 'false'; ?>;
@@ -497,6 +515,7 @@ jQuery(document).ready(function($) {
     $('#scanner-event-select').on('change', function() {
         selectedEventId = $(this).val() || null;
         selectedGateId = null;
+        fillWorkshops(selectedEventId);
 
         // Update UI based on event selection
         if (selectedEventId) {
@@ -535,6 +554,35 @@ jQuery(document).ready(function($) {
     $('#scanner-gate-select').on('change', function() {
         selectedGateId = $(this).val() || null;
     });
+
+    // Workshop Selection — "Event entrance" scans event tickets; a workshop scans only its own tickets.
+    function fillWorkshops(eventId) {
+        const list = (eventId && workshopsByEvent[eventId]) || [];
+        const $sel = $('#scanner-workshop-select');
+        $sel.find('option:not(:first)').remove();
+        list.forEach(function (w) { $('<option>').val(w.id).text(w.title).appendTo($sel); });
+        const keep = list.some(function (w) { return w.id === urlWorkshopId; }) ? String(urlWorkshopId) : '';
+        $sel.val(keep).toggle(list.length > 0);
+        selectedWorkshopId = keep || null;
+        applyWorkshopMode();
+    }
+    function applyWorkshopMode() {
+        if (selectedWorkshopId) {
+            // Sessions belong to the event programme, not to a workshop door.
+            $('#scanner-session-select').val('').hide();
+            selectedSessionId = null;
+            $('#scanner-status').html('<i class="fa fa-wrench text-info"></i> ' + $('<span>').text('Workshop: ' + $('#scanner-workshop-select option:selected').text()).html());
+        }
+    }
+    $('#scanner-workshop-select').on('change', function () {
+        selectedWorkshopId = $(this).val() || null;
+        if (selectedWorkshopId) {
+            applyWorkshopMode();
+        } else if (sessionsEnabled && selectedEventId) {
+            loadSessionsForEvent(selectedEventId);
+        }
+    });
+    fillWorkshops(selectedEventId);
 
     // Session Selection
     $('#scanner-session-select').on('change', function() {
@@ -673,7 +721,13 @@ jQuery(document).ready(function($) {
                     }
                 });
 
-                $('#scanner-session-select').html(html).show();
+                $('#scanner-session-select').html(html).toggle(!selectedWorkshopId);
+
+                // Opened from a session's page: start on that session (once).
+                if (urlSessionId && !selectedWorkshopId && $('#scanner-session-select option[value="' + urlSessionId + '"]').length) {
+                    $('#scanner-session-select').val(String(urlSessionId)).trigger('change');
+                    urlSessionId = 0;
+                }
 
                 // Auto-select if scanner has only one allowed session
                 if (!isFullScannerAccess && isScannerOnly && sessions.length === 1) {
@@ -979,6 +1033,10 @@ jQuery(document).ready(function($) {
         // Add gate_id if selected
         if (selectedGateId) {
             requestData.gate_id = selectedGateId;
+        }
+
+        if (selectedWorkshopId) {
+            requestData.workshop_id = selectedWorkshopId;
         }
 
         // Add session_id if selected (for session-specific check-in)

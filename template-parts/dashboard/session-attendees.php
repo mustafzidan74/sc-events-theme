@@ -1,7 +1,10 @@
 <?php
 /**
- * Dashboard - Session Attendees Page
- * Shows registered attendees and their attendance/check-in status
+ * Session attendees — who registered for or attended one session, with
+ * check-in by ticket code, check-in / check-out per person and CME earned.
+ *
+ * Lists sc_get_session_registrations; check-in and check-out use
+ * sc_session_checkin / sc_session_checkout (the same calls the scanner makes).
  *
  * @package sc_events
  */
@@ -10,362 +13,227 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions
 if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-$session_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-if (!$session_id) {
-    wp_redirect(home_url('/event-manager-dashboard/sessions'));
-    exit;
-}
-
-// Get session info
-global $wpdb;
-$sessions_table = $wpdb->prefix . 'sc_sessions';
-$events_table = $wpdb->prefix . 'sc_events';
-$session = $wpdb->get_row($wpdb->prepare(
-    "SELECT s.*, e.title as event_title FROM $sessions_table s LEFT JOIN $events_table e ON s.event_id = e.id WHERE s.id = %d",
+global $wpdb, $load_wd_list, $load_wd_overview;
+$p = $wpdb->prefix;
+$session_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+$session = $session_id ? $wpdb->get_row($wpdb->prepare(
+    "SELECT s.*, e.title AS event_title FROM {$p}sc_sessions s LEFT JOIN {$p}sc_events e ON e.id = s.event_id WHERE s.id = %d",
     $session_id
-));
-
+)) : null;
 if (!$session) {
-    wp_redirect(home_url('/event-manager-dashboard/sessions'));
+    wp_safe_redirect(home_url('/event-manager-dashboard/sessions'));
     exit;
 }
+$load_wd_list = true;
+$load_wd_overview = true;
 
-$page_title = sc_t('sessions.session_attendees', 'Session Attendees') . ' - ' . $session->title;
+$dashboard_url = home_url('/event-manager-dashboard/');
+$time = function ($dt) {
+    return $dt ? substr((string) $dt, 11, 5) : '';
+};
+$when = array_filter(array(
+    $session->session_date ? date_i18n('D j M Y', strtotime($session->session_date)) : '',
+    trim($time($session->start_time) . ($session->end_time ? '–' . $time($session->end_time) : ''), '–'),
+    $session->hall_name,
+));
+$cme = (float) $session->cme_hours ?: (float) $session->cme_credits;
+$js = function ($value) {
+    return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="block-header">
-                    <h2><?php echo esc_html($session->title); ?></h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/sessions'); ?>"><?php echo esc_html(sc_t('nav.sessions', 'Sessions')); ?></a></li>
-                        <li class="breadcrumb-item active"><?php echo esc_html(sc_t('sessions.attendees', 'Attendees')); ?></li>
-                    </ul>
-                </div>
 
-                <div>
-                    <a href="<?php echo home_url('/event-manager-dashboard/session-edit'); ?>?id=<?php echo $session_id; ?>" class="btn btn-info">
-                        <i class="fa fa-edit"></i> <?php echo esc_html(sc_t('dashboard_pages.edit_session', 'Edit Session')); ?>
-                    </a>
-                    <a href="<?php echo home_url('/event-manager-dashboard/sessions'); ?>" class="btn btn-outline-secondary">
-                        <i class="fa fa-arrow-<?php echo is_rtl() ? 'right' : 'left'; ?>"></i> <?php echo esc_html(sc_t('dashboard_pages.back_to_sessions', 'Back to Sessions')); ?>
-                    </a>
-                </div>
-            </div>
+    <div class="w-page-head">
+        <div>
+            <p class="w-page-head__eyebrow"><a href="<?php echo esc_url($dashboard_url . 'event-view?id=' . (int) $session->event_id); ?>"><?php echo esc_html($session->event_title); ?></a></p>
+            <h1><?php echo esc_html($session->title); ?></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(implode(' · ', $when)); ?></p>
+        </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-secondary" href="<?php echo esc_url($dashboard_url . 'session-edit?id=' . $session_id); ?>"><?php echo esc_html(sc_t('dashboard_pages.edit_session', 'Edit session')); ?></a>
+            <a class="btn btn-primary" href="<?php echo esc_url($dashboard_url . 'scanner?event_id=' . (int) $session->event_id . '&session_id=' . $session_id); ?>"><i class="fa fa-qrcode" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.scan_this_session', 'Scan this session')); ?></a>
         </div>
     </div>
 
-    <!-- Session Info -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body py-2">
-                    <div class="d-flex flex-wrap">
-                        <span class="mr-4"><strong><?php echo esc_html(sc_t('events.event', 'Event')); ?>:</strong> <?php echo esc_html($session->event_title); ?></span>
-                        <span class="mr-4"><strong><?php echo esc_html(sc_t('general.date', 'Date')); ?>:</strong> <?php echo esc_html($session->session_date); ?></span>
-                        <span class="mr-4"><strong><?php echo esc_html(sc_t('sessions.time', 'Time')); ?>:</strong> <?php echo esc_html(substr($session->start_time, 11, 5)); ?><?php echo $session->end_time ? ' - ' . esc_html(substr($session->end_time, 11, 5)) : ''; ?></span>
-                        <span class="mr-4"><strong><?php echo esc_html(sc_t('sessions.hall', 'Hall')); ?>:</strong> <?php echo esc_html($session->hall_name ?: '-'); ?></span>
-                        <?php if ($session->cme_hours > 0): ?>
-                        <span class="mr-4"><strong><?php echo esc_html(sc_t('sessions.cme_hours', 'CME')); ?>:</strong> <?php echo esc_html($session->cme_hours); ?>h</span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
+    <div class="w-kpis">
+        <div class="w-kpi">
+            <span class="w-kpi__label"><?php echo esc_html(sc_t('dashboard_pages.people', 'People')); ?></span>
+            <span class="w-kpi__value" data-kpi="all">—</span>
+            <span class="w-kpi__sub"><?php echo esc_html($session->capacity ? sprintf(sc_t('dashboard_pages.capacity_n', 'Capacity %s'), number_format_i18n((int) $session->capacity)) : sc_t('dashboard_pages.no_capacity', 'No capacity set')); ?></span>
+        </div>
+        <div class="w-kpi">
+            <span class="w-kpi__label"><?php echo esc_html(sc_t('dashboard_pages.checked_in', 'Checked in')); ?></span>
+            <span class="w-kpi__value" data-kpi="in">—</span>
+            <span class="w-kpi__sub"><?php echo esc_html($session->require_registration ? sc_t('dashboard_pages.registration_required', 'Registration required') : sc_t('dashboard_pages.walk_ins_welcome', 'Any ticket holder can walk in')); ?></span>
+        </div>
+        <div class="w-kpi">
+            <span class="w-kpi__label"><?php echo esc_html(sc_t('dashboard_pages.checked_out', 'Checked out')); ?></span>
+            <span class="w-kpi__value" data-kpi="out">—</span>
+            <span class="w-kpi__sub"><?php echo esc_html($session->require_checkout ? sc_t('dashboard_pages.checkout_required', 'Check-out required') : sc_t('dashboard_pages.checkout_optional', 'Check-out optional')); ?></span>
+        </div>
+        <div class="w-kpi">
+            <span class="w-kpi__label"><?php echo esc_html(sc_t('dashboard_pages.cme_earned', 'CME hours earned')); ?></span>
+            <span class="w-kpi__value" data-kpi="cme">—</span>
+            <span class="w-kpi__sub"><?php echo esc_html($cme ? sprintf(sc_t('dashboard_pages.cme_per_person', '%s per person'), $cme) : sc_t('dashboard_pages.no_cme', 'No CME for this session')); ?></span>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="row mb-3">
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <h5 class="text-muted mb-1"><?php echo esc_html(sc_t('sessions.registered', 'Registered')); ?></h5>
-                    <h3 id="stat-registered" class="mb-0">-</h3>
-                </div>
-            </div>
+    <form class="w-inline-scan" id="ticket-form" novalidate>
+        <label for="ticket-code" class="w-field__label"><?php echo esc_html(sc_t('dashboard_pages.check_in_by_ticket', 'Check someone in by ticket code')); ?></label>
+        <div class="w-inline-scan__row">
+            <input type="text" class="form-control w-mono w-ltr" id="ticket-code" autocomplete="off" spellcheck="false" placeholder="SC1234ABCD">
+            <button type="submit" class="btn btn-primary"><?php echo esc_html(sc_t('dashboard_pages.check_in', 'Check in')); ?></button>
         </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <h5 class="text-muted mb-1"><?php echo esc_html(sc_t('sessions.checked_in', 'Checked In')); ?></h5>
-                    <h3 id="stat-checked-in" class="mb-0 text-success">-</h3>
-                </div>
-            </div>
+    </form>
+
+    <div id="session-people">
+        <div class="w-tabs" role="tablist" data-w-tabs aria-label="<?php echo esc_attr(sc_t('dashboard_pages.attendees', 'Attendees')); ?>"></div>
+        <div class="w-toolbar">
+            <label class="w-search">
+                <span class="sr-only"><?php echo esc_html(sc_t('dashboard_pages.search_attendees', 'Search name, email, phone or ticket code')); ?></span>
+                <svg class="w-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg>
+                <input type="search" class="form-control" data-w-filter="search" placeholder="<?php echo esc_attr(sc_t('dashboard_pages.search_attendees', 'Search name, email, phone or ticket code')); ?>" autocomplete="off">
+                <kbd class="w-search__kbd" aria-hidden="true">/</kbd>
+            </label>
         </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <h5 class="text-muted mb-1"><?php echo esc_html(sc_t('sessions.checked_out', 'Checked Out')); ?></h5>
-                    <h3 id="stat-checked-out" class="mb-0 text-info">-</h3>
-                </div>
+        <div class="w-chips" data-w-chips hidden></div>
+        <div class="w-table-card" data-w-card aria-live="polite">
+            <div class="w-table-card__progress" data-w-progress hidden></div>
+            <div class="w-table-scroll" data-w-scroll>
+                <table class="w-table" data-w-table><thead></thead><tbody></tbody></table>
             </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <h5 class="text-muted mb-1"><?php echo esc_html(sc_t('sessions.avg_attendance', 'Avg Attendance')); ?></h5>
-                    <h3 id="stat-avg-attendance" class="mb-0 text-warning">-</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <h5 class="text-muted mb-1"><?php echo esc_html(sc_t('sessions.cert_eligible', 'Cert. Eligible')); ?></h5>
-                    <h3 id="stat-eligible" class="mb-0 text-primary">-</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <h5 class="text-muted mb-1"><?php echo esc_html(sc_t('sessions.min_attendance', 'Min %')); ?></h5>
-                    <h3 id="stat-min-pct" class="mb-0"><?php echo esc_html($session->min_attendance_percentage); ?>%</h3>
-                </div>
-            </div>
+            <div class="w-state" data-w-state hidden></div>
+            <div class="w-pager" data-w-pager hidden></div>
         </div>
     </div>
 
-    <!-- Attendees Table -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="attendees-table">
-                            <thead>
-                                <tr>
-                                    <th><?php echo esc_html(sc_t('general.name', 'Name')); ?></th>
-                                    <th><?php echo esc_html(sc_t('general.email', 'Email')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.reg_status', 'Reg. Status')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.check_in_time', 'Check-in')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.check_out_time', 'Check-out')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.attendance_pct', 'Attendance %')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.cme_earned', 'CME Earned')); ?></th>
-                                    <th><?php echo esc_html(sc_t('sessions.certificate', 'Certificate')); ?></th>
-                                    <th width="120"><?php echo esc_html(sc_t('dashboard_pages.actions', 'Actions')); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="9" class="text-center py-5">
-                                        <i class="fa fa-spinner fa-spin fa-3x text-muted"></i>
-                                        <p class="mt-3"><?php echo esc_html(sc_t('dashboard_pages.loading', 'Loading...')); ?></p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
 </div>
 
 <script>
-var saTranslations = {
-    loading: '<?php echo esc_js(sc_t('dashboard_pages.loading', 'Loading...')); ?>',
-    no_attendees: '<?php echo esc_js(sc_t('sessions.no_attendees', 'No attendees registered for this session.')); ?>',
-    error_loading: '<?php echo esc_js(sc_t('dashboard_pages.error_loading', 'Error loading data')); ?>',
-    check_in: '<?php echo esc_js(sc_t('sessions.check_in', 'Check In')); ?>',
-    check_out: '<?php echo esc_js(sc_t('sessions.check_out', 'Check Out')); ?>',
-    checked_in: '<?php echo esc_js(sc_t('sessions.checked_in', 'Checked In')); ?>',
-    checked_out: '<?php echo esc_js(sc_t('sessions.checked_out', 'Checked Out')); ?>',
-    registered: '<?php echo esc_js(sc_t('sessions.registered', 'Registered')); ?>',
-    waitlisted: '<?php echo esc_js(sc_t('sessions.waitlisted', 'Waitlisted')); ?>',
-    cancelled: '<?php echo esc_js(sc_t('general.cancelled', 'Cancelled')); ?>',
-    eligible: '<?php echo esc_js(sc_t('sessions.eligible', 'Eligible')); ?>',
-    not_eligible: '<?php echo esc_js(sc_t('sessions.not_eligible', 'Not Eligible')); ?>',
-    issued: '<?php echo esc_js(sc_t('sessions.issued', 'Issued')); ?>'
-};
+jQuery(function ($) {
+    'use strict';
 
-var statusClasses = {
-    'registered': 'badge-success',
-    'waitlisted': 'badge-warning',
-    'cancelled': 'badge-danger'
-};
+    var esc = WDList.esc;
+    var sessionId = <?php echo (int) $session_id; ?>;
+    var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var L = <?php echo $js(array(
+        'all'        => sc_t('dashboard_pages.all', 'All'),
+        'in'         => sc_t('dashboard_pages.checked_in', 'Checked in'),
+        'not_yet'    => sc_t('dashboard_pages.not_checked_in', 'Not checked in'),
+        'out'        => sc_t('dashboard_pages.checked_out', 'Checked out'),
+        'attendee'   => sc_t('dashboard_pages.attendee', 'Attendee'),
+        'ticket'     => sc_t('dashboard_pages.ticket', 'Ticket'),
+        'attendance' => sc_t('dashboard_pages.attendance', 'Attendance'),
+        'cme'        => sc_t('dashboard_pages.cme', 'CME'),
+        'registered' => sc_t('dashboard_pages.registered', 'Registered'),
+        'walkIn'     => sc_t('dashboard_pages.walk_in', 'Walked in'),
+        'notYet'     => sc_t('dashboard_pages.not_yet', 'Not yet'),
+        'minutes'    => sc_t('dashboard_pages.n_minutes', '%s min'),
+        'doIn'       => sc_t('dashboard_pages.check_in', 'Check in'),
+        'doOut'      => sc_t('dashboard_pages.check_out', 'Check out'),
+        'edit'       => sc_t('dashboard_pages.open_registration', 'Open registration'),
+        'already'    => sc_t('dashboard_pages.already_checked_in', '%s was already checked in.'),
+        'done'       => sc_t('dashboard_pages.checked_in_name', '%s checked in.'),
+        'enterCode'  => sc_t('dashboard_pages.enter_ticket_code', 'Enter a ticket code.'),
+        'search'     => sc_t('general.search', 'Search'),
+        'emptyText'  => sc_t('dashboard_pages.no_session_people', 'Nobody has registered or checked in yet. Scan tickets at the door, or check people in by ticket code above.'),
+        'failed'     => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
+    )); ?>;
 
-var statusLabels = {
-    'registered': saTranslations.registered,
-    'waitlisted': saTranslations.waitlisted,
-    'cancelled': saTranslations.cancelled
-};
-
-jQuery(document).ready(function($) {
-    function escapeHtml(text) {
-        if (!text) return '';
-        var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    function post(data) { return $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: $.extend({ nonce: scDashboard.nonce, session_id: sessionId }, data) }); }
+    function time(dt) { return dt ? String(dt).slice(11, 16) : ''; }
+    function checkIn(data, name) {
+        return post($.extend({ action: 'sc_session_checkin', scan_method: 'manual' }, data)).done(function (res) {
+            if (res.success) {
+                var who = res.data.attendee_name || name || "";
+                showSuccess((res.data.already_checked_in ? L.already : L.done).replace('%s', who));
+                list.reload(true);
+            } else {
+                showError(res.data && res.data.message ? res.data.message : L.failed);
+            }
+        }).fail(function () { showError(L.failed); });
     }
 
-    function formatDateTime(dt) {
-        if (!dt) return '-';
-        var parts = dt.split(' ');
-        if (parts.length > 1) return parts[1].substring(0, 5);
-        return dt;
-    }
+    $('#ticket-form').on('submit', function (e) {
+        e.preventDefault();
+        var code = $.trim($('#ticket-code').val());
+        if (!code) { showError(L.enterCode); return; }
+        checkIn({ ticket_id: code }).done(function (res) { if (res.success) { $('#ticket-code').val('').trigger('focus'); } });
+    });
 
-    function loadAttendees() {
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_get_session_registrations',
-                nonce: scDashboard.nonce,
-                session_id: <?php echo $session_id; ?>
+    var list = WDList.create({
+        root: document.getElementById('session-people'),
+        action: 'sc_get_session_registrations',
+        rowsKey: 'rows',
+        filters: ['search'],
+        perPage: 50,
+        perPageOptions: [50, 100, 200],
+        extraParams: function () { return { session_id: sessionId }; },
+        tabs: [
+            { key: 'all', label: L.all, params: { view: 'all' }, countKey: 'all' },
+            { key: 'in', label: L.in, params: { view: 'in' }, countKey: 'in' },
+            { key: 'not_yet', label: L.not_yet, params: { view: 'not_yet' }, countKey: 'not_yet' },
+            { key: 'out', label: L.out, params: { view: 'out' }, countKey: 'out' }
+        ],
+        emptyText: L.emptyText,
+        onData: function (data) {
+            if (!data.counts) { return; }
+            ['all', 'in', 'out'].forEach(function (k) { $('[data-kpi="' + k + '"]').text(WDList.num(data.counts[k])); });
+            $('[data-kpi="cme"]').text(data.counts.cme);
+        },
+        columns: [
+            {
+                label: L.attendee,
+                render: function (a) {
+                    return '<div class="w-stack"><a class="w-row-title" href="' + esc(dashboardUrl + 'attendee-edit?id=' + a.id) + '">' + esc(a.name) + '</a><span class="w-sub w-ltr w-truncate">' + esc([a.email, a.phone].filter(Boolean).join(' · ')) + '</span></div>';
+                }
             },
-            beforeSend: function() {
-                $('#attendees-table tbody').html(
-                    '<tr><td colspan="9" class="text-center py-5">' +
-                    '<i class="fa fa-spinner fa-spin fa-3x text-muted"></i>' +
-                    '<p class="mt-3">' + saTranslations.loading + '</p></td></tr>'
-                );
+            {
+                label: L.ticket, className: 'w-col-xl',
+                render: function (a) { return '<div class="w-stack"><span class="w-mono w-nowrap">' + esc(a.ticket_code) + '</span><span class="w-sub">' + esc(a.registered ? L.registered : L.walkIn) + '</span></div>'; }
+            },
+            {
+                label: L.attendance,
+                render: function (a) {
+                    if (!a.in_at) { return '<span class="text-muted">' + esc(L.notYet) + '</span>'; }
+                    var line = time(a.in_at) + (a.out_at ? ' – ' + time(a.out_at) : '');
+                    var sub = a.minutes !== null && a.out_at ? L.minutes.replace('%s', a.minutes) + (a.percent !== null ? ' · ' + a.percent + '%' : '') : '';
+                    return '<div class="w-stack"><span class="w-tag ' + (a.out_at ? '' : 'w-tag--teal') + ' w-ltr">' + esc(line) + '</span>' + (sub ? '<span class="w-sub">' + esc(sub) + '</span>' : '') + '</div>';
+                }
+            },
+            {
+                label: L.cme,
+                render: function (a) { return a.cme ? '<span class="w-num">' + esc(a.cme) + '</span>' : '<span class="text-muted">—</span>'; }
             }
-        }).done(function(response) {
-            if (response.success) {
-                renderTable(response.data.attendees || []);
-                updateStats(response.data.stats || {});
-            } else {
-                showError(response.data.message || saTranslations.error_loading);
-            }
-        }).fail(function() {
-            showError(saTranslations.error_loading);
-        });
-    }
-
-    function renderTable(attendees) {
-        var tbody = $('#attendees-table tbody');
-        tbody.empty();
-
-        if (!attendees || attendees.length === 0) {
-            tbody.html('<tr><td colspan="9" class="text-center py-4">' + saTranslations.no_attendees + '</td></tr>');
-            return;
+        ],
+        rowMenu: function (a) {
+            return [
+                !a.in_at
+                    ? { label: L.doIn, onSelect: function () { checkIn({ attendee_id: a.id }, a.name); } }
+                    : { label: L.doOut, disabled: !!a.out_at, onSelect: function () {
+                        post({ action: 'sc_session_checkout', attendee_id: a.id }).done(function (res) {
+                            if (res.success) { showSuccess(res.data.message || L.out); list.reload(true); }
+                            else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+                        }).fail(function () { showError(L.failed); });
+                    } },
+                { label: L.edit, href: dashboardUrl + 'attendee-edit?id=' + a.id }
+            ];
+        },
+        chips: function (state) {
+            return state.filters.search ? [{ label: L.search, value: state.filters.search, clear: function (l) { l.setFilter('search', ''); } }] : [];
         }
-
-        attendees.forEach(function(a) {
-            var regStatusClass = statusClasses[a.reg_status] || 'badge-secondary';
-            var regStatusLabel = statusLabels[a.reg_status] || a.reg_status;
-
-            var attendancePct = a.attendance_percentage > 0 ? a.attendance_percentage.toFixed(1) + '%' : '-';
-            var cmeEarned = a.earned_cme_hours > 0 ? a.earned_cme_hours.toFixed(2) : '-';
-
-            var certStatus = '-';
-            if (a.certificate_issued) {
-                certStatus = '<span class="badge badge-success">' + saTranslations.issued + '</span>';
-            } else if (a.certificate_eligible) {
-                certStatus = '<span class="badge badge-info">' + saTranslations.eligible + '</span>';
-            } else if (a.check_out_time) {
-                certStatus = '<span class="badge badge-secondary">' + saTranslations.not_eligible + '</span>';
-            }
-
-            var actions = '';
-            if (!a.check_in_time) {
-                actions += '<button class="btn btn-sm btn-success checkin-btn" data-attendee="' + a.attendee_id + '" title="' + saTranslations.check_in + '">' +
-                    '<i class="fa fa-sign-in"></i></button> ';
-            } else if (!a.check_out_time) {
-                actions += '<button class="btn btn-sm btn-warning checkout-btn" data-attendee="' + a.attendee_id + '" title="' + saTranslations.check_out + '">' +
-                    '<i class="fa fa-sign-out"></i></button> ';
-            }
-
-            var row = '<tr>' +
-                '<td><strong>' + escapeHtml(a.name) + '</strong></td>' +
-                '<td>' + escapeHtml(a.email || '-') + '</td>' +
-                '<td><span class="badge ' + regStatusClass + '">' + escapeHtml(regStatusLabel) + '</span></td>' +
-                '<td>' + formatDateTime(a.check_in_time) + '</td>' +
-                '<td>' + formatDateTime(a.check_out_time) + '</td>' +
-                '<td>' + attendancePct + '</td>' +
-                '<td>' + cmeEarned + '</td>' +
-                '<td>' + certStatus + '</td>' +
-                '<td>' + actions + '</td>' +
-            '</tr>';
-
-            tbody.append(row);
-        });
-    }
-
-    function updateStats(stats) {
-        $('#stat-registered').text(stats.total_registered || 0);
-        $('#stat-checked-in').text(stats.total_checked_in || 0);
-        $('#stat-checked-out').text(stats.total_checked_out || 0);
-        $('#stat-avg-attendance').text((stats.avg_attendance || 0) + '%');
-        $('#stat-eligible').text(stats.total_eligible || 0);
-    }
-
-    // Manual check-in
-    $(document).on('click', '.checkin-btn', function() {
-        var btn = $(this);
-        var attendeeId = btn.data('attendee');
-        btn.prop('disabled', true);
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_session_checkin',
-                nonce: scDashboard.nonce,
-                session_id: <?php echo $session_id; ?>,
-                attendee_id: attendeeId,
-                scan_method: 'manual'
-            }
-        }).done(function(response) {
-            if (response.success) {
-                toastr.success(response.data.message || saTranslations.checked_in);
-                loadAttendees();
-            } else {
-                toastr.error(response.data.message || saTranslations.error_loading);
-                btn.prop('disabled', false);
-            }
-        }).fail(function() {
-            btn.prop('disabled', false);
-        });
     });
-
-    // Manual check-out
-    $(document).on('click', '.checkout-btn', function() {
-        var btn = $(this);
-        var attendeeId = btn.data('attendee');
-        btn.prop('disabled', true);
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_session_checkout',
-                nonce: scDashboard.nonce,
-                session_id: <?php echo $session_id; ?>,
-                attendee_id: attendeeId
-            }
-        }).done(function(response) {
-            if (response.success) {
-                toastr.success(response.data.message || saTranslations.checked_out);
-                loadAttendees();
-            } else {
-                toastr.error(response.data.message || saTranslations.error_loading);
-                btn.prop('disabled', false);
-            }
-        }).fail(function() {
-            btn.prop('disabled', false);
-        });
-    });
-
-    // Initial load
-    loadAttendees();
 });
 </script>
-
-</div>
-</div>
 
 <?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>
