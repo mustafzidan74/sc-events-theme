@@ -20,8 +20,10 @@ $load_wd_form = true;
 $load_wd_overview = true;
 $p = $wpdb->prefix;
 
-$connected = get_option('sc_fcm_server_key', '') !== '';
-$on_new_event = get_option('sc_push_on_new_event', '0') === '1';
+// Sending uses a Firebase service account file kept outside public_html (FCM HTTP v1).
+$account = function_exists('sc_fcm_service_account') ? sc_fcm_service_account() : null;
+$connected = $account !== null;
+$on_new_event = get_option('sc_push_on_new_event', '1') === '1';
 $tokens_table = $p . 'sc_fcm_tokens';
 $devices = (int) $wpdb->get_var("SELECT COUNT(*) FROM $tokens_table");
 $linked = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $tokens_table WHERE user_id IS NOT NULL AND user_id > 0");
@@ -51,10 +53,12 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
     </div>
 
     <div class="w-push__status <?php echo $connected ? 'is-on' : 'is-off'; ?>" role="status">
-        <strong><?php echo esc_html($connected ? sc_t('push.connected', 'Firebase key saved') : sc_t('push.not_connected', 'Push notifications are not connected')); ?></strong>
-        <span><?php echo esc_html($connected
-            ? sc_t('push.connected_help', 'Sends use the legacy Firebase server key. Google has retired that method, so each send is checked and logged as failed if Firebase does not accept it.')
-            : sc_t('push.not_connected_help', 'No Firebase key is saved, so nothing can be sent. Connecting needs the Firebase project that the mobile app uses.')); ?></span>
+        <strong><?php echo esc_html($connected ? sc_t('push.connected', 'Connected to Firebase') : sc_t('push.not_connected', 'Push notifications are not connected')); ?></strong>
+        <?php if ($connected): ?>
+            <span class="w-ltr"><?php echo esc_html(sprintf(sc_t('push.connected_as', 'Project %1$s · %2$s'), $account['project_id'], $account['client_email'])); ?></span>
+        <?php else: ?>
+            <span><?php echo esc_html(sc_t('push.not_connected_help', 'Firebase Console → Project settings → Service accounts → Generate new private key, then place the file on the server at ~/private/firebase-service-account.json (outside public_html).')); ?></span>
+        <?php endif; ?>
     </div>
 
     <div class="w-kpis">
@@ -132,7 +136,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                 <label class="w-switch">
                     <input type="checkbox" id="push-auto" <?php checked($on_new_event); ?>>
                     <span class="w-switch__track" aria-hidden="true"></span>
-                    <span class="w-switch__text"><strong><?php echo esc_html(sc_t('push.on_new_event', 'Notify everyone when an event is created')); ?></strong><span><?php echo esc_html(sc_t('push.on_new_event_help', 'Off by default: it fires for every new event, including drafts.')); ?></span></span>
+                    <span class="w-switch__text"><strong><?php echo esc_html(sc_t('push.on_new_event', 'Notify everyone when an event is created')); ?></strong><span><?php echo esc_html(sc_t('push.on_new_event_help', 'Sent once when an event is created as published. Drafts are skipped.')); ?></span></span>
                 </label>
             </div>
         </aside>

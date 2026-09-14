@@ -3,8 +3,8 @@
  * Push notifications (Firebase Cloud Messaging) for template-parts/dashboard/notifications.php.
  *
  * Device tokens are registered by the mobile app outside this theme (sc_fcm_tokens).
- * Sending still uses the legacy server-key endpoint; Google has retired it, so a send
- * is only counted when Google answers with a success — otherwise it is logged as failed.
+ * Sending uses FCM HTTP v1 with a Firebase service account kept outside public_html
+ * (see sc_fcm_credentials_path). A send only counts devices Google accepted.
  *
  * @package sc_events
  */
@@ -58,6 +58,100 @@ function sc_migrate_notifications_tables() {
 add_action('init', 'sc_migrate_notifications_tables');
 
 /**
+ * مسار ملف الـ Service Account بتاع Firebase — برّه public_html عشان محدش
+ * يوصله من النت. ممكن يتغيّر من wp-config بـ SC_FCM_CREDENTIALS.
+ */
+function sc_fcm_credentials_path(): string {
+    if (defined('SC_FCM_CREDENTIALS')) {
+        return SC_FCM_CREDENTIALS;
+    }
+    // ABSPATH = /home/<user>/domains/<site>/public_html/ → /home/<user>
+    return dirname(ABSPATH, 3) . '/private/firebase-service-account.json';
+}
+
+function sc_fcm_service_account(): ?array {
+    static $cache = false;
+    if ($cache !== false) {
+        return $cache;
+    }
+
+    $path = sc_fcm_credentials_path();
+    if (!is_readable($path)) {
+        return $cache = null;
+    }
+
+    $data = json_decode((string) file_get_contents($path), true);
+    if (!is_array($data) || empty($data['private_key']) || empty($data['client_email']) || empty($data['project_id'])) {
+        return $cache = null;
+    }
+
+    return $cache = $data;
+}
+
+function sc_fcm_b64url(string $raw): string {
+    return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+}
+
+/**
+ * توكن OAuth لـ FCM HTTP v1. بيتخزّن ساعة إلا دقيقتين عشان مانطلبش
+ * واحد جديد مع كل إشعار.
+ */
+function sc_fcm_access_token(): ?string {
+    $cached = get_transient('sc_fcm_access_token');
+    if ($cached) {
+        return $cached;
+    }
+
+    $sa = sc_fcm_service_account();
+    if (!$sa) {
+        return null;
+    }
+
+    $tokenUri = $sa['token_uri'] ?? 'https://oauth2.googleapis.com/token';
+    $now      = time();
+    $header   = sc_fcm_b64url(wp_json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+    $claims   = sc_fcm_b64url(wp_json_encode([
+        'iss'   => $sa['client_email'],
+        'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+        'aud'   => $tokenUri,
+        'iat'   => $now,
+        'exp'   => $now + 3600,
+    ]));
+
+    $key = openssl_pkey_get_private($sa['private_key']);
+    if (!$key || !openssl_sign("$header.$claims", $signature, $key, OPENSSL_ALGO_SHA256)) {
+        return null;
+    }
+
+    $response = wp_remote_post($tokenUri, [
+        'body'    => [
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion'  => "$header.$claims." . sc_fcm_b64url($signature),
+        ],
+        'timeout' => 20,
+    ]);
+
+    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        return null;
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    if (empty($body['access_token'])) {
+        return null;
+    }
+
+    set_transient('sc_fcm_access_token', $body['access_token'], max(60, (int) ($body['expires_in'] ?? 3600) - 120));
+    return $body['access_token'];
+}
+
+/**
+ * Push can be sent: a valid service account is in place.
+ */
+function sc_push_connected(): bool {
+    return sc_fcm_service_account() !== null;
+}
+
+/**
  * Device tokens for an audience: every device, or devices of people registered for an event.
  */
 function sc_push_tokens($event_id = null) {
@@ -73,49 +167,69 @@ function sc_push_tokens($event_id = null) {
 }
 
 /**
- * Send FCM push notification to device tokens
+ * Send FCM push notification to device tokens (FCM HTTP v1)
+ *
+ * كان بيبعت على fcm.googleapis.com/fcm/send بـ server key — جوجل شالت
+ * الـ API ده (بيرجّع 404)، وكمان كان بيعدّ الإرسال "ناجح" لمجرد إن الطلب
+ * اتبعت. دلوقتي بيبعت على HTTP v1 بالـ Service Account، وبيعدّ بس اللي
+ * جوجل رجّعتله 200، وبيشيل التوكنات الميتة.
  *
  * @param string   $title    Notification title
  * @param string   $body     Notification body
  * @param array    $data     Extra data payload
  * @param int|null $eventId  If set, only send to attendees of this event
- * @return int Number of devices Google accepted the message for
+ * @return int Number of devices Google accepted
  */
 function sc_send_fcm_notification(string $title, string $body, array $data = [], ?int $eventId = null): int {
-    $serverKey = get_option('sc_fcm_server_key', '');
-    if (empty($serverKey)) {
-        return 0;
-    }
-
     global $wpdb;
+    $table = $wpdb->prefix . 'sc_fcm_tokens';
     $tokens = sc_push_tokens($eventId);
-    if (empty($tokens)) {
-        return 0;
-    }
 
-    $sent = 0;
-    $failed = 0;
-    foreach (array_chunk($tokens, 500) as $batch) {
-        $response = wp_remote_post('https://fcm.googleapis.com/fcm/send', [
-            'headers' => [
-                'Authorization' => 'key=' . $serverKey,
-                'Content-Type'  => 'application/json',
-            ],
-            'body'    => wp_json_encode([
-                'registration_ids' => $batch,
-                'notification'     => ['title' => $title, 'body' => $body],
-                'data'             => array_merge($data, ['click_action' => 'FLUTTER_NOTIFICATION_CLICK']),
-            ]),
-            'timeout' => 30,
-        ]);
+    $sa          = sc_fcm_service_account();
+    $accessToken = $sa ? sc_fcm_access_token() : null;
+    $sent        = 0;
+    $failed      = 0;
 
-        // Count what Google says it delivered, not that the request left the server.
-        $result = is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200 ? null : json_decode(wp_remote_retrieve_body($response), true);
-        if (is_array($result) && isset($result['success'])) {
-            $sent += (int) $result['success'];
-            $failed += (int) ($result['failure'] ?? 0);
-        } else {
-            $failed += count($batch);
+    if ($accessToken && !empty($tokens)) {
+        $url = 'https://fcm.googleapis.com/v1/projects/' . rawurlencode($sa['project_id']) . '/messages:send';
+
+        // قيم data في HTTP v1 لازم تكون نصوص
+        $payloadData = array_map('strval', array_merge($data, ['click_action' => 'FLUTTER_NOTIFICATION_CLICK']));
+
+        foreach ($tokens as $token) {
+            $response = wp_remote_post($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Content-Type'  => 'application/json',
+                ],
+                'body'    => wp_json_encode(['message' => [
+                    'token'        => $token,
+                    'notification' => ['title' => $title, 'body' => $body],
+                    'data'         => (object) $payloadData,
+                    'android'      => ['priority' => 'high', 'notification' => ['sound' => 'default']],
+                    'apns'         => ['payload' => ['aps' => ['sound' => 'default']]],
+                ]]),
+                'timeout' => 20,
+            ]);
+
+            if (is_wp_error($response)) {
+                $failed++;
+                continue;
+            }
+
+            $code = wp_remote_retrieve_response_code($response);
+            if ($code === 200) {
+                $sent++;
+                continue;
+            }
+            $failed++;
+
+            // التطبيق اتمسح أو التوكن اتغيّر — نشيله عشان مايتحسبش تاني
+            $error  = json_decode(wp_remote_retrieve_body($response), true);
+            $reason = $error['error']['details'][0]['errorCode'] ?? ($error['error']['status'] ?? '');
+            if ($code === 404 || $reason === 'UNREGISTERED') {
+                $wpdb->delete($table, ['token' => $token]);
+            }
         }
     }
 
@@ -125,7 +239,7 @@ function sc_send_fcm_notification(string $title, string $body, array $data = [],
         'event_id'        => $eventId,
         'recipient_count' => $sent,
         'sent_by'         => get_current_user_id(),
-        'status'          => $sent ? ($failed ? 'partial' : 'sent') : 'failed',
+        'status'          => $sent > 0 ? ($failed ? 'partial' : 'sent') : 'failed',
         'created_at'      => current_time('mysql'),
     ]);
 
@@ -133,13 +247,21 @@ function sc_send_fcm_notification(string $title, string $body, array $data = [],
 }
 
 /**
- * Hook: notify every device when an event is created — only when switched on.
- * It used to fire for every new event, drafts and tests included.
+ * Hook: notify every device when a published event is created (switch on the page; on unless turned off).
+ * Creating an event from the dashboard fires sc_event_created twice (SC_Event::create and the
+ * AJAX handler), so each event is only announced once per request. Drafts are skipped.
  */
 add_action('sc_event_created', function ($event_id, $title_or_data = '', $event_data = []) {
-    if (get_option('sc_push_on_new_event', '0') !== '1') {
+    static $announced = [];
+    if (get_option('sc_push_on_new_event', '1') !== '1' || isset($announced[(int) $event_id])) {
         return;
     }
+    $fields = is_array($title_or_data) ? $title_or_data : (is_array($event_data) ? $event_data : []);
+    if (isset($fields['status']) && $fields['status'] !== 'publish') {
+        return;
+    }
+    $announced[(int) $event_id] = true;
+
     if (is_array($title_or_data)) {
         $title = $title_or_data['title'] ?? 'New Event';
     } else {
@@ -189,7 +311,7 @@ function sc_send_notification_handler() {
     if ($errors) {
         wp_send_json_error(['message' => __('Please fix the highlighted fields.', 'sc_events'), 'errors' => $errors]);
     }
-    if (get_option('sc_fcm_server_key', '') === '') {
+    if (!sc_push_connected()) {
         wp_send_json_error(['message' => __('Push notifications are not connected yet, so nothing was sent.', 'sc_events')]);
     }
     $devices = count(sc_push_tokens($eventId));
@@ -199,7 +321,7 @@ function sc_send_notification_handler() {
 
     $count = sc_send_fcm_notification($title, $body, [], $eventId);
     if (!$count) {
-        wp_send_json_error(['message' => __('Firebase did not accept the notification. Check the connection settings; nothing was delivered.', 'sc_events')]);
+        wp_send_json_error(['message' => __('Firebase did not accept the notification, so nothing was delivered. Check the service account in Firebase.', 'sc_events')]);
     }
 
     wp_send_json_success([
@@ -207,14 +329,6 @@ function sc_send_notification_handler() {
         'message' => sprintf(__('Delivered to %1$d of %2$d devices.', 'sc_events'), $count, $devices),
         'count'   => $count,
     ]);
-}
-
-add_action('wp_ajax_sc_save_fcm_key', 'sc_save_fcm_key_handler');
-function sc_save_fcm_key_handler() {
-    sc_push_verify_request();
-    $key = sanitize_text_field(wp_unslash($_POST['fcm_server_key'] ?? ''));
-    update_option('sc_fcm_server_key', $key, false);
-    wp_send_json_success(['message' => $key === '' ? __('Key removed.', 'sc_events') : __('Key saved.', 'sc_events')]);
 }
 
 add_action('wp_ajax_sc_push_settings', 'sc_push_settings_handler');
