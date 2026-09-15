@@ -1,11 +1,12 @@
 <?php
 /**
- * Dashboard – Certificate Rebuild Tool
+ * Certificate repair — administrators only.
  *
- * Bulk-fix issued certificates whose template assignment is wrong, or whose
- * denormalized fields (attendee_name, event_title, event_date) drifted from the
- * source rows. Used when certs end up rendering with the wrong event branding
- * because they were issued against a template that belongs to a different event.
+ * Diagnose one issued certificate, or re-point every certificate of an event to
+ * the right template and refresh their copied fields (attendee name/email,
+ * event title/date). Certificate numbers and verification codes never change.
+ * Handlers: sc_diagnose_certificate, sc_rebuild_event_summary,
+ * sc_rebuild_event_certificates (certificates-ajax-handlers.php).
  *
  * @package sc_events
  */
@@ -18,288 +19,250 @@ if (!SC_Event_Manager_Dashboard::is_event_manager()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-// Only administrators (not event managers) — this is a destructive bulk tool.
+// A bulk tool that rewrites issued certificates: administrators only.
 if (!current_user_can('manage_options')) {
     wp_die(__('Only administrators can use the certificate rebuild tool.', 'sc_events'));
 }
 
-$page_title = sc_t('dashboard_pages.rebuild_certificates', 'Rebuild Certificates');
-get_template_part('template-parts/dashboard/components/dashboard', 'header');
+global $wpdb, $load_wd_form;
+$load_wd_form = true;
 
-global $wpdb;
 $events = $wpdb->get_results(
     "SELECT id, title, start_date FROM {$wpdb->prefix}sc_events
      WHERE status IN ('publish', 'completed')
      ORDER BY start_date DESC, id DESC"
 );
-
 $templates = SC_Certificate_Template::get_all(array('orderby' => 'name', 'order' => 'ASC'));
+$dashboard_url = home_url('/event-manager-dashboard/');
+
+$page_title = sc_t('dashboard_pages.rebuild_certificates', 'Repair certificates');
+get_template_part('template-parts/dashboard/components/dashboard', 'header');
+get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 ?>
 
-<?php get_template_part('template-parts/dashboard/components/dashboard', 'sidebar'); ?>
-
 <div id="main-content">
-    <div class="container-fluid">
-        <div class="block-header">
-            <div class="row">
-                <div class="col-lg-8 col-md-8 col-sm-12">
-                    <h2>Rebuild Certificates</h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item">Certificates</li>
-                        <li class="breadcrumb-item active">Rebuild</li>
-                    </ul>
-                </div>
-                <div class="col-lg-4 col-md-4 col-sm-12">
-                    <div class="d-flex flex-row-reverse">
-                        <a href="<?php echo home_url('/event-manager-dashboard/certificates'); ?>" class="btn btn-secondary mb-1">
-                            <i class="fa fa-arrow-left"></i> Back to Certificates
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="container-fluid">
 
-        <!-- Warning banner -->
-        <div class="alert alert-warning">
-            <strong><i class="fa fa-exclamation-triangle"></i> أداة خطرة — للأدمن فقط</strong>
-            <p class="mb-0 mt-1">
-                هذه الأداة تعيد بناء بيانات الشهادات المُصدرة بشكل جماعي. استخدمها فقط عندما تكون الشهادات مرتبطة بقالب خاطئ أو
-                عندما تظهر بيانات قديمة. عملية إعادة البناء <strong>لا تُغيّر</strong> رقم الشهادة أو كود التحقق.
-            </p>
+    <div class="w-page-head">
+        <div>
+            <h1><?php echo esc_html($page_title); ?></h1>
+            <p class="w-page-head__sub"><?php echo esc_html(sc_t('cert_rebuild.sub', 'For certificates that show the wrong event design or out-of-date names. Certificate numbers and verification codes never change.')); ?></p>
         </div>
+        <div class="w-page-head__actions">
+            <a class="btn btn-outline-secondary" href="<?php echo esc_url($dashboard_url . 'certificates'); ?>"><?php echo esc_html(sc_t('cert_rebuild.back', 'Issued certificates')); ?></a>
+        </div>
+    </div>
 
-        <!-- Lookup section: diagnose a single cert by ID -->
-        <div class="card">
-            <div class="header">
-                <h2><i class="fa fa-search"></i> Diagnose Single Certificate</h2>
-                <p class="text-muted mb-0" style="font-size: 13px;">
-                    Paste a cert ID (e.g. from the broken download URL <code>?id=3027</code>) to see what event/template it's tied to.
-                </p>
+    <div class="w-rebuild">
+        <p class="w-rebuild__warn" role="note">
+            <strong><?php echo esc_html(sc_t('cert_rebuild.warn_title', 'Administrators only.')); ?></strong>
+            <?php echo esc_html(sc_t('cert_rebuild.warn', 'Rebuilding rewrites every certificate of the chosen event at once, and people see the change the next time they download. Check the summary first.')); ?>
+        </p>
+
+        <section class="w-section" aria-labelledby="rb-diagnose">
+            <div class="w-section__head">
+                <h2 id="rb-diagnose"><?php echo esc_html(sc_t('cert_rebuild.diagnose', 'Check one certificate')); ?></h2>
+                <span class="w-section__hint"><?php echo esc_html(sc_t('cert_rebuild.diagnose_hint', 'Use the number after ?id= in a certificate download link.')); ?></span>
             </div>
-            <div class="body">
-                <div class="row align-items-end">
-                    <div class="col-md-4">
-                        <label>Certificate ID</label>
-                        <input type="number" class="form-control" id="diagnose-cert-id" placeholder="e.g. 3027">
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-info btn-block" id="diagnose-btn">
-                            <i class="fa fa-stethoscope"></i> Diagnose
-                        </button>
-                    </div>
+            <form class="w-rebuild__row" id="diagnose-form" novalidate>
+                <div class="w-field">
+                    <label class="w-field__label" for="diagnose-cert-id"><?php echo esc_html(sc_t('cert_rebuild.cert_id', 'Certificate ID')); ?></label>
+                    <input type="number" min="1" inputmode="numeric" class="form-control" id="diagnose-cert-id" placeholder="3027">
                 </div>
-                <div id="diagnose-result" class="mt-3" style="display:none;"></div>
-            </div>
-        </div>
+                <button type="submit" class="btn btn-primary" id="diagnose-btn"><?php echo esc_html(sc_t('cert_rebuild.check', 'Check')); ?></button>
+            </form>
+            <div id="diagnose-result" class="w-rebuild__out" aria-live="polite" hidden></div>
+        </section>
 
-        <!-- Bulk rebuild section -->
-        <div class="card">
-            <div class="header">
-                <h2><i class="fa fa-wrench"></i> Bulk Rebuild by Event</h2>
-                <p class="text-muted mb-0" style="font-size: 13px;">
-                    Pick an event, see what's currently assigned, and (optionally) reassign all of its certificates to the correct template.
-                </p>
+        <section class="w-section" aria-labelledby="rb-bulk">
+            <div class="w-section__head">
+                <h2 id="rb-bulk"><?php echo esc_html(sc_t('cert_rebuild.bulk', 'Rebuild an event\'s certificates')); ?></h2>
             </div>
-            <div class="body">
-                <!-- Step 1: pick event -->
-                <div class="row align-items-end mb-3">
-                    <div class="col-md-6">
-                        <label><strong>Step 1.</strong> Select Event</label>
-                        <select class="form-control" id="rebuild-event">
-                            <option value="">— Select event —</option>
-                            <?php foreach ($events as $ev): ?>
-                                <option value="<?php echo (int) $ev->id; ?>">
-                                    [#<?php echo (int) $ev->id; ?>]
-                                    <?php echo esc_html($ev->title); ?>
-                                    <?php if (!empty($ev->start_date)): ?>
-                                        (<?php echo esc_html(date('Y-m-d', strtotime($ev->start_date))); ?>)
-                                    <?php endif; ?>
-                                </option>
+
+            <div class="w-rebuild__row">
+                <div class="w-field">
+                    <label class="w-field__label" for="rebuild-event"><?php echo esc_html(sc_t('cert_rebuild.step1', '1. Event')); ?></label>
+                    <select class="form-control" id="rebuild-event">
+                        <option value=""><?php echo esc_html(sc_t('cert_rebuild.pick_event', 'Choose an event')); ?></option>
+                        <?php foreach ($events as $ev): ?>
+                            <option value="<?php echo esc_attr($ev->id); ?>"><?php echo esc_html($ev->title . (!empty($ev->start_date) ? ' · ' . mysql2date('j M Y', $ev->start_date) : '') . ' (#' . $ev->id . ')'); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <div id="summary-block" class="w-rebuild__summary" hidden>
+                <div id="summary-content" aria-live="polite"></div>
+
+                <div class="w-rebuild__row">
+                    <div class="w-field">
+                        <label class="w-field__label" for="rebuild-template"><?php echo esc_html(sc_t('cert_rebuild.step2', '2. Template these certificates should use')); ?></label>
+                        <select class="form-control" id="rebuild-template">
+                            <option value=""><?php echo esc_html(sc_t('cert_rebuild.keep_template', 'Keep each certificate\'s template — only refresh names, title and date')); ?></option>
+                            <?php foreach ($templates as $tpl): ?>
+                                <option value="<?php echo esc_attr($tpl->id); ?>"><?php echo esc_html($tpl->name . ' (#' . $tpl->id . ')'); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-info btn-block" id="load-summary-btn" disabled>
-                            <i class="fa fa-search"></i> Load Summary
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-danger" id="rebuild-btn"><?php echo esc_html(sc_t('cert_rebuild.rebuild', 'Rebuild certificates')); ?></button>
                 </div>
-
-                <!-- Step 2: summary + target template -->
-                <div id="summary-block" style="display:none;">
-                    <hr>
-                    <div id="summary-content"></div>
-
-                    <div class="row align-items-end mt-3">
-                        <div class="col-md-6">
-                            <label><strong>Step 2.</strong> Target Template (the correct one for this event)</label>
-                            <select class="form-control" id="rebuild-template">
-                                <option value="">— Keep current template (only refresh data) —</option>
-                                <?php foreach ($templates as $tpl): ?>
-                                    <option value="<?php echo (int) $tpl->id; ?>">
-                                        [#<?php echo (int) $tpl->id; ?>]
-                                        <?php echo esc_html($tpl->name); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-warning btn-block" id="rebuild-btn">
-                                <i class="fa fa-wrench"></i> Rebuild All
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="rebuild-result" class="mt-3"></div>
-                </div>
+                <div id="rebuild-result" aria-live="polite"></div>
             </div>
-        </div>
+        </section>
     </div>
+
+</div>
 </div>
 
+<style>
+.w-rebuild { display: flex; flex-direction: column; gap: 16px; max-width: 960px; }
+.w-rebuild__warn { margin: 0; padding: 12px 16px; border-radius: var(--w-radius-md); background: var(--w-warning-soft); color: var(--w-warning); font-size: 13.5px; }
+.w-rebuild__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.w-rebuild__row .w-field { flex: 1 1 320px; }
+.w-rebuild__out, .w-rebuild__summary { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.w-rebuild__out[hidden], .w-rebuild__summary[hidden] { display: none; }
+.w-rebuild__facts { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 8px 20px; margin: 0; }
+.w-rebuild__facts dt { color: var(--w-text-3); font-size: 13px; font-weight: 500; }
+.w-rebuild__facts dd { margin: 0; overflow-wrap: anywhere; }
+.w-rebuild__msg { margin: 0; padding: 10px 14px; border-radius: var(--w-radius-md); font-size: 13.5px; }
+.w-rebuild__msg--ok { background: var(--w-teal-soft); color: var(--w-teal-text); }
+.w-rebuild__msg--warn { background: var(--w-warning-soft); color: var(--w-warning); }
+.w-rebuild__msg--error { background: var(--w-danger-soft); color: var(--w-danger); }
+@media (max-width: 575.98px) { .w-rebuild__facts { grid-template-columns: 1fr; gap: 2px; } .w-rebuild__facts dd { margin-bottom: 8px; } .w-rebuild__row .btn { width: 100%; } }
+</style>
+
 <script>
-jQuery(function($) {
-    var nonce = scDashboard.nonce;
+jQuery(function ($) {
+    'use strict';
     var ajaxurl = scDashboard.ajaxurl;
+    var nonce = scDashboard.nonce;
 
-    // ===== Diagnose single cert =====
-    $('#diagnose-btn').on('click', function() {
-        var certId = parseInt($('#diagnose-cert-id').val(), 10);
-        if (!certId) {
-            alert('Please enter a certificate ID');
-            return;
-        }
-        var $btn = $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Loading...');
-        var $out = $('#diagnose-result').show().html('<div class="text-center text-muted">Loading…</div>');
-
-        $.post(ajaxurl, {
-            action: 'sc_diagnose_certificate',
-            nonce: nonce,
-            cert_id: certId
-        }).done(function(res) {
-            if (!res.success) {
-                $out.html('<div class="alert alert-danger">' + (res.data && res.data.message ? res.data.message : 'Error') + '</div>');
-                return;
-            }
-            var d = res.data;
-            var mismatchBadge = d.template_event_mismatch
-                ? '<span class="badge badge-danger ml-2"><i class="fa fa-exclamation-triangle"></i> Template belongs to a different event!</span>'
-                : '<span class="badge badge-success ml-2"><i class="fa fa-check"></i> Template matches event</span>';
-            var html = '<div class="alert alert-info">'
-                + '<h5 class="mb-2">Certificate #' + d.cert.id + ' (<code>' + (d.cert.certificate_number || '—') + '</code>)</h5>'
-                + '<table class="table table-sm mb-0"><tbody>'
-                + '<tr><th style="width:200px">Cert Event</th><td>[#' + d.cert.event_id + '] ' + escapeHtml(d.event_title) + ' <small class="text-muted">(starts ' + (d.event_start || '—') + ')</small></td></tr>'
-                + '<tr><th>Cert Template</th><td>[#' + d.cert.template_id + '] ' + escapeHtml(d.template_name || '—') + ' ' + mismatchBadge + '</td></tr>'
-                + (d.template_event_id
-                    ? '<tr><th>Template\'s Native Event</th><td>[#' + d.template_event_id + '] ' + escapeHtml(d.template_event_title || '—') + '</td></tr>'
-                    : '')
-                + '<tr><th>Attendee</th><td>[#' + d.cert.attendee_id + '] ' + escapeHtml(d.cert.attendee_name || '') + ' &lt;' + escapeHtml(d.attendee_email || '') + '&gt;</td></tr>'
-                + '<tr><th>Issued At</th><td>' + (d.cert.issued_at || '—') + '</td></tr>'
-                + '<tr><th>Status</th><td>' + (d.cert.status || '—') + '</td></tr>'
-                + '</tbody></table>'
-                + '</div>';
-            $out.html(html);
-        }).fail(function(xhr) {
-            $out.html('<div class="alert alert-danger">Request failed: ' + xhr.status + '</div>');
-        }).always(function() {
-            $btn.prop('disabled', false).html('<i class="fa fa-stethoscope"></i> Diagnose');
-        });
-    });
-
-    // ===== Bulk rebuild =====
-    $('#rebuild-event').on('change', function() {
-        $('#load-summary-btn').prop('disabled', !$(this).val());
-        $('#summary-block').hide();
-    });
-
-    $('#load-summary-btn').on('click', function() {
-        var eventId = parseInt($('#rebuild-event').val(), 10);
-        if (!eventId) return;
-        var $btn = $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Loading...');
-
-        $.post(ajaxurl, {
-            action: 'sc_rebuild_event_summary',
-            nonce: nonce,
-            event_id: eventId
-        }).done(function(res) {
-            if (!res.success) {
-                alert(res.data && res.data.message ? res.data.message : 'Error');
-                return;
-            }
-            renderSummary(res.data);
-            $('#summary-block').show();
-            $('#rebuild-result').empty();
-        }).always(function() {
-            $btn.prop('disabled', false).html('<i class="fa fa-search"></i> Load Summary');
-        });
-    });
-
-    function renderSummary(d) {
-        var rows = '';
-        d.templates.forEach(function(t) {
-            rows += '<tr>'
-                + '<td>[#' + t.template_id + '] ' + escapeHtml(t.template_name || '<em>(template deleted)</em>') + '</td>'
-                + '<td><strong>' + t.cert_count + '</strong></td>'
-                + '</tr>';
-        });
-        var hint = d.templates.length > 1
-            ? '<div class="alert alert-warning mt-2 mb-0" style="font-size:13px;"><i class="fa fa-exclamation-triangle"></i> هذا الإيفنت لديه شهادات مرتبطة بأكثر من قالب. اختر القالب الصحيح في الخطوة 2 ليتم توحيدها.</div>'
-                : '';
-        var html = '<h5>Event: <code>[#' + d.event_id + ']</code> ' + escapeHtml(d.event_title) + '</h5>'
-            + '<p class="text-muted">Total certificates: <strong>' + d.total + '</strong></p>'
-            + '<div class="table-responsive"><table class="table table-bordered table-sm">'
-            + '<thead class="thead-light"><tr><th>Template currently used</th><th>Cert count</th></tr></thead>'
-            + '<tbody>' + rows + '</tbody></table></div>'
-            + hint;
-        $('#summary-content').html(html);
+    function msg(tone, text) {
+        return $('<p class="w-rebuild__msg">').addClass('w-rebuild__msg--' + tone).text(text);
     }
 
-    $('#rebuild-btn').on('click', function() {
-        var eventId = parseInt($('#rebuild-event').val(), 10);
+    function facts(rows) {
+        var $dl = $('<dl class="w-rebuild__facts">');
+        rows.forEach(function (r) {
+            if (!r) { return; }
+            $dl.append($('<dt>').text(r[0]), $('<dd dir="auto">').append(r[1]));
+        });
+        return $dl;
+    }
+
+    function ref(id, title) {
+        return (title || '—') + (id ? ' (#' + id + ')' : '');
+    }
+
+    function busy($btn, on, label) {
+        if (on) { $btn.data('label', $btn.text()).prop('disabled', true).text(label); }
+        else { $btn.prop('disabled', false).text($btn.data('label')); }
+    }
+
+    // ---- Check one certificate ----
+    $('#diagnose-form').on('submit', function (e) {
+        e.preventDefault();
+        var id = parseInt($('#diagnose-cert-id').val(), 10);
+        var $out = $('#diagnose-result').prop('hidden', false).empty();
+        if (!id) { $out.append(msg('error', 'Enter a certificate ID.')); $('#diagnose-cert-id').trigger('focus'); return; }
+        var $btn = $('#diagnose-btn');
+        busy($btn, true, 'Checking…');
+        $.post(ajaxurl, { action: 'sc_diagnose_certificate', nonce: nonce, cert_id: id }).done(function (res) {
+            if (!res || !res.success) { $out.append(msg('error', (res && res.data && res.data.message) || 'Could not check this certificate.')); return; }
+            var d = res.data, c = d.cert || {};
+            $out.append(
+                d.template_event_mismatch
+                    ? msg('warn', 'The template belongs to a different event. Rebuild this event\'s certificates with the right template below.')
+                    : msg('ok', 'The template matches the event.'),
+                facts([
+                    ['Certificate', ref(c.id, c.certificate_number)],
+                    ['Event', ref(c.event_id, d.event_title) + (d.event_start ? ' · starts ' + d.event_start : '')],
+                    ['Template', ref(c.template_id, d.template_name)],
+                    d.template_event_id ? ['Template made for', ref(d.template_event_id, d.template_event_title)] : null,
+                    ['Attendee', ref(c.attendee_id, c.attendee_name) + (d.attendee_email ? ' · ' + d.attendee_email : '')],
+                    ['Issued', c.issued_at || '—'],
+                    ['Status', c.status || '—']
+                ])
+            );
+            if (c.event_id && $('#rebuild-event option[value="' + c.event_id + '"]').length) {
+                $out.append($('<button type="button" class="btn btn-outline-secondary btn-sm align-self-start">').text('Open this event below').on('click', function () {
+                    $('#rebuild-event').val(String(c.event_id)).trigger('change');
+                    document.getElementById('rb-bulk').scrollIntoView({ behavior: 'smooth' });
+                }));
+            }
+        }).fail(function (xhr) {
+            $out.append(msg('error', 'Request failed (' + xhr.status + ').'));
+        }).always(function () { busy($btn, false); });
+    });
+
+    // ---- Summary for an event ----
+    var summary = null;
+    $('#rebuild-event').on('change', function (e, keepResult) {
+        var id = parseInt($(this).val(), 10);
+        summary = null;
+        if (!keepResult) { $('#rebuild-result').empty(); }
+        $('#summary-block').prop('hidden', !id);
+        if (!id) { return; }
+        var $c = $('#summary-content').empty().append($('<p class="w-sub mb-0">').text('Loading…'));
+        $.post(ajaxurl, { action: 'sc_rebuild_event_summary', nonce: nonce, event_id: id }).done(function (res) {
+            $c.empty();
+            if (!res || !res.success) { $c.append(msg('error', (res && res.data && res.data.message) || 'Could not load this event.')); return; }
+            summary = res.data;
+            if (!summary.total) {
+                $c.append(msg('warn', 'This event has no issued certificates.'));
+                $('#rebuild-btn').prop('disabled', true);
+                return;
+            }
+            $('#rebuild-btn').prop('disabled', false);
+            var $tbody = $('<tbody>');
+            summary.templates.forEach(function (t) {
+                $('<tr>').append(
+                    $('<td dir="auto">').text(t.template_name ? ref(t.template_id, t.template_name) : 'Deleted template (#' + t.template_id + ')'),
+                    $('<td class="w-num">').text(Number(t.cert_count).toLocaleString())
+                ).appendTo($tbody);
+            });
+            $c.append(
+                $('<p class="mb-0">').text(Number(summary.total).toLocaleString() + ' certificates issued, using these templates:'),
+                $('<div class="w-table-scroll">').append($('<table class="w-table">').append('<thead><tr><th scope="col">Template</th><th scope="col" class="w-num">Certificates</th></tr></thead>', $tbody)),
+                summary.templates.length > 1 ? msg('warn', 'Certificates of this event use more than one template. Pick the right one in step 2 to make them all the same.') : ''
+            );
+        }).fail(function (xhr) {
+            $c.empty().append(msg('error', 'Request failed (' + xhr.status + ').'));
+        });
+    });
+
+    // ---- Rebuild ----
+    $('#rebuild-btn').on('click', function () {
+        if (!summary) { return; }
         var templateId = parseInt($('#rebuild-template').val(), 10) || 0;
-
-        var msg = templateId
-            ? 'سيتم إعادة بناء كل شهادات هذا الإيفنت وربطها بالقالب المختار.\nمتابعة؟'
-            : 'سيتم تحديث البيانات (اسم الحضور / عنوان الإيفنت / التاريخ) فقط دون تغيير القالب.\nمتابعة؟';
-        if (!confirm(msg)) return;
-
-        var $btn = $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Rebuilding...');
-        var $out = $('#rebuild-result').html('<div class="alert alert-info">Working… (this may take a minute for events with many attendees)</div>');
-
-        $.post(ajaxurl, {
-            action: 'sc_rebuild_event_certificates',
-            nonce: nonce,
-            event_id: eventId,
-            template_id: templateId
-        }).done(function(res) {
-            if (!res.success) {
-                $out.html('<div class="alert alert-danger">' + (res.data && res.data.message ? res.data.message : 'Error') + '</div>');
-                return;
-            }
-            var d = res.data;
-            $out.html('<div class="alert alert-success">'
-                + '<strong><i class="fa fa-check"></i> Done</strong><br>'
-                + 'Certificates updated: <strong>' + d.updated + '</strong><br>'
-                + 'Cache files cleared: <strong>' + d.cache_cleared + '</strong><br>'
-                + (d.skipped > 0 ? 'Skipped (no attendee/event found): <strong>' + d.skipped + '</strong><br>' : '')
-                + '</div>');
-        }).fail(function(xhr) {
-            $out.html('<div class="alert alert-danger">Request failed: ' + xhr.status + '</div>');
-        }).always(function() {
-            $btn.prop('disabled', false).html('<i class="fa fa-wrench"></i> Rebuild All');
+        var templateName = templateId ? $('#rebuild-template option:selected').text() : '';
+        Swal.fire({
+            icon: 'warning',
+            title: 'Rebuild ' + Number(summary.total).toLocaleString() + ' certificates?',
+            text: templateId
+                ? 'Every certificate of "' + summary.event_title + '" will use "' + templateName + '", with names, title and date refreshed.'
+                : 'Names, event title and date on every certificate of "' + summary.event_title + '" will be refreshed. Templates stay as they are.',
+            showCancelButton: true,
+            confirmButtonText: 'Rebuild',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#B42318',
+            focusCancel: true
+        }).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            var $btn = $('#rebuild-btn');
+            var $out = $('#rebuild-result').empty().append(msg('warn', 'Working… events with many certificates can take a minute. Keep this page open.'));
+            busy($btn, true, 'Rebuilding…');
+            $.post(ajaxurl, { action: 'sc_rebuild_event_certificates', nonce: nonce, event_id: summary.event_id, template_id: templateId }).done(function (res) {
+                $out.empty();
+                if (!res || !res.success) { $out.append(msg('error', (res && res.data && res.data.message) || 'Rebuild failed.')); return; }
+                var d = res.data;
+                $out.append(msg('ok', 'Done. ' + Number(d.updated).toLocaleString() + ' certificates updated, ' + Number(d.cache_cleared).toLocaleString() + ' cached files cleared' + (d.skipped > 0 ? ', ' + d.skipped + ' skipped because their attendee or event no longer exists' : '') + '.'));
+                $('#rebuild-event').trigger('change', [true]);
+            }).fail(function (xhr) {
+                $out.empty().append(msg('error', 'Request failed (' + xhr.status + '). Some certificates may already be updated; load the summary again before retrying.'));
+            }).always(function () { busy($btn, false); });
         });
     });
-
-    function escapeHtml(s) {
-        if (s === null || s === undefined) return '';
-        return String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
 });
 </script>
 

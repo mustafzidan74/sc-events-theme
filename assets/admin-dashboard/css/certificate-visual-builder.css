@@ -542,3 +542,79 @@ input[type="color"].form-control {
 [data-tooltip]:hover::after {
     opacity: 1;
 }
+
+
+/* ================================
+   Dashboard layout (Wisdom design)
+   Three columns on wide screens; the palette wraps above the canvas on
+   laptops; phones get a note instead of an unusable canvas.
+   ================================ */
+.w-builder {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+}
+
+.w-builder > div { min-width: 0; }
+.w-builder .card { margin-bottom: 16px; }
+
+.w-builder__stage {
+    background: var(--w-surface-2, #F3F1ED);
+    overflow: auto;
+    padding: 16px !important;
+    min-height: 360px;
+}
+
+.w-builder__sizer {
+    position: relative;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.w-builder__sizer #canvas-wrapper { position: absolute; top: 0; left: 0; }
+
+#elements-palette {
+    max-height: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+}
+
+.w-builder .widget-item {
+    margin: 0;
+    background: var(--w-surface);
+    border-color: var(--w-border);
+    color: var(--w-text);
+    border-radius: var(--w-radius-md, 8px);
+}
+
+.w-builder .widget-item:hover { background: var(--w-primary-soft); border-color: var(--w-primary); transform: none; }
+.w-builder .widget-item i { color: var(--w-primary-text, #7C1314); margin-right: 0; margin-inline-end: 8px; }
+.w-builder .widget-item span { white-space: normal; line-height: 1.25; }
+
+.w-builder__small {
+    display: none;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: var(--w-radius-md, 8px);
+    background: var(--w-warning-soft, #FEF3E2);
+    color: var(--w-warning, #B54708);
+    font-size: 13.5px;
+}
+
+@media (max-width: 1279.98px) {
+    .w-builder { grid-template-columns: minmax(0, 1fr) 280px; }
+    .w-builder__left { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+    .w-builder__left .card { margin-bottom: 0; }
+    #elements-palette { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+@media (max-width: 991.98px) {
+    .w-builder { grid-template-columns: minmax(0, 1fr); }
+    .w-builder__left { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 767.98px) {
+    .w-builder__small { display: block; }
+}

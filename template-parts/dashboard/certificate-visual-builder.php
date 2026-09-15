@@ -109,6 +109,8 @@ if (!SC_Event_Manager_Dashboard::is_event_manager()) {
 }
 
 $page_title = $t['page_title'];
+global $load_wd_form;
+$load_wd_form = true;
 get_template_part('template-parts/dashboard/components/dashboard', 'header');
 
 // Check if editing existing template
@@ -272,34 +274,23 @@ $paper_sizes = SC_Certificate_Template::get_paper_sizes();
 <!-- Main Content -->
 <div id="main-content">
     <div class="container-fluid">
-        <div class="block-header">
-            <div class="row">
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <h2><?php echo $t['page_title']; ?></h2>
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/home'); ?>"><i class="fa fa-dashboard"></i></a></li>
-                        <li class="breadcrumb-item"><a href="<?php echo home_url('/event-manager-dashboard/certificate-templates'); ?>"><?php echo $t['certificates']; ?></a></li>
-                        <li class="breadcrumb-item active"><?php echo $t['visual_builder']; ?></li>
-                    </ul>
-                </div>
-                <div class="col-lg-6 col-md-6 col-sm-12">
-                    <div class="d-flex flex-row-reverse">
-                        <div class="page_action">
-                            <button type="button" class="btn btn-info mr-2" id="preview-certificate-btn">
-                                <i class="fa fa-eye"></i> <?php echo $t['preview']; ?>
-                            </button>
-                            <button type="button" class="btn btn-primary" id="save-visual-template-btn">
-                                <i class="fa fa-save"></i> <?php echo $t['save_template']; ?>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        <div class="w-page-head">
+            <div>
+                <h1><?php echo esc_html($template ? $template->name : sc_t('dashboard_pages.new_certificate_design', 'New certificate design')); ?></h1>
+                <p class="w-page-head__sub"><?php echo esc_html(sc_t('dashboard_pages.builder_sub', 'Drag fields onto the certificate, then save. Names, dates and codes are filled in for each person when certificates are issued.')); ?></p>
+            </div>
+            <div class="w-page-head__actions">
+                <a class="btn btn-outline-secondary" href="<?php echo esc_url(home_url('/event-manager-dashboard/certificate-templates')); ?>"><?php echo esc_html(sc_t('dashboard_pages.templates', 'Templates')); ?></a>
+                <button type="button" class="btn btn-outline-secondary" id="preview-certificate-btn"><?php echo esc_html($t['preview']); ?></button>
+                <button type="button" class="btn btn-primary" id="save-visual-template-btn"><?php echo esc_html($t['save_template']); ?></button>
             </div>
         </div>
 
-        <div class="row clearfix">
+        <p class="w-builder__small" role="note"><?php echo esc_html(sc_t('dashboard_pages.builder_small_screen', 'The designer needs a wider screen. Open this page on a computer to edit the layout.')); ?></p>
+
+        <div class="w-builder">
             <!-- Left Panel - Element Widgets -->
-            <div class="col-lg-2 col-md-3">
+            <div class="w-builder__left">
                 <div class="card">
                     <div class="header">
                         <h2><i class="fa fa-puzzle-piece"></i> <?php echo $t['elements']; ?></h2>
@@ -340,27 +331,29 @@ $paper_sizes = SC_Certificate_Template::get_paper_sizes();
             </div>
 
             <!-- Center - Canvas -->
-            <div class="col-lg-7 col-md-6">
+            <div class="w-builder__center">
                 <div class="card">
                     <div class="header">
                         <h2><i class="fa fa-object-group"></i> <?php echo $t['design_canvas']; ?></h2>
                         <ul class="header-dropdown">
                             <li>
-                                <select class="form-control form-control-sm" id="canvas-zoom" style="width: auto;">
+                                <select class="form-control form-control-sm" id="canvas-zoom" style="width: auto;" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.zoom', 'Zoom')); ?>">
+                                    <option value="fit" selected><?php echo esc_html(sc_t('dashboard_pages.zoom_fit', 'Fit')); ?></option>
                                     <option value="0.5">50%</option>
-                                    <option value="0.75" selected>75%</option>
+                                    <option value="0.75">75%</option>
                                     <option value="1">100%</option>
                                     <option value="1.25">125%</option>
                                 </select>
                             </li>
                         </ul>
                     </div>
-                    <div class="body" style="background: #e9ecef; overflow: auto; min-height: 600px;" id="canvas-container">
-                        <!-- Canvas wrapper for zoom -->
+                    <div class="body w-builder__stage" id="canvas-container">
+                        <!-- The sizer takes the scaled size, so zooming never overflows the card. -->
+                        <div id="canvas-sizer" class="w-builder__sizer">
                         <div id="canvas-wrapper" style="transform-origin: top left;">
                             <!-- Certificate Canvas -->
                             <div id="certificate-canvas" class="certificate-canvas"
-                                 style="width: 1123px; height: 794px; background: white; position: relative; margin: 20px auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                                 style="width: 1123px; height: 794px; background: white; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
 
                                 <!-- Background Image Layer -->
                                 <div id="background-layer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;">
@@ -382,12 +375,13 @@ $paper_sizes = SC_Certificate_Template::get_paper_sizes();
                                 </div>
                             </div>
                         </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Right Panel - Properties -->
-            <div class="col-lg-3 col-md-3">
+            <div class="w-builder__right">
                 <!-- Canvas Settings -->
                 <div class="card">
                     <div class="header">
@@ -630,8 +624,8 @@ $paper_sizes = SC_Certificate_Template::get_paper_sizes();
 
 <!-- Element Types Config (for JavaScript) -->
 <script>
-    window.elementTypes = <?php echo json_encode($element_types); ?>;
-    window.existingTemplate = <?php echo $template ? json_encode(array(
+    window.elementTypes = <?php echo wp_json_encode($element_types, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    window.existingTemplate = <?php echo $template ? wp_json_encode(array(
         'id' => $template->id,
         'name' => $template->name,
         'description' => $template->description ?? '',
@@ -639,7 +633,7 @@ $paper_sizes = SC_Certificate_Template::get_paper_sizes();
         'orientation' => $template->orientation,
         'background_image_url' => $template->background_image_url,
         'elements_config' => $elements_config
-    )) : 'null'; ?>;
+    ), JSON_HEX_TAG | JSON_HEX_AMP) : 'null'; ?>;
 
     // Translations for JavaScript
     window.visualBuilderTranslations = {
@@ -666,9 +660,9 @@ $paper_sizes = SC_Certificate_Template::get_paper_sizes();
 </script>
 
 <!-- Load Visual Builder CSS -->
-<link rel="stylesheet" href="<?php echo get_template_directory_uri(); ?>/assets/admin-dashboard/css/certificate-visual-builder.css">
+<link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('admin-dashboard/css/certificate-visual-builder.css')); ?>">
 
 <!-- Load Visual Builder JS -->
-<script src="<?php echo get_template_directory_uri(); ?>/assets/admin-dashboard/js/certificate-visual-builder.js"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('admin-dashboard/js/certificate-visual-builder.js')); ?>"></script>
 
 <?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>

@@ -21,6 +21,7 @@
         elementStartSize: { width: 0, height: 0 },
         resizeHandle: null,
         zoom: 0.75,
+        fit: true,
         canvasSize: { width: 1123, height: 794 }, // A4 Landscape at 96 DPI (approx)
         templateId: null,
         backgroundImage: null,
@@ -48,7 +49,7 @@
 
     function initializeBuilder() {
         // Set initial zoom
-        updateZoom(state.zoom);
+        updateZoom(state.fit ? fitZoom() : state.zoom);
 
         // Initialize from URL param if present
         const urlParams = new URLSearchParams(window.location.search);
@@ -113,9 +114,16 @@
         // Keyboard shortcuts
         $(document).on('keydown', handleKeyDown);
 
-        // Zoom control
+        // Zoom control ("fit" follows the width of the stage)
         $('#canvas-zoom').on('change', function() {
-            updateZoom(parseFloat($(this).val()));
+            const v = $(this).val();
+            state.fit = v === 'fit';
+            updateZoom(state.fit ? fitZoom() : parseFloat(v));
+        });
+        let resizeTimer = null;
+        $(window).on('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() { if (state.fit) { updateZoom(fitZoom()); } }, 120);
         });
 
         // Paper size change
@@ -698,9 +706,20 @@
     // ================================
     // Canvas Operations
     // ================================
+    function fitZoom() {
+        const stage = document.getElementById('canvas-container');
+        const available = stage ? stage.clientWidth - 32 : state.canvasSize.width;
+        return Math.max(0.2, Math.min(1.25, available / state.canvasSize.width));
+    }
+
     function updateZoom(zoom) {
         state.zoom = zoom;
         $('#canvas-wrapper').css('transform', `scale(${zoom})`);
+        // transform does not change layout size; the sizer carries the scaled size.
+        $('#canvas-sizer').css({
+            width: Math.ceil(state.canvasSize.width * zoom) + 'px',
+            height: Math.ceil(state.canvasSize.height * zoom) + 'px'
+        });
     }
 
     function updateCanvasOrientation() {
@@ -716,6 +735,7 @@
             width: size.width + 'px',
             height: size.height + 'px'
         });
+        updateZoom(state.fit ? fitZoom() : state.zoom);
 
         markUnsaved();
     }
