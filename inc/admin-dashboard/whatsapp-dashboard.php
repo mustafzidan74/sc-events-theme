@@ -37,6 +37,7 @@ function sc_wabot_public_state() {
             'phone'        => (string) ($n['phone'] ?? ''),
             'enabled'      => !empty($n['enabled']),
             'chat'         => !empty($n['chat']),
+            'bulk'         => !isset($n['bulk']) || !empty($n['bulk']),
             'status'       => (string) ($n['status'] ?? 'unknown'),
             'status_error' => (string) ($n['status_error'] ?? ''),
             'status_at'    => (string) ($n['status_at'] ?? ''),
@@ -185,7 +186,7 @@ add_action('wp_ajax_sc_wabot_update_number', function () {
         }
         $n['label'] = $label;
     }
-    foreach (array('enabled', 'chat') as $flag) {
+    foreach (array('enabled', 'chat', 'bulk') as $flag) {
         if (isset($_POST[$flag])) {
             $n[$flag] = (!empty($_POST[$flag]) && $_POST[$flag] !== '0') ? 1 : 0;
         }

@@ -43,6 +43,9 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
         </div>
         <div class="w-page-head__actions">
             <a class="btn btn-secondary" href="<?php echo esc_url($dashboard_url . 'certificate-templates'); ?>"><?php echo esc_html(sc_t('dashboard_pages.templates', 'Templates')); ?></a>
+            <?php if (function_exists('sc_wabot_candidates') && sc_wabot_candidates(null, 'campaign')): ?>
+            <a class="btn btn-secondary" id="wa-send-link" href="<?php echo esc_url($dashboard_url . 'whatsapp-send?source=certificates'); ?>"><?php echo esc_html(sc_t('whatsapp.send_certificates', 'Send on WhatsApp')); ?></a>
+            <?php endif; ?>
             <a class="btn btn-secondary" href="<?php echo esc_url(home_url('/certificate-verify/')); ?>" target="_blank" rel="noopener"><i class="fa fa-external-link" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.verification_page', 'Verification page')); ?></a>
             <a class="btn btn-primary" id="issue-link" href="<?php echo esc_url($dashboard_url . 'certificate-issue'); ?>"><i class="fa fa-plus" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.issue_certificates', 'Issue certificates')); ?></a>
         </div>
@@ -211,6 +214,7 @@ jQuery(function ($) {
         emptyText: L.emptyText,
         onFiltersChange: function (f) {
             $('#issue-link').attr('href', dashboardUrl + 'certificate-issue' + (f.event_id ? '?event_id=' + encodeURIComponent(f.event_id) : ''));
+            $('#wa-send-link').attr('href', dashboardUrl + 'whatsapp-send?source=certificates' + (f.event_id ? '&event_id=' + encodeURIComponent(f.event_id) : ''));
         },
         columns: [
             {

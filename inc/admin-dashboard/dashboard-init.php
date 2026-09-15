@@ -316,6 +316,7 @@ class SC_Event_Manager_Dashboard {
             // Notifications
             'notifications',
             'whatsapp',
+            'whatsapp-send',
             // Module Manager
             'module-manager'
         );

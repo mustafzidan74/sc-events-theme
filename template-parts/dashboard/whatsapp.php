@@ -302,7 +302,7 @@ jQuery(function ($) {
 
             if (isAdmin) {
                 var $row = $('<div class="w-wa__numrow">').appendTo($card);
-                $row.append(toggle('enabled', 'On', n.enabled), toggle('chat', 'Handles the website chat', n.chat));
+                $row.append(toggle('enabled', 'On', n.enabled), toggle('chat', 'Handles the website chat', n.chat), toggle('bulk', 'Used for bulk sending', n.bulk));
                 var $acts = $('<span class="w-wa__numrow">').appendTo($row);
                 if (n.can_qr && n.status !== 'connected') { $('<button type="button" class="btn btn-primary btn-sm" data-act="qr">').text('Show QR').appendTo($acts); }
                 $('<button type="button" class="btn btn-outline-secondary btn-sm" data-act="test">').text('Send test').appendTo($acts);

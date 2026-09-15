@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const SC_WABOT_DB_VERSION = '1';
+const SC_WABOT_DB_VERSION = '2';
 
 /* ==========================================================================
    Settings and secrets
@@ -253,12 +253,36 @@ function sc_wabot_install() {
         wa_jid varchar(120) DEFAULT NULL,
         delivery varchar(20) DEFAULT NULL,
         error varchar(255) DEFAULT NULL,
+        campaign_id bigint(20) unsigned DEFAULT NULL,
+        recipient_name varchar(190) DEFAULT NULL,
+        used_number varchar(40) DEFAULT NULL,
+        tried_numbers varchar(255) DEFAULT NULL,
         created_at datetime NOT NULL,
         updated_at datetime DEFAULT NULL,
         PRIMARY KEY  (id),
         KEY status_next (status,next_attempt_at),
         KEY wa_message_id (wa_message_id),
-        KEY context (context,context_id)
+        KEY context (context,context_id),
+        KEY campaign (campaign_id,status)
+    ) $charset;");
+    dbDelta("CREATE TABLE {$wpdb->prefix}sc_wa_campaigns (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        title varchar(190) NOT NULL,
+        source varchar(40) NOT NULL DEFAULT 'manual',
+        event_id bigint(20) unsigned DEFAULT NULL,
+        audience varchar(60) NOT NULL DEFAULT '',
+        message text NOT NULL,
+        interval_seconds smallint(5) unsigned NOT NULL DEFAULT 45,
+        status varchar(20) NOT NULL DEFAULT 'running',
+        paused_reason varchar(190) DEFAULT NULL,
+        total int(10) unsigned NOT NULL DEFAULT 0,
+        next_send_at datetime DEFAULT NULL,
+        created_by bigint(20) unsigned DEFAULT NULL,
+        created_at datetime NOT NULL,
+        started_at datetime DEFAULT NULL,
+        finished_at datetime DEFAULT NULL,
+        PRIMARY KEY  (id),
+        KEY status (status)
     ) $charset;");
     dbDelta("CREATE TABLE {$wpdb->prefix}sc_wa_inbound (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -350,6 +374,38 @@ function sc_wabot_send_after_response($id) {
     });
 }
 
+/**
+ * Numbers to try for a message, in order: the one it was queued on, then the other usable numbers
+ * (connected first). Chat messages prefer chat numbers; campaign messages use numbers allowed for bulk.
+ */
+function sc_wabot_candidates($preferred, $context, $exclude = array()) {
+    $settings = sc_wabot_settings();
+    $secrets = sc_wabot_secrets();
+    $bulk = strpos((string) $context, 'campaign') === 0;
+    $scored = array();
+    foreach ($settings['numbers'] as $key => $n) {
+        if (in_array($key, $exclude, true) || empty($n['enabled']) || empty($secrets['numbers'][$key]['token'])) {
+            continue;
+        }
+        if ($bulk && isset($n['bulk']) && !$n['bulk']) {
+            continue;
+        }
+        $score = ($n['status'] ?? '') === 'connected' ? 0 : 10;
+        if ($key === $preferred) {
+            $score -= 5;
+        }
+        if (!$bulk && !empty($n['chat'])) {
+            $score -= 1;
+        }
+        if (in_array($n['status'] ?? '', array('banned', 'logged_out', 'token_rejected', 'deleted'), true)) {
+            $score += 50; // last resort only
+        }
+        $scored[$key] = $score;
+    }
+    asort($scored);
+    return array_keys($scored);
+}
+
 function sc_wabot_process_one($id) {
     global $wpdb;
     $table = $wpdb->prefix . 'sc_wa_outbox';
@@ -363,28 +419,58 @@ function sc_wabot_process_one($id) {
     }
     $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
     $now = current_time('timestamp');
-    $update = array('attempts' => (int) $row->attempts + 1, 'updated_at' => current_time('mysql'));
+    $update = array('attempts' => min(255, (int) $row->attempts + 1), 'updated_at' => current_time('mysql'));
 
     if ($row->expires_at && strtotime($row->expires_at) < $now) {
         $wpdb->update($table, $update + array('status' => 'expired', 'error' => 'Not sent in time'), array('id' => $id));
         return;
     }
 
-    $result = sc_wabot_request($row->number_key, 'POST', '/api/send-text', array('to' => $row->to_phone, 'text' => $row->body), 20);
+    $tried = array();
     $retry = false;
-    if (is_wp_error($result)) {
+    $errors = array();
+    foreach (sc_wabot_candidates($row->number_key, $row->context) as $key) {
+        $tried[] = $key;
+        $result = sc_wabot_request($key, 'POST', '/api/send-text', array('to' => $row->to_phone, 'text' => $row->body), 20);
+        if (is_wp_error($result)) {
+            // wa-bot itself is unreachable: every number lives there, so wait and retry.
+            $errors[] = $result->get_error_message();
+            $retry = true;
+            break;
+        }
+        $code = $result['code'];
+        $data = $result['data'];
+        if ($code === 200 && !empty($data['ok'])) {
+            $update += array('status' => 'sent', 'error' => null, 'used_number' => $key,
+                'wa_message_id' => sanitize_text_field($data['id'] ?? ''), 'wa_jid' => sanitize_text_field($data['jid'] ?? ''));
+            break;
+        }
+        if ($code === 200 && !empty($data['skipped'])) {
+            $update += array('status' => 'skipped', 'error' => 'This number is not on WhatsApp', 'used_number' => $key);
+            break;
+        }
+        if ($code === 400) {
+            $update += array('status' => 'failed', 'error' => mb_substr((string) ($data['error'] ?? 'Rejected'), 0, 250), 'used_number' => $key);
+            break;
+        }
+        // The number could not send (token rejected, rate limited, disconnected): try the next number.
+        $errors[] = (sc_wabot_settings()['numbers'][$key]['label'] ?? $key) . ': ' . (string) ($data['error'] ?? ('HTTP ' . $code));
+        if ($code === 401) {
+            sc_wabot_patch_number($key, array('status' => 'token_rejected', 'status_at' => current_time('mysql'), 'status_error' => mb_substr((string) ($data['error'] ?? ''), 0, 160)));
+        } elseif ($code >= 500) {
+            sc_wabot_patch_number($key, array('status' => 'disconnected', 'status_at' => current_time('mysql'), 'status_error' => mb_substr((string) ($data['error'] ?? ''), 0, 160)));
+        }
         $retry = true;
-        $update['error'] = mb_substr($result->get_error_message(), 0, 250);
-    } elseif ($result['code'] === 200 && !empty($result['data']['ok'])) {
-        $update += array('status' => 'sent', 'error' => null, 'wa_message_id' => sanitize_text_field($result['data']['id'] ?? ''), 'wa_jid' => sanitize_text_field($result['data']['jid'] ?? ''));
-    } elseif ($result['code'] === 200 && !empty($result['data']['skipped'])) {
-        $update += array('status' => 'skipped', 'error' => 'This number is not on WhatsApp');
-    } elseif ($result['code'] === 400) {
-        $update += array('status' => 'failed', 'error' => mb_substr((string) ($result['data']['error'] ?? 'Rejected'), 0, 250));
+    }
+    if (!isset($update['status']) && !$retry) {
+        $retry = true;
+        $errors[] = 'No WhatsApp number is available';
+    }
+    $update['tried_numbers'] = mb_substr(implode(',', $tried), 0, 255);
+    if (isset($update['status'])) {
+        $retry = false;
     } else {
-        // 401 (token), 429 (rate limit), 5xx / 503 (number disconnected): try again later.
-        $retry = true;
-        $update['error'] = mb_substr((string) ($result['data']['error'] ?? ('HTTP ' . $result['code'])), 0, 250);
+        $update['error'] = mb_substr(implode(' | ', $errors), 0, 250);
     }
     if ($retry) {
         $delays = array(1, 5, 15, 30, 60, 120);
@@ -408,7 +494,7 @@ function sc_wabot_process_due() {
     $table = $wpdb->prefix . 'sc_wa_outbox';
     // Rows stuck in "sending" (request died mid-send) go back after 10 minutes.
     $wpdb->query($wpdb->prepare("UPDATE $table SET status = 'pending' WHERE status = 'sending' AND updated_at < %s", date('Y-m-d H:i:s', current_time('timestamp') - 600)));
-    $ids = $wpdb->get_col($wpdb->prepare("SELECT id FROM $table WHERE status = 'pending' AND next_attempt_at <= %s ORDER BY id LIMIT 25", current_time('mysql')));
+    $ids = $wpdb->get_col($wpdb->prepare("SELECT id FROM $table WHERE status = 'pending' AND campaign_id IS NULL AND next_attempt_at <= %s ORDER BY id LIMIT 25", current_time('mysql')));
     foreach ($ids as $id) {
         sc_wabot_process_one((int) $id);
     }
@@ -443,6 +529,9 @@ add_action('init', function () {
 add_action('sc_wabot_tick', function () {
     sc_wabot_process_due();
     sc_wabot_escalate_alerts();
+    if (function_exists('sc_wabot_campaign_tick')) {
+        sc_wabot_campaign_tick();
+    }
 });
 add_action('sc_wabot_status_tick', 'sc_wabot_refresh_all');
 
@@ -717,6 +806,11 @@ function sc_wabot_handle_message($key, $event, $m, $log_id) {
     }
 
     $phone = sc_wabot_jid_phone($jid);
+    if (!$outgoing && sc_wabot_is_stop_word($text)) {
+        sc_wabot_opt_out($phone ?: $jid, true);
+        $wpdb->update($inbound, $log + array('outcome' => 'opt_out'), array('id' => $log_id));
+        return;
+    }
     if (!$outgoing && $phone && in_array($phone, array_column(sc_wabot_recipients(), 'phone'), true)) {
         $wpdb->update($inbound, $log + array('outcome' => 'staff'), array('id' => $log_id));
         return;
@@ -767,4 +861,33 @@ function sc_wabot_find_conversation($jid, $phone) {
         }
     }
     return null;
+}
+
+/* ==========================================================================
+   Opt-out
+   ========================================================================== */
+
+function sc_wabot_is_stop_word($text) {
+    $t = mb_strtolower(trim(preg_replace('/[\s\p{P}]+/u', ' ', (string) $text)));
+    return in_array($t, array('stop', 'unsubscribe', 'الغاء', 'إلغاء', 'ايقاف', 'إيقاف', 'الغاء الاشتراك', 'إلغاء الاشتراك', 'stop messages'), true);
+}
+
+/** People who asked not to get bulk messages (phone digits or a hidden @lid id). */
+function sc_wabot_opt_outs() {
+    $list = get_option('sc_wa_opt_outs', array());
+    return is_array($list) ? $list : array();
+}
+
+function sc_wabot_opt_out($id, $out = true) {
+    $id = (string) $id;
+    if ($id === '') {
+        return;
+    }
+    $list = sc_wabot_opt_outs();
+    if ($out) {
+        $list[$id] = current_time('mysql');
+    } else {
+        unset($list[$id]);
+    }
+    update_option('sc_wa_opt_outs', $list, false);
 }
