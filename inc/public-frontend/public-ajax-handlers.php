@@ -1197,10 +1197,29 @@ function sc_public_send_ticket_email($attendee_id) {
 }
 
 /**
+ * Password reset is paused (2026-09-15). The old check asked for the last 4 digits of the phone on
+ * file, and asking again reset the attempt counter, so anyone knowing an email could guess their
+ * way in. It returns with a real code sent on WhatsApp. Until then every step answers with this.
+ */
+function sc_password_reset_available() {
+    return (bool) apply_filters('sc_password_reset_available', false);
+}
+
+function sc_password_reset_paused() {
+    if (!sc_password_reset_available()) {
+        wp_send_json_error(array(
+            'message' => __('Password reset is temporarily unavailable. Please contact us and we will help you sign in.', 'sc_events'),
+            'paused'  => true,
+        ), 403);
+    }
+}
+
+/**
  * Send OTP Handler - Step 1
  */
 add_action('wp_ajax_nopriv_sc_send_otp', 'sc_send_otp_handler');
 function sc_send_otp_handler() {
+    sc_password_reset_paused();
     sc_verify_public_nonce();
 
     $email = sanitize_email($_POST['email'] ?? '');
@@ -1307,6 +1326,7 @@ function sc_send_otp_handler() {
  */
 add_action('wp_ajax_nopriv_sc_verify_otp', 'sc_verify_otp_handler');
 function sc_verify_otp_handler() {
+    sc_password_reset_paused();
     sc_verify_public_nonce();
 
     $email = sanitize_email($_POST['email'] ?? '');
@@ -1367,6 +1387,7 @@ function sc_verify_otp_handler() {
  */
 add_action('wp_ajax_nopriv_sc_reset_password_with_otp', 'sc_reset_password_with_otp_handler');
 function sc_reset_password_with_otp_handler() {
+    sc_password_reset_paused();
     sc_verify_public_nonce();
 
     $email = sanitize_email($_POST['email'] ?? '');
@@ -1435,6 +1456,7 @@ function sc_reset_password_with_otp_handler() {
 add_action('wp_ajax_nopriv_sc_verify_identity', 'sc_verify_identity_handler');
 add_action('wp_ajax_sc_verify_identity', 'sc_verify_identity_handler');
 function sc_verify_identity_handler() {
+    sc_password_reset_paused();
     sc_verify_public_nonce();
 
     $email = sanitize_email($_POST['email'] ?? '');
@@ -1510,6 +1532,7 @@ function sc_verify_identity_handler() {
 add_action('wp_ajax_nopriv_sc_reset_password_verified', 'sc_reset_password_verified_handler');
 add_action('wp_ajax_sc_reset_password_verified', 'sc_reset_password_verified_handler');
 function sc_reset_password_verified_handler() {
+    sc_password_reset_paused();
     sc_verify_public_nonce();
 
     $email = sanitize_email($_POST['email'] ?? '');

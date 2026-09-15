@@ -19,6 +19,13 @@ $platform_name = get_option('sc_platform_name', get_bloginfo('name'));
 $platform_logo_id = get_option('sc_platform_logo');
 $platform_logo_url = $platform_logo_id ? wp_get_attachment_image_url($platform_logo_id, 'full') : '';
 
+// Paused until the WhatsApp code replaces the old last-4-digits check (sc_password_reset_available()).
+$reset_paused = !function_exists('sc_password_reset_available') || !sc_password_reset_available();
+$platform_whatsapp = preg_replace('/\D/', '', (string) get_option('sc_platform_whatsapp', ''));
+if ($platform_whatsapp !== '' && strpos($platform_whatsapp, '0') === 0) {
+    $platform_whatsapp = '20' . substr($platform_whatsapp, 1);
+}
+
 // Load header
 get_template_part('template-parts/public/header', 'public');
 ?>
@@ -28,6 +35,13 @@ get_template_part('template-parts/public/header', 'public');
     <div class="w-auth__card">
         <div class="w-auth__form">
             <h1 class="w-auth__title"><?php echo esc_html(sc_t('frontend.reset_password', 'Reset your password')); ?></h1>
+            <?php if ($reset_paused): ?>
+            <p class="w-auth__lede"><?php echo esc_html(sc_t('frontend.reset_paused', 'Resetting a password on the site is paused while we move it to a code sent on WhatsApp. Contact us and we will help you sign in right away.')); ?></p>
+            <?php if ($platform_whatsapp): ?>
+                <a class="w-btn w-btn--lg" href="<?php echo esc_url('https://wa.me/' . $platform_whatsapp . '?text=' . rawurlencode(sc_t('frontend.reset_paused_wa', 'Hello, I need help signing in to my account.'))); ?>" target="_blank" rel="noopener"><?php echo esc_html(sc_t('frontend.contact_whatsapp', 'Contact us on WhatsApp')); ?></a>
+            <?php endif; ?>
+            <a class="w-btn w-btn--lg <?php echo $platform_whatsapp ? 'w-btn--outline' : ''; ?>" href="<?php echo esc_url(home_url('/contact/')); ?>"><?php echo esc_html(sc_t('frontend.contact_page', 'Contact page')); ?></a>
+            <?php else: ?>
             <p class="w-auth__lede" id="step-subtitle">
                 <?php echo esc_html(sc_t('frontend.reset_lede', 'Enter the email on your account and we will send a verification code.')); ?>
             </p>
@@ -120,6 +134,7 @@ get_template_part('template-parts/public/header', 'public');
                     <?php echo esc_html(sc_t('frontend.reset_password_action', 'Reset password')); ?>
                 </button>
             </form>
+            <?php endif; ?>
 
             <p class="w-auth__foot">
                 <?php echo esc_html(sc_t('frontend.remember_password', 'Remember your password?')); ?>
@@ -131,6 +146,7 @@ get_template_part('template-parts/public/header', 'public');
     </div>
 </section>
 
+<?php if (!$reset_paused): ?>
 <script>
 // Toggle Password Visibility
 function togglePassword(fieldId) {
@@ -406,6 +422,7 @@ jQuery(document).ready(function($) {
     }
 });
 </script>
+<?php endif; ?>
 
 <?php
 // Load footer
