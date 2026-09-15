@@ -38,6 +38,7 @@ function sc_wabot_public_state() {
             'enabled'      => !empty($n['enabled']),
             'chat'         => !empty($n['chat']),
             'bulk'         => !isset($n['bulk']) || !empty($n['bulk']),
+            'notify'       => !isset($n['notify']) || !empty($n['notify']),
             'status'       => (string) ($n['status'] ?? 'unknown'),
             'status_error' => (string) ($n['status_error'] ?? ''),
             'status_at'    => (string) ($n['status_at'] ?? ''),
@@ -186,7 +187,7 @@ add_action('wp_ajax_sc_wabot_update_number', function () {
         }
         $n['label'] = $label;
     }
-    foreach (array('enabled', 'chat', 'bulk') as $flag) {
+    foreach (array('enabled', 'chat', 'bulk', 'notify') as $flag) {
         if (isset($_POST[$flag])) {
             $n[$flag] = (!empty($_POST[$flag]) && $_POST[$flag] !== '0') ? 1 : 0;
         }
@@ -286,10 +287,12 @@ add_action('wp_ajax_sc_wabot_log', function () {
     $p = $wpdb->prefix;
     $labels = wp_list_pluck(sc_wabot_settings()['numbers'], 'label');
     $out = array();
-    foreach ($wpdb->get_results("SELECT id, number_key, to_phone, body, context, context_id, status, attempts, delivery, error, created_at, updated_at FROM {$p}sc_wa_outbox ORDER BY id DESC LIMIT 60") as $r) {
+    foreach ($wpdb->get_results("SELECT id, number_key, used_number, to_phone, body, context, context_id, media_ref, status, attempts, delivery, error, created_at, updated_at FROM {$p}sc_wa_outbox WHERE campaign_id IS NULL ORDER BY id DESC LIMIT 60") as $r) {
+        $body = sc_wabot_is_secret_context($r->context) ? sc_wabot_mask_codes($r->body) : $r->body;
         $out[] = array(
-            'id' => (int) $r->id, 'number' => $labels[$r->number_key] ?? '—', 'to' => $r->to_phone,
-            'text' => mb_substr($r->body, 0, 160), 'context' => $r->context, 'conversation' => $r->context_id ? (int) $r->context_id : null,
+            'id' => (int) $r->id, 'number' => $labels[$r->used_number ?: $r->number_key] ?? '—', 'to' => $r->to_phone,
+            'text' => mb_substr($body, 0, 160), 'context' => $r->context, 'media' => !empty($r->media_ref),
+            'conversation' => $r->context_id && strpos($r->context, 'chat_') === 0 ? (int) $r->context_id : null,
             'status' => $r->status, 'delivery' => $r->delivery, 'attempts' => (int) $r->attempts, 'error' => $r->error, 'at' => $r->updated_at ?: $r->created_at,
         );
     }

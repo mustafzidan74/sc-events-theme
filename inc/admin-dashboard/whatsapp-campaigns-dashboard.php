@@ -20,6 +20,7 @@ function sc_wabot_campaign_input() {
         'manual'           => sanitize_textarea_field(wp_unslash($_POST['manual'] ?? '')),
         'message'          => sanitize_textarea_field(wp_unslash($_POST['message'] ?? '')),
         'interval_seconds' => absint($_POST['interval_seconds'] ?? 45),
+        'attach'           => !empty($_POST['attach_qr']) && $source === 'event' ? 'ticket_qr' : '',
     );
 }
 
@@ -62,6 +63,7 @@ add_action('wp_ajax_sc_wabot_campaign_preview', function () {
         'samples'    => $samples,
         'minutes'    => (int) ceil(count($audience['rows']) * $interval / 60),
         'numbers'    => count(sc_wabot_candidates(null, 'campaign')),
+        'attach'     => $in['attach'],
     ));
 });
 

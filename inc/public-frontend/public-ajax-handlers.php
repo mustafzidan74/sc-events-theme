@@ -1163,37 +1163,15 @@ function sc_create_eventin_attendee($data) {
 }
 
 /**
- * Send Ticket Email (Public Frontend)
- * DISABLED: Email sending disabled as users are redirected to My Account to download QR code
+ * Send the ticket after registering or paying: WhatsApp with the QR image, and email when email is on
+ * (inc/whatsapp/wabot-notify.php). Returns true when something was queued.
  */
 function sc_public_send_ticket_email($attendee_id) {
-    // Email sending disabled - users will access their ticket via My Account page
-    return;
-
-    /* DISABLED CODE:
-    $event_id = get_post_meta($attendee_id, 'sc_event_id', true);
-    $email = get_post_meta($attendee_id, 'sc_email', true);
-    $name = get_post_meta($attendee_id, 'sc_name', true);
-    $ticket_id = get_post_meta($attendee_id, 'sc_unique_ticket_id', true);
-
-    $event = get_post($event_id);
-    $platform_name = get_option('sc_platform_name', get_bloginfo('name'));
-
-    $subject = sprintf(__('[%s] Your Ticket for %s', 'sc_events'), $platform_name, $event->post_title);
-
-    $message = sprintf(__('Dear %s,', 'sc_events'), $name) . "\n\n";
-    $message .= sprintf(__('Thank you for registering for %s!', 'sc_events'), $event->post_title) . "\n\n";
-    $message .= __('Your Ticket Details:', 'sc_events') . "\n";
-    $message .= sprintf(__('Ticket ID: %s', 'sc_events'), $ticket_id) . "\n";
-    $message .= sprintf(__('Event: %s', 'sc_events'), $event->post_title) . "\n\n";
-    $message .= sprintf(__('View your ticket: %s', 'sc_events'), home_url('/my-account/')) . "\n\n";
-    $message .= sprintf(__('Best regards,', 'sc_events')) . "\n";
-    $message .= $platform_name;
-
-    $headers = array('Content-Type: text/plain; charset=UTF-8');
-
-    wp_mail($email, $subject, $message, $headers);
-    */
+    if (!function_exists('sc_notify_ticket')) {
+        return false;
+    }
+    $result = sc_notify_ticket((int) $attendee_id);
+    return (bool) ($result['whatsapp'] || $result['email']);
 }
 
 /**

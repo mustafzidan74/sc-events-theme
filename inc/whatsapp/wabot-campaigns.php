@@ -21,6 +21,11 @@ function sc_wabot_placeholders() {
         '{name}'             => __('Full name', 'sc_events'),
         '{first_name}'       => __('First name', 'sc_events'),
         '{event}'            => __('Event title', 'sc_events'),
+        '{date}'             => __('Event date', 'sc_events'),
+        '{time}'             => __('Start time', 'sc_events'),
+        '{venue}'            => __('Venue', 'sc_events'),
+        '{map_link}'         => __('Map link', 'sc_events'),
+        '{ticket_code}'      => __('Ticket code', 'sc_events'),
         '{ticket_link}'      => __('Ticket / e-badge link', 'sc_events'),
         '{certificate_link}' => __('Certificate download link', 'sc_events'),
     );
@@ -36,15 +41,21 @@ function sc_wabot_build_audience($source, $event_id, $audience, $manual = '') {
     $p = $wpdb->prefix;
     $raw = array();
     $event_title = '';
+    $event_fields = array('{date}' => '', '{time}' => '', '{venue}' => '', '{map_link}' => '');
     if ($event_id && class_exists('SC_Event')) {
         $ev = SC_Event::get((int) $event_id);
         $event_title = $ev ? $ev->title : '';
+        if ($ev && function_exists('sc_notify_place_fields')) {
+            $event_fields = sc_notify_place_fields($ev);
+        }
     }
 
     if ($source === 'event' && $event_id) {
         $where = "a.event_id = %d AND a.status = 'active' AND a.payment_status = 'success'";
         if (strpos($audience, 'workshop:') === 0) {
             $where .= $wpdb->prepare(' AND a.workshop_id = %d', (int) substr($audience, 9));
+        } elseif ($audience === 'everyone') {
+            // Event and workshop registrations; a person's main event ticket comes first.
         } else {
             $where .= ' AND (a.workshop_id IS NULL OR a.workshop_id = 0)';
             if ($audience === 'checked_in') {
@@ -53,8 +64,8 @@ function sc_wabot_build_audience($source, $event_id, $audience, $manual = '') {
                 $where .= ' AND a.checked_in = 0';
             }
         }
-        foreach ($wpdb->get_results($wpdb->prepare("SELECT a.id, a.name, a.phone, a.ticket_code FROM {$p}sc_attendees a WHERE $where ORDER BY a.id", (int) $event_id)) as $a) {
-            $raw[] = array('name' => $a->name, 'phone' => $a->phone, 'context_id' => (int) $a->id,
+        foreach ($wpdb->get_results($wpdb->prepare("SELECT a.id, a.name, a.phone, a.ticket_code FROM {$p}sc_attendees a WHERE $where ORDER BY (a.workshop_id IS NULL OR a.workshop_id = 0) DESC, a.id", (int) $event_id)) as $a) {
+            $raw[] = array('name' => $a->name, 'phone' => $a->phone, 'context_id' => (int) $a->id, 'ticket_code' => $a->ticket_code,
                 'ticket_link' => home_url('/ticket-view/?attendee_id=' . (int) $a->id . '&ticket_code=' . rawurlencode($a->ticket_code)), 'certificate_link' => '');
         }
     } elseif ($source === 'certificates' && $event_id) {
@@ -104,16 +115,32 @@ function sc_wabot_build_audience($source, $event_id, $audience, $manual = '') {
         $name = trim(wp_strip_all_tags((string) $r['name']));
         $out[] = array('phone' => $phone, 'name' => $name, 'context_id' => $r['context_id'], 'fields' => array(
             '{name}' => $name, '{first_name}' => $name !== '' ? preg_split('/\s+/u', $name)[0] : '', '{event}' => $event_title,
-            '{ticket_link}' => $r['ticket_link'], '{certificate_link}' => $r['certificate_link'],
-        ));
+            '{ticket_code}' => (string) ($r['ticket_code'] ?? ''), '{ticket_link}' => $r['ticket_link'], '{certificate_link}' => $r['certificate_link'],
+        ) + $event_fields);
     }
     return array('rows' => $out, 'invalid' => $invalid, 'duplicates' => $dupes, 'opted_out' => $opted, 'event_title' => $event_title);
 }
 
 function sc_wabot_render_message($template, $fields) {
-    $text = strtr((string) $template, $fields);
-    // Collapse blank lines left by empty placeholders.
-    return trim(preg_replace("/\n{3,}/", "\n\n", $text));
+    $lines = array();
+    foreach (preg_split('/\r\n|\r|\n/', (string) $template) as $line) {
+        // A line whose placeholders are all empty and that says nothing without them ("📍 {venue}",
+        // "Booth: {booth}") is left out. "Hi {first_name}" stays as "Hi".
+        if (preg_match_all('/\{[a-z_]+\}/', $line, $m)) {
+            $used = array_intersect($m[0], array_keys($fields));
+            $filled = array_filter($used, function ($k) use ($fields) { return trim((string) $fields[$k]) !== ''; });
+            if ($used && count($used) === count($m[0]) && !$filled) {
+                $rest = trim(preg_replace('/\{[a-z_]+\}/', '', $line));
+                if (!preg_match('/[\p{L}\p{N}]/u', $rest) || preg_match('/[:：]$/u', $rest)) {
+                    continue;
+                }
+            }
+        }
+        // Two spaces left where an empty placeholder was become one.
+        $lines[] = preg_replace('/(?<=\S) {2,}(?=\S)/u', ' ', strtr($line, $fields));
+    }
+    // Collapse blank lines left behind.
+    return trim(preg_replace("/\n{3,}/", "\n\n", implode("\n", $lines)));
 }
 
 /**
@@ -135,6 +162,8 @@ function sc_wabot_create_campaign($args) {
         return new WP_Error('number', __('Add a WhatsApp number allowed for bulk sending first.', 'sc_events'));
     }
     $interval = max(15, min(600, (int) $args['interval_seconds']));
+    // Each person's own ticket QR can go with the message (event lists only: the row is the attendee).
+    $attach = ($args['attach'] ?? '') === 'ticket_qr' && $args['source'] === 'event' ? 'ticket_qr' : '';
     $now = current_time('mysql');
     $wpdb->insert("{$p}sc_wa_campaigns", array(
         'title'            => mb_substr(sanitize_text_field($args['title']), 0, 190),
@@ -143,6 +172,7 @@ function sc_wabot_create_campaign($args) {
         'audience'         => mb_substr((string) $args['audience'], 0, 60),
         'message'          => $message,
         'interval_seconds' => $interval,
+        'attach'           => $attach,
         'status'           => 'running',
         'total'            => count($audience['rows']),
         'created_by'       => get_current_user_id(),
@@ -158,11 +188,19 @@ function sc_wabot_create_campaign($args) {
         $values = array();
         $placeholders = array();
         foreach ($chunk as $r) {
-            $placeholders[] = '(%s, %s, %s, %s, %d, %s, %d, %s, %s)';
-            array_push($values, $number, $r['phone'], sc_wabot_render_message($message, $r['fields']), 'campaign', $r['context_id'] ?: 0, 'queued', $campaign_id, mb_substr($r['name'], 0, 190), $now);
+            $body = sc_wabot_render_message($message, $r['fields']);
+            if ($body === '') {
+                continue;
+            }
+            $placeholders[] = '(%s, %s, %s, %s, %d, %s, %d, %s, %s, %s)';
+            array_push($values, $number, $r['phone'], $body, 'campaign', $r['context_id'] ?: 0, 'queued', $campaign_id, mb_substr($r['name'], 0, 190),
+                $attach && $r['context_id'] ? $attach . ':' . (int) $r['context_id'] : null, $now);
+        }
+        if (!$placeholders) {
+            continue;
         }
         $wpdb->query($wpdb->prepare(
-            "INSERT INTO {$p}sc_wa_outbox (number_key, to_phone, body, context, context_id, status, campaign_id, recipient_name, created_at) VALUES " . implode(',', $placeholders),
+            "INSERT INTO {$p}sc_wa_outbox (number_key, to_phone, body, context, context_id, status, campaign_id, recipient_name, media_ref, created_at) VALUES " . implode(',', $placeholders),
             $values
         ));
     }

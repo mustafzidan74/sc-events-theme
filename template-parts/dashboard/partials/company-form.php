@@ -244,7 +244,7 @@ $js = function ($value) {
                 <label class="w-switch">
                     <input type="checkbox" name="send_email" value="1" checked>
                     <span class="w-switch__track" aria-hidden="true"></span>
-                    <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.email_badge', 'Email the badge')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.email_badge_help', 'A link to the badge and its QR code.')); ?></span></span>
+                    <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.send_badge', 'Send the badge')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.send_badge_help', 'On WhatsApp with the QR code, and by email when email is on.')); ?></span></span>
                 </label>
             </div>
             <?php else: ?>
@@ -253,7 +253,7 @@ $js = function ($value) {
                 <p class="w-ticket-code w-ltr"><?php echo esc_html($c->company_code); ?></p>
                 <div class="w-aside-actions">
                     <a class="btn btn-sm btn-secondary" href="<?php echo esc_url($badge_url); ?>" target="_blank" rel="noopener"><i class="fa fa-qrcode" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.open_badge', 'Open badge')); ?></a>
-                    <button type="button" class="btn btn-sm btn-secondary" data-op="email"><i class="fa fa-envelope-o" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.email_badge', 'Email the badge')); ?></button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-op="email"><i class="fa fa-paper-plane-o" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.send_badge', 'Send the badge')); ?></button>
                     <?php if ((int) $c->checked_in): ?>
                         <button type="button" class="btn btn-sm btn-secondary" data-op="undo"><?php echo esc_html(sc_t('dashboard_pages.undo_checkin', 'Undo check-in')); ?></button>
                     <?php else: ?>
@@ -311,7 +311,7 @@ jQuery(function ($) {
         'saved'      => sc_t('dashboard_pages.saved', 'Saved.'),
         'created'    => sc_t('dashboard_pages.company_registered', 'Company registered.'),
         'confirmDelete' => sc_t('dashboard_pages.confirm_delete_company', 'Delete %s? Their badge stops working. This cannot be undone.'),
-        'confirmEmail'  => sc_t('dashboard_pages.confirm_email_badge_one', 'Email the badge link to %s?'),
+        'confirmEmail'  => sc_t('dashboard_pages.confirm_send_badge_one', 'Send the badge to %s?'),
         'failed'     => sc_t('errors.something_wrong', 'Something went wrong. Please try again.'),
         'saving'     => sc_t('dashboard_pages.saving', 'Saving…'),
         'fixErrors'  => sc_t('dashboard_pages.fix_n', 'Fix %d to save'),

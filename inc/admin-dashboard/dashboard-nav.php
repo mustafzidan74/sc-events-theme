@@ -182,6 +182,7 @@ function sc_dashboard_nav() {
     $messages[] = $link('support', sc_t('nav.support', 'Support'));
     $messages[] = $link('notifications', sc_t('nav.notifications', 'Push notifications'));
     $messages[] = $link('whatsapp-send', sc_t('nav.whatsapp_send', 'Send on WhatsApp'));
+    $messages[] = $link('whatsapp-messages', sc_t('nav.whatsapp_messages', 'Automatic messages'));
     $messages[] = $link('whatsapp', sc_t('nav.whatsapp', 'WhatsApp'));
     $groups[] = array('key' => 'messages', 'label' => sc_t('dashboard.messages', 'Messages'), 'icon' => 'chat', 'links' => $messages);
 

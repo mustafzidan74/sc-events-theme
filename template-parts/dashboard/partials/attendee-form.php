@@ -4,7 +4,7 @@
  *
  * Posts to sc_save_attendee (sc_attendee_form_save). Adding is built for the
  * registration desk: pick event, workshop and ticket, fill the person in, and
- * optionally check them in and email the ticket in the same step.
+ * optionally check them in and send the ticket in the same step.
  *
  * Expects: $attendee (object|null), $preselect_event_id (int).
  *
@@ -225,7 +225,7 @@ $js = function ($value) {
                     <label class="w-switch">
                         <input type="checkbox" name="send_email" value="1" checked>
                         <span class="w-switch__track" aria-hidden="true"></span>
-                        <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.email_ticket', 'Email the ticket')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.email_ticket_help', 'A link to their ticket and QR code.')); ?></span></span>
+                        <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.send_ticket', 'Send the ticket')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.send_ticket_help', 'On WhatsApp with the QR code, and by email when email is on.')); ?></span></span>
                     </label>
                 </div>
             </div>
@@ -235,7 +235,7 @@ $js = function ($value) {
                 <p class="w-ticket-code w-ltr" id="ticket-code"><?php echo esc_html($a->ticket_code); ?></p>
                 <div class="w-aside-actions">
                     <a class="btn btn-sm btn-secondary" id="open-ticket" href="<?php echo esc_url($ticket_url); ?>" target="_blank" rel="noopener"><i class="fa fa-qrcode" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.open_ticket', 'Open ticket')); ?></a>
-                    <button type="button" class="btn btn-sm btn-secondary" id="send-ticket"><i class="fa fa-envelope-o" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.email_ticket', 'Email the ticket')); ?></button>
+                    <button type="button" class="btn btn-sm btn-secondary" id="send-ticket"><i class="fa fa-paper-plane-o" aria-hidden="true"></i> <?php echo esc_html(sc_t('dashboard_pages.send_ticket', 'Send the ticket')); ?></button>
                     <?php if ((int) $a->checked_in): ?>
                         <button type="button" class="btn btn-sm btn-secondary" id="undo-checkin"><?php echo esc_html(sc_t('dashboard_pages.undo_checkin', 'Undo check-in')); ?></button>
                     <?php else: ?>

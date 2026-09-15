@@ -197,6 +197,11 @@ add_action('sc_hourly_stats_update', function() {
 add_action('sc_event_reminders', function() {
     global $wpdb;
 
+    // Reminders are sent from Messages → Automatic messages now (inc/whatsapp/wabot-notify.php).
+    if (function_exists('sc_notify_reminders_tick')) {
+        return;
+    }
+
     $tables = sc_get_table_names();
 
     // Get events starting in ~24 hours

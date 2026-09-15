@@ -2113,35 +2113,16 @@ function sc_build_email_template($name, $message, $event_name) {
 // ==========================================
 
 /**
- * Email an attendee the link to their ticket (the same page My Account opens).
+ * Send an attendee their ticket from the dashboard: WhatsApp with the QR image, and email when email
+ * is on. Sent even when the automatic ticket message is switched off, since someone asked for it.
+ *
+ * @return array sc_notify() result.
  */
 function sc_attendee_send_ticket_link($attendee) {
-    global $wpdb;
-    if (!$attendee || !is_email($attendee->email)) {
-        return false;
+    if (!$attendee || !function_exists('sc_notify_ticket')) {
+        return array('whatsapp' => false, 'email' => null, 'reason' => 'not_found');
     }
-    $event = class_exists('SC_Event') ? SC_Event::get((int) $attendee->event_id) : null;
-    $workshop = $attendee->workshop_id && class_exists('SC_Workshop') ? SC_Workshop::get((int) $attendee->workshop_id) : null;
-    $title = $workshop ? $workshop->title : ($event ? $event->title : get_bloginfo('name'));
-    $when = $workshop ? $workshop->start_date : ($event ? $event->start_date : '');
-    $url = home_url('/ticket-view/?attendee_id=' . (int) $attendee->id . '&ticket_code=' . rawurlencode($attendee->ticket_code));
-    $site = get_option('sc_platform_name', get_bloginfo('name'));
-
-    $subject = sprintf(__('Your ticket for %s', 'sc_events'), $title);
-    $body = '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#222;max-width:560px;margin:0 auto">'
-        . '<p>' . sprintf(esc_html__('Dear %s,', 'sc_events'), esc_html($attendee->name)) . '</p>'
-        . '<p>' . sprintf(esc_html__('You are registered for %s.', 'sc_events'), '<strong>' . esc_html($title) . '</strong>') . '</p>'
-        . ($when ? '<p>' . esc_html__('Date:', 'sc_events') . ' ' . esc_html(date_i18n('l j F Y', strtotime($when))) . '</p>' : '')
-        . '<p>' . esc_html__('Ticket code:', 'sc_events') . ' <strong style="font-family:monospace">' . esc_html($attendee->ticket_code) . '</strong></p>'
-        . '<p><a href="' . esc_url($url) . '" style="display:inline-block;padding:12px 24px;background:#7a1f1f;color:#fff;text-decoration:none;border-radius:8px">' . esc_html__('Open your ticket', 'sc_events') . '</a></p>'
-        . '<p style="color:#666;font-size:13px">' . esc_html__('Show the QR code on that page at the entrance.', 'sc_events') . '</p>'
-        . '<p>' . esc_html($site) . '</p></div>';
-
-    $sent = wp_mail($attendee->email, $subject, $body, array('Content-Type: text/html; charset=UTF-8'));
-    if ($sent) {
-        $wpdb->update($wpdb->prefix . 'sc_attendees', array('email_sent' => 1, 'email_sent_at' => current_time('mysql')), array('id' => (int) $attendee->id));
-    }
-    return $sent;
+    return sc_notify_ticket((int) $attendee->id, true, array('email_now' => true));
 }
 
 /**
@@ -2277,12 +2258,13 @@ function sc_attendee_form_save() {
             $wpdb->update($p . 'sc_attendees', array('checked_in_by' => get_current_user_id()), array('id' => $attendee_id));
         }
         $created = SC_Attendee::get($attendee_id);
-        $emailed = !empty($_POST['send_email']) ? sc_attendee_send_ticket_link($created) : false;
+        $sent = !empty($_POST['send_email']) ? sc_attendee_send_ticket_link($created) : null;
+        $sent_note = $sent ? sc_notify_result_message($sent) : '';
 
         wp_send_json_success(array(
-            'message'     => $emailed || empty($_POST['send_email'])
-                ? __('Attendee registered.', 'sc_events')
-                : __('Attendee registered, but the ticket email could not be sent.', 'sc_events'),
+            'message'     => $sent && !$sent['whatsapp'] && !$sent['email']
+                ? __('Attendee registered, but the ticket could not be sent.', 'sc_events') . ($sent_note !== '' ? ' ' . $sent_note : '')
+                : __('Attendee registered.', 'sc_events') . ($sent_note !== '' ? ' ' . $sent_note : ''),
             'attendee_id' => $attendee_id,
             'ticket_code' => $created->ticket_code,
             'redirect'    => home_url('/event-manager-dashboard/attendee-edit?id=' . $attendee_id . '&created=1'),
@@ -2361,10 +2343,12 @@ function sc_attendee_send_ticket() {
     if (!$attendee) {
         wp_send_json_error(array('message' => __('Attendee not found.', 'sc_events')));
     }
-    if (!sc_attendee_send_ticket_link($attendee)) {
-        wp_send_json_error(array('message' => __('The email could not be sent. Check the site’s mail settings.', 'sc_events')));
+    $sent = sc_attendee_send_ticket_link($attendee);
+    $note = sc_notify_result_message($sent);
+    if (!$sent['whatsapp'] && !$sent['email']) {
+        wp_send_json_error(array('message' => $note !== '' ? $note : __('Nothing was sent: add a WhatsApp number, or turn on email in Automatic messages.', 'sc_events')));
     }
-    wp_send_json_success(array('message' => sprintf(__('Ticket sent to %s.', 'sc_events'), $attendee->email)));
+    wp_send_json_success(array('message' => $note));
 }
 
 add_action('wp_ajax_sc_regenerate_ticket_code', 'sc_regenerate_ticket_code');

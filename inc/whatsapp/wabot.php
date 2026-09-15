@@ -20,7 +20,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const SC_WABOT_DB_VERSION = '2';
+const SC_WABOT_DB_VERSION = '3';
+
+/** wa-bot accepts files up to 16 MB; stay under it so an oversize upload never looks like a dead number. */
+const SC_WABOT_MEDIA_MAX_BYTES = 15 * 1024 * 1024;
 
 /* ==========================================================================
    Settings and secrets
@@ -30,7 +33,7 @@ function sc_wabot_settings() {
     $saved = get_option('sc_wabot_settings', array());
     return wp_parse_args(is_array($saved) ? $saved : array(), array(
         'base_url'         => 'https://whatsapp.super-coding.com',
-        'numbers'          => array(),      // key => label, device_id, phone, enabled, chat, status, status_at, linked
+        'numbers'          => array(),      // key => label, device_id, phone, enabled, chat, bulk, notify, status, status_at, linked
         'recipients'       => array(),      // ordered: name, phone, enabled
         'alert_mode'       => 'escalate',   // escalate | all
         'escalate_minutes' => 10,
@@ -149,6 +152,150 @@ function sc_wabot_request($key, $method, $path, $body = null, $timeout = 15) {
 }
 
 /**
+ * Send an image or document with an optional caption (POST /api/send-media, multipart).
+ *
+ * @param array $file bytes, mime, name (from sc_wabot_media()).
+ * @return array|WP_Error Same shape as sc_wabot_request().
+ */
+function sc_wabot_request_media($key, $to, $caption, $file, $timeout = 30) {
+    $settings = sc_wabot_settings();
+    $token = sc_wabot_secrets()['numbers'][$key]['token'] ?? '';
+    if ($token === '') {
+        return new WP_Error('sc_wabot_no_token', __('No token saved for this number.', 'sc_events'));
+    }
+    $base = untrailingslashit((string) $settings['base_url']);
+    if (!preg_match('#^https?://#i', $base)) {
+        return new WP_Error('sc_wabot_no_url', __('The wa-bot address is not set.', 'sc_events'));
+    }
+    $boundary = 'scwa' . wp_generate_password(24, false);
+    $part = function ($headers, $content) use ($boundary) {
+        return '--' . $boundary . "\r\n" . $headers . "\r\n\r\n" . $content . "\r\n";
+    };
+    $body = $part('Content-Disposition: form-data; name="to"', (string) $to);
+    if ((string) $caption !== '') {
+        $body .= $part('Content-Disposition: form-data; name="caption"' . "\r\n" . 'Content-Type: text/plain; charset=UTF-8', (string) $caption);
+    }
+    $name = preg_replace('/[^A-Za-z0-9._-]/', '-', (string) $file['name']);
+    $body .= $part('Content-Disposition: form-data; name="file"; filename="' . $name . '"' . "\r\n" . 'Content-Type: ' . $file['mime'], $file['bytes']);
+    $body .= '--' . $boundary . "--\r\n";
+
+    $args = array(
+        'method'  => 'POST',
+        'timeout' => $timeout,
+        'headers' => array(
+            'Authorization' => 'Bearer ' . $token,
+            'Accept'        => 'application/json',
+            'Content-Type'  => 'multipart/form-data; boundary=' . $boundary,
+        ),
+        'body'    => $body,
+    );
+    $response = apply_filters('sc_wabot_allow_internal_url', false)
+        ? wp_remote_request($base . '/api/send-media', $args)
+        : wp_safe_remote_request($base . '/api/send-media', $args);
+    if (is_wp_error($response)) {
+        return $response;
+    }
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+    return array('code' => (int) wp_remote_retrieve_response_code($response), 'data' => is_array($data) ? $data : array());
+}
+
+/* ==========================================================================
+   Media: built when the message is sent, never stored as a public file
+   ========================================================================== */
+
+/**
+ * A square PNG QR code with a white background and a quiet zone, readable by the door scanner.
+ *
+ * @return string|false PNG bytes.
+ */
+function sc_wabot_qr_png($payload, $size = 600) {
+    $payload = (string) $payload;
+    if ($payload === '' || !function_exists('imagecreatetruecolor')) {
+        return false;
+    }
+    $lib = get_template_directory() . '/vendor/tecnickcom/tcpdf/tcpdf_barcodes_2d.php';
+    if (!class_exists('TCPDF2DBarcode')) {
+        if (!file_exists($lib)) {
+            return false;
+        }
+        require_once $lib;
+    }
+    $barcode = new TCPDF2DBarcode($payload, 'QRCODE,M');
+    $matrix = $barcode->getBarcodeArray();
+    if (empty($matrix['num_cols']) || empty($matrix['bcode'])) {
+        return false;
+    }
+    $modules = (int) $matrix['num_cols'];
+    $quiet = 4;
+    $scale = max(4, (int) floor($size / ($modules + 2 * $quiet)));
+    $px = ($modules + 2 * $quiet) * $scale;
+    $img = imagecreatetruecolor($px, $px);
+    $white = imagecolorallocate($img, 255, 255, 255);
+    $black = imagecolorallocate($img, 0, 0, 0);
+    imagefilledrectangle($img, 0, 0, $px - 1, $px - 1, $white);
+    foreach ($matrix['bcode'] as $r => $row) {
+        foreach ($row as $c => $on) {
+            if ($on) {
+                $x = ($c + $quiet) * $scale;
+                $y = ($r + $quiet) * $scale;
+                imagefilledrectangle($img, $x, $y, $x + $scale - 1, $y + $scale - 1, $black);
+            }
+        }
+    }
+    ob_start();
+    imagepng($img, null, 6);
+    $png = ob_get_clean();
+    imagedestroy($img);
+    return $png ?: false;
+}
+
+/**
+ * Build the file a queued message refers to ("ticket_qr:123", "company_qr:45").
+ * Other kinds can be added with the sc_wabot_media filter.
+ *
+ * @return array|WP_Error bytes, mime, name.
+ */
+function sc_wabot_media($ref) {
+    global $wpdb;
+    $ref = (string) $ref;
+    $kind = strtok($ref, ':');
+    $id = (int) substr($ref, strlen($kind) + 1);
+    $file = null;
+
+    if ($kind === 'ticket_qr' && $id) {
+        $code = $wpdb->get_var($wpdb->prepare("SELECT ticket_code FROM {$wpdb->prefix}sc_attendees WHERE id = %d AND status = 'active'", $id));
+        $png = $code ? sc_wabot_qr_png($code) : false;
+        $file = $png ? array('bytes' => $png, 'mime' => 'image/png', 'name' => 'ticket-' . $code . '.png') : null;
+    } elseif ($kind === 'company_qr' && $id) {
+        $c = $wpdb->get_row($wpdb->prepare("SELECT company_code, qr_data FROM {$wpdb->prefix}sc_company_attendees WHERE id = %d AND status = 'active'", $id));
+        $png = $c ? sc_wabot_qr_png($c->qr_data ?: $c->company_code) : false;
+        $file = $png ? array('bytes' => $png, 'mime' => 'image/png', 'name' => 'badge-' . $c->company_code . '.png') : null;
+    }
+
+    $file = apply_filters('sc_wabot_media', $file, $kind, $id, $ref);
+    if (is_wp_error($file)) {
+        return $file;
+    }
+    if (!is_array($file) || empty($file['bytes']) || empty($file['mime'])) {
+        return new WP_Error('sc_wabot_media_missing', __('The attachment could not be created.', 'sc_events'));
+    }
+    if (strlen($file['bytes']) > SC_WABOT_MEDIA_MAX_BYTES) {
+        return new WP_Error('sc_wabot_media_size', __('The attachment is larger than WhatsApp allows.', 'sc_events'));
+    }
+    $file['name'] = $file['name'] ?? 'file';
+    return $file;
+}
+
+/** Contexts whose text holds a one-time code: never shown in logs, wiped after sending. */
+function sc_wabot_is_secret_context($context) {
+    return strpos((string) $context, 'otp') === 0;
+}
+
+function sc_wabot_mask_codes($text) {
+    return preg_replace('/\b\d{4,8}\b/', '••••••', (string) $text);
+}
+
+/**
  * Change a few fields of one number. Status checks and webhooks run alongside page saves, so this
  * re-reads the stored settings first and never brings back a number that was removed meanwhile.
  */
@@ -257,6 +404,7 @@ function sc_wabot_install() {
         recipient_name varchar(190) DEFAULT NULL,
         used_number varchar(40) DEFAULT NULL,
         tried_numbers varchar(255) DEFAULT NULL,
+        media_ref varchar(80) DEFAULT NULL,
         created_at datetime NOT NULL,
         updated_at datetime DEFAULT NULL,
         PRIMARY KEY  (id),
@@ -273,6 +421,7 @@ function sc_wabot_install() {
         audience varchar(60) NOT NULL DEFAULT '',
         message text NOT NULL,
         interval_seconds smallint(5) unsigned NOT NULL DEFAULT 45,
+        attach varchar(20) NOT NULL DEFAULT '',
         status varchar(20) NOT NULL DEFAULT 'running',
         paused_reason varchar(190) DEFAULT NULL,
         total int(10) unsigned NOT NULL DEFAULT 0,
@@ -325,17 +474,20 @@ add_action('init', 'sc_wabot_install', 5);
    ========================================================================== */
 
 /**
- * Queue a WhatsApp text. It is tried at the end of this request and retried by cron.
+ * Queue a WhatsApp text, optionally with a file built at send time (see sc_wabot_media()).
+ * It is tried at the end of this request and retried by cron.
  *
  * @return int|false Outbox id.
  */
-function sc_wabot_enqueue($number_key, $phone, $text, $context = '', $context_id = null, $ttl_minutes = 1440) {
+function sc_wabot_enqueue($number_key, $phone, $text, $context = '', $context_id = null, $ttl_minutes = 1440, $media_ref = '', $recipient_name = '', $delay_seconds = 0) {
     global $wpdb;
     $phone = sc_wabot_phone($phone);
     if (!$number_key || $phone === '' || trim($text) === '') {
         return false;
     }
     $now = current_time('mysql');
+    $now_ts = current_time('timestamp');
+    $delay_seconds = max(0, (int) $delay_seconds);
     $ok = $wpdb->insert($wpdb->prefix . 'sc_wa_outbox', array(
         'number_key'      => $number_key,
         'to_phone'        => $phone,
@@ -343,15 +495,19 @@ function sc_wabot_enqueue($number_key, $phone, $text, $context = '', $context_id
         'context'         => $context,
         'context_id'      => $context_id,
         'status'          => 'pending',
-        'next_attempt_at' => $now,
-        'expires_at'      => date('Y-m-d H:i:s', current_time('timestamp') + $ttl_minutes * MINUTE_IN_SECONDS),
+        'next_attempt_at' => $delay_seconds ? date('Y-m-d H:i:s', $now_ts + $delay_seconds) : $now,
+        'expires_at'      => date('Y-m-d H:i:s', $now_ts + $delay_seconds + $ttl_minutes * MINUTE_IN_SECONDS),
+        'media_ref'       => $media_ref !== '' ? mb_substr($media_ref, 0, 80) : null,
+        'recipient_name'  => $recipient_name !== '' ? mb_substr($recipient_name, 0, 190) : null,
         'created_at'      => $now,
     ));
     if (!$ok) {
         return false;
     }
     $id = (int) $wpdb->insert_id;
-    sc_wabot_send_after_response($id);
+    if (!$delay_seconds) {
+        sc_wabot_send_after_response($id);
+    }
     return $id;
 }
 
@@ -376,18 +532,23 @@ function sc_wabot_send_after_response($id) {
 
 /**
  * Numbers to try for a message, in order: the one it was queued on, then the other usable numbers
- * (connected first). Chat messages prefer chat numbers; campaign messages use numbers allowed for bulk.
+ * (connected first). Chat messages prefer chat numbers; campaign messages use numbers allowed for
+ * bulk; tickets, reminders and codes use numbers allowed for them ("notify", on unless turned off).
  */
 function sc_wabot_candidates($preferred, $context, $exclude = array()) {
     $settings = sc_wabot_settings();
     $secrets = sc_wabot_secrets();
     $bulk = strpos((string) $context, 'campaign') === 0;
+    $notify = !$bulk && strpos((string) $context, 'chat_') !== 0 && $context !== 'test';
     $scored = array();
     foreach ($settings['numbers'] as $key => $n) {
         if (in_array($key, $exclude, true) || empty($n['enabled']) || empty($secrets['numbers'][$key]['token'])) {
             continue;
         }
         if ($bulk && isset($n['bulk']) && !$n['bulk']) {
+            continue;
+        }
+        if ($notify && isset($n['notify']) && !$n['notify']) {
             continue;
         }
         $score = ($n['status'] ?? '') === 'connected' ? 0 : 10;
@@ -422,16 +583,37 @@ function sc_wabot_process_one($id) {
     $update = array('attempts' => min(255, (int) $row->attempts + 1), 'updated_at' => current_time('mysql'));
 
     if ($row->expires_at && strtotime($row->expires_at) < $now) {
-        $wpdb->update($table, $update + array('status' => 'expired', 'error' => 'Not sent in time'), array('id' => $id));
+        $masked = sc_wabot_is_secret_context($row->context) ? array('body' => sc_wabot_mask_codes($row->body)) : array();
+        $wpdb->update($table, $update + $masked + array('status' => 'expired', 'error' => 'Not sent in time'), array('id' => $id));
         return;
     }
+
+    // The file is built once per attempt. If it cannot be built the text still goes, since it carries the link.
+    $file = null;
+    $note = '';
+    if (!empty($row->media_ref)) {
+        $file = sc_wabot_media($row->media_ref);
+        if (is_wp_error($file)) {
+            $note = $file->get_error_message();
+            $file = null;
+        }
+    }
+    // Long captions go as a separate text right after the file.
+    $caption_fits = mb_strlen($row->body) <= 1000;
 
     $tried = array();
     $retry = false;
     $errors = array();
     foreach (sc_wabot_candidates($row->number_key, $row->context) as $key) {
         $tried[] = $key;
-        $result = sc_wabot_request($key, 'POST', '/api/send-text', array('to' => $row->to_phone, 'text' => $row->body), 20);
+        if ($file) {
+            $result = sc_wabot_request_media($key, $row->to_phone, $caption_fits ? $row->body : '', $file);
+            if (!is_wp_error($result) && $result['code'] === 200 && !empty($result['data']['ok']) && !$caption_fits) {
+                sc_wabot_request($key, 'POST', '/api/send-text', array('to' => $row->to_phone, 'text' => $row->body), 20);
+            }
+        } else {
+            $result = sc_wabot_request($key, 'POST', '/api/send-text', array('to' => $row->to_phone, 'text' => $row->body), 20);
+        }
         if (is_wp_error($result)) {
             // wa-bot itself is unreachable: every number lives there, so wait and retry.
             $errors[] = $result->get_error_message();
@@ -441,7 +623,7 @@ function sc_wabot_process_one($id) {
         $code = $result['code'];
         $data = $result['data'];
         if ($code === 200 && !empty($data['ok'])) {
-            $update += array('status' => 'sent', 'error' => null, 'used_number' => $key,
+            $update += array('status' => 'sent', 'error' => $note !== '' ? mb_substr($note, 0, 250) : null, 'used_number' => $key,
                 'wa_message_id' => sanitize_text_field($data['id'] ?? ''), 'wa_jid' => sanitize_text_field($data['jid'] ?? ''));
             break;
         }
@@ -457,7 +639,8 @@ function sc_wabot_process_one($id) {
         $errors[] = (sc_wabot_settings()['numbers'][$key]['label'] ?? $key) . ': ' . (string) ($data['error'] ?? ('HTTP ' . $code));
         if ($code === 401) {
             sc_wabot_patch_number($key, array('status' => 'token_rejected', 'status_at' => current_time('mysql'), 'status_error' => mb_substr((string) ($data['error'] ?? ''), 0, 160)));
-        } elseif ($code >= 500) {
+        } elseif ($code === 409 || ($code >= 500 && isset($data['ok']))) {
+            // 409 = WhatsApp not connected. A 500 without wa-bot's JSON is a gateway/upload error, not the number.
             sc_wabot_patch_number($key, array('status' => 'disconnected', 'status_at' => current_time('mysql'), 'status_error' => mb_substr((string) ($data['error'] ?? ''), 0, 160)));
         }
         $retry = true;
@@ -481,6 +664,9 @@ function sc_wabot_process_one($id) {
             $update['status'] = 'pending';
             $update['next_attempt_at'] = date('Y-m-d H:i:s', $now + $delays[$attempt - 1] * MINUTE_IN_SECONDS);
         }
+    }
+    if (sc_wabot_is_secret_context($row->context) && $update['status'] !== 'pending') {
+        $update['body'] = sc_wabot_mask_codes($row->body);
     }
     $wpdb->update($table, $update, array('id' => $id));
 
@@ -797,6 +983,8 @@ function sc_wabot_handle_message($key, $event, $m, $log_id) {
     }
     // Only messages typed on the business phone itself are staff replies; our own API sends are echoes.
     if ($outgoing && empty($m['fromSync'])) {
+        // Our own sends are already in the outbox; don't keep a second copy (it may hold a login code).
+        $log['text'] = '';
         $wpdb->update($inbound, $log + array('outcome' => 'echo'), array('id' => $log_id));
         return;
     }

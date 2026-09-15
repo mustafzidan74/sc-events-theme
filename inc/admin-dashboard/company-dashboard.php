@@ -238,7 +238,7 @@ function sc_save_company_attendee() {
         $emailed = sc_companies_send_badge_email((int) $id);
     }
     wp_send_json_success(array(
-        'message'  => $existing ? __('Company saved.', 'sc_events') : ($emailed ? __('Company registered and badge emailed.', 'sc_events') : __('Company registered.', 'sc_events')),
+        'message'  => $existing ? __('Company saved.', 'sc_events') : ($emailed ? __('Company registered and badge sent.', 'sc_events') : __('Company registered.', 'sc_events')),
         'id'       => $id,
         'code'     => $code,
         'redirect' => $existing ? '' : home_url('/event-manager-dashboard/company-attendee-edit?id=' . $id . '&created=1'),
@@ -246,32 +246,20 @@ function sc_save_company_attendee() {
 }
 
 /**
- * Email the company its badge link. Returns true when wp_mail accepted it.
+ * Send the company its badge: WhatsApp with the QR image, and email when email is on.
+ * In a batch, $position spaces the WhatsApp messages out so they don't go all at once.
+ *
+ * @return bool True when something was sent or queued.
  */
-function sc_companies_send_badge_email($id) {
-    global $wpdb;
-    $c = $wpdb->get_row($wpdb->prepare(
-        "SELECT c.*, e.title AS event_title FROM {$wpdb->prefix}sc_company_attendees c LEFT JOIN {$wpdb->prefix}sc_events e ON e.id = c.event_id WHERE c.id = %d",
-        $id
-    ));
-    if (!$c || !is_email($c->contact_email) || $c->status !== 'active') {
+function sc_companies_send_badge_email($id, $position = 0) {
+    if (!function_exists('sc_notify_company_badge')) {
         return false;
     }
-    $platform = get_option('sc_platform_name', get_bloginfo('name'));
-    $url = home_url('/company-ticket/' . rawurlencode($c->company_code) . '/');
-    $subject = sprintf(__('Your exhibitor badge for %s', 'sc_events'), $c->event_title ?: $platform);
-    $body = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.5">'
-        . '<p>' . esc_html(sprintf(__('Hello %s,', 'sc_events'), $c->contact_name ?: $c->company_name)) . '</p>'
-        . '<p>' . esc_html(sprintf(__('%1$s is registered for %2$s.', 'sc_events'), $c->company_name, $c->event_title)) . '</p>'
-        . ($c->booth_number ? '<p>' . esc_html(sprintf(__('Booth: %s', 'sc_events'), $c->booth_number)) . '</p>' : '')
-        . '<p><a href="' . esc_url($url) . '" style="display:inline-block;padding:12px 22px;background:#7c1314;color:#fff;text-decoration:none;border-radius:6px">' . esc_html__('Open your badge', 'sc_events') . '</a></p>'
-        . '<p>' . esc_html__('Show the badge’s QR code at the entrance, on your phone or printed.', 'sc_events') . '</p>'
-        . '<p>' . esc_html($platform) . '</p></div>';
-    $sent = wp_mail($c->contact_email, $subject, $body, array('Content-Type: text/html; charset=UTF-8'));
-    if ($sent) {
-        $wpdb->update($wpdb->prefix . 'sc_company_attendees', array('email_sent' => 1, 'email_sent_at' => current_time('mysql')), array('id' => (int) $c->id));
-    }
-    return (bool) $sent;
+    $result = sc_notify_company_badge((int) $id, true, array(
+        'email_now'     => $position === 0,
+        'delay_seconds' => $position > 0 ? $position * 45 + wp_rand(0, 15) : 0,
+    ));
+    return (bool) ($result['whatsapp'] || $result['email']);
 }
 
 add_action('wp_ajax_sc_company_bulk', 'sc_company_bulk');
@@ -307,13 +295,14 @@ function sc_company_bulk() {
             break;
         case 'email':
             if (count($ids) > 50) {
-                wp_send_json_error(array('message' => __('Email at most 50 companies at a time.', 'sc_events')));
+                wp_send_json_error(array('message' => __('Send at most 50 badges at a time.', 'sc_events')));
             }
-            foreach ($ids as $id) {
-                sc_companies_send_badge_email($id) ? $done++ : $failed++;
+            foreach ($ids as $i => $id) {
+                sc_companies_send_badge_email($id, $i) ? $done++ : $failed++;
             }
-            $message = sprintf(_n('%d badge email sent.', '%d badge emails sent.', $done, 'sc_events'), $done)
-                . ($failed ? ' ' . sprintf(_n('%d could not be sent — cancelled, no valid email, or the site’s email settings.', '%d could not be sent — cancelled, no valid email, or the site’s email settings.', $failed, 'sc_events'), $failed) : '');
+            $message = sprintf(_n('%d badge sent.', '%d badges sent.', $done, 'sc_events'), $done)
+                . ($done > 1 ? ' ' . __('WhatsApp messages go out one by one, about a minute apart.', 'sc_events') : '')
+                . ($failed ? ' ' . sprintf(_n('%d could not be sent — cancelled, or no valid WhatsApp number or email.', '%d could not be sent — cancelled, or no valid WhatsApp number or email.', $failed, 'sc_events'), $failed) : '');
             break;
         case 'delete':
             $list = implode(',', $ids);

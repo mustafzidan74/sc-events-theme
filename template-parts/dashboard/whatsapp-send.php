@@ -113,6 +113,12 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                     <p class="w-field__help"><?php echo esc_html(sc_t('whatsapp.message_help', 'Each person gets their own name and links. Keep the opt-out line: people who reply "إلغاء" or "STOP" are left out of future campaigns.')); ?></p>
                 </div>
 
+                <label class="w-switch" id="was-attach-field">
+                    <input type="checkbox" id="was-attach" name="attach_qr" value="1">
+                    <span class="w-switch__track" aria-hidden="true"></span>
+                    <span class="w-switch__text"><strong><?php echo esc_html(sc_t('whatsapp.attach_qr', 'Attach each person’s ticket QR')); ?></strong><span><?php echo esc_html(sc_t('whatsapp.attach_qr_sub', 'The message goes as the caption of a QR image they can show at the door.')); ?></span></span>
+                </label>
+
                 <div class="w-field w-was__gap">
                     <label class="w-field__label" for="was-interval"><?php echo esc_html(sc_t('whatsapp.gap', 'Gap between messages')); ?></label>
                     <select class="form-control" id="was-interval" name="interval_seconds">
@@ -206,7 +212,7 @@ jQuery(function ($) {
             $a.append(new Option('Everyone with a certificate', 'all'), new Option('Only those who have not downloaded it', 'not_downloaded'));
             return;
         }
-        $a.append(new Option('All registered', 'all'), new Option('Came (checked in)', 'checked_in'), new Option('Did not come', 'not_checked_in'));
+        $a.append(new Option('All registered for the event', 'all'), new Option('Everyone: event and workshop registrations', 'everyone'), new Option('Came (checked in)', 'checked_in'), new Option('Did not come', 'not_checked_in'));
         post('sc_wabot_event_workshops', { event_id: $('#was-event').val() }).done(function (r) {
             if (!r.success || !r.data.length) { return; }
             var $g = $('<optgroup label="Workshop">').appendTo($a);
@@ -218,6 +224,8 @@ jQuery(function ($) {
         var s = source();
         $('#was-event-fields').prop('hidden', s === 'manual');
         $('#was-manual-field').prop('hidden', s !== 'manual');
+        $('#was-attach-field').prop('hidden', s !== 'event');
+        if (s !== 'event') { $('#was-attach').prop('checked', false); }
         if (!messageTouched || !$('#was-message').val().trim()) { $('#was-message').val(templates[s] || ''); messageTouched = false; }
         fillAudience();
         $('#was-preview-box').prop('hidden', true).empty();
@@ -228,7 +236,7 @@ jQuery(function ($) {
     $('input[name=source]').on('change', syncSource);
     $('#was-event').on('change', function () { fillAudience(); $('#was-preview-box').prop('hidden', true); });
     $('#was-message').on('input', function () { messageTouched = true; countChars(); $('#was-preview-box').prop('hidden', true); });
-    $('#was-audience, #was-manual').on('change input', function () { $('#was-preview-box').prop('hidden', true); });
+    $('#was-audience, #was-manual, #was-attach').on('change input', function () { $('#was-preview-box').prop('hidden', true); });
     // The gap only changes how long it takes: keep the preview, refresh its estimate.
     $('#was-interval').on('change', function () { if (!$('#was-preview-box').prop('hidden')) { $('#was-preview').trigger('click'); } });
     $('.w-was__chips').on('click', '[data-insert]', function () {
@@ -247,7 +255,7 @@ jQuery(function ($) {
     });
 
     function formData() {
-        return { title: $('#was-title').val(), source: source(), event_id: $('#was-event').val(), audience: $('#was-audience').val(), manual: $('#was-manual').val(), message: $('#was-message').val(), interval_seconds: $('#was-interval').val() };
+        return { title: $('#was-title').val(), source: source(), event_id: $('#was-event').val(), audience: $('#was-audience').val(), manual: $('#was-manual').val(), message: $('#was-message').val(), interval_seconds: $('#was-interval').val(), attach_qr: $('#was-attach').is(':checked') && source() === 'event' ? 1 : 0 };
     }
     function say(text) { $('.w-was__msg').text(text || '').prop('hidden', !text); }
 
@@ -264,6 +272,7 @@ jQuery(function ($) {
             if (p.invalid) { $stats.append($('<span>').text(num(p.invalid) + ' without a valid number')); }
             if (p.duplicates) { $stats.append($('<span>').text(num(p.duplicates) + ' duplicate numbers sent once')); }
             if (p.opted_out) { $stats.append($('<span>').text(num(p.opted_out) + ' asked to stop')); }
+            if (p.attach) { $stats.append($('<span>').text('each with their ticket QR')); }
             $stats.append($('<span>').text('about ' + (p.minutes >= 120 ? (Math.round(p.minutes / 6) / 10) + ' hours' : p.minutes + ' minutes')));
             var $bub = $('<div class="w-was__bubbles">').appendTo($box);
             p.samples.forEach(function (s) { $bub.append($('<div class="w-was__bubble" dir="auto">').append($('<small class="w-ltr">').text((s.name ? s.name + ' · ' : '') + '+' + s.to)).append(document.createTextNode(s.text))); });
