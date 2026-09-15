@@ -410,6 +410,14 @@ body.w-dash {
 .w-dash .w-top__btn--primary:hover { background: var(--w-primary-hover); border-color: var(--w-primary-hover); color: var(--w-on-primary); }
 
 .w-event-chip { font-weight: 500; }
+
+/* WhatsApp connection (header); colours: connected / some numbers / none / not checked lately */
+.w-wa-chip { position: relative; color: #128C4A; }
+.w-wa-chip__dot { position: absolute; top: 6px; inset-inline-end: 6px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--w-surface); background: #12B76A; }
+.w-wa-chip--partial .w-wa-chip__dot, .w-wa-chip--unknown .w-wa-chip__dot { background: #F79009; }
+.w-wa-chip--down { color: var(--w-danger); }
+.w-wa-chip--down .w-wa-chip__dot { background: var(--w-danger); }
+.w-wa-chip--unknown { color: var(--w-text-2); }
 .w-event-chip__dot {
   width: 8px;
   height: 8px;

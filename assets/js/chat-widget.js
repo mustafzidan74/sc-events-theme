@@ -18,6 +18,7 @@ class SCChatWidget {
         this.isLoggedIn = config.isLoggedIn || false;
         this.userName = config.userName || '';
         this.userEmail = config.userEmail || '';
+        this.whatsapp = !!config.whatsapp;
 
         this.conversationId = null;
         this.visitorToken = localStorage.getItem('sc_chat_visitor_token') || null;
@@ -119,8 +120,12 @@ class SCChatWidget {
                         <input type="email" id="sc-chat-email" placeholder="Your Email *" required>
                     </div>
                     <div class="sc-chat-form-group">
-                        <input type="tel" id="sc-chat-phone" placeholder="Your Phone (Optional)">
+                        <input type="tel" id="sc-chat-phone" placeholder="${this.whatsapp ? 'Your WhatsApp number' : 'Your Phone (Optional)'}" autocomplete="tel" dir="ltr">
                     </div>
+                    ${this.whatsapp ? `<label class="sc-chat-wa">
+                        <input type="checkbox" id="sc-chat-wa">
+                        <span>Send the reply to my WhatsApp too</span>
+                    </label>` : ''}
                     <div class="sc-chat-form-group">
                         <textarea id="sc-chat-initial-message" placeholder="How can we help you? *" rows="3" required></textarea>
                     </div>
@@ -217,6 +222,19 @@ class SCChatWidget {
         const startBtn = document.getElementById('sc-chat-start-btn');
         if (startBtn) {
             startBtn.addEventListener('click', () => this.startConversation());
+        }
+
+        // WhatsApp replies: ticked once a phone number is typed, unless the visitor chose otherwise.
+        const waBox = document.getElementById('sc-chat-wa');
+        const phoneField = document.getElementById('sc-chat-phone');
+        if (waBox && phoneField) {
+            let waTouched = false;
+            waBox.addEventListener('change', () => { waTouched = true; });
+            phoneField.addEventListener('input', () => {
+                if (!waTouched) {
+                    waBox.checked = phoneField.value.replace(/\D/g, '').length >= 8;
+                }
+            });
         }
 
         // Send message
@@ -374,6 +392,8 @@ class SCChatWidget {
         const phone = phoneInput ? phoneInput.value.trim() : '';
         const message = messageInput.value.trim();
         const honeypot = honeypotInput ? honeypotInput.value : '';
+        const waInput = document.getElementById('sc-chat-wa');
+        const waOptIn = !!(waInput && waInput.checked);
 
         // Validation
         if (!name || !email || !message) {
@@ -383,6 +403,12 @@ class SCChatWidget {
 
         if (!this.isValidEmail(email)) {
             this.showError('Please enter a valid email address');
+            return;
+        }
+
+        if (waOptIn && phone.replace(/\D/g, '').length < 8) {
+            this.showError('Add your WhatsApp number, or untick the WhatsApp box');
+            if (phoneInput) phoneInput.focus();
             return;
         }
 
@@ -399,6 +425,7 @@ class SCChatWidget {
                 email: email,
                 phone: phone,
                 message: message,
+                wa_opt_in: waOptIn ? 1 : 0,
                 website: honeypot  // Honeypot field
             });
 

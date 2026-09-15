@@ -159,7 +159,8 @@ class SC_Chat_Widget_Frontend {
         }
 
         $theme_url = get_template_directory_uri();
-        $version = '1.2.0.' . time(); // Cache bust
+        // Changes with the files, so browsers keep them cached between deploys.
+        $version = '1.3.' . max((int) @filemtime(get_template_directory() . '/assets/js/chat-widget.js'), (int) @filemtime(get_template_directory() . '/assets/css/chat-widget.css'));
 
         // Enqueue CSS
         wp_enqueue_style(
@@ -239,7 +240,9 @@ class SC_Chat_Widget_Frontend {
                 secondaryColor: <?php echo json_encode($secondary_color); ?>,
                 isLoggedIn: <?php echo $is_logged_in ? 'true' : 'false'; ?>,
                 userName: <?php echo json_encode($user_name); ?>,
-                userEmail: <?php echo json_encode($user_email); ?>
+                userEmail: <?php echo json_encode($user_email); ?>,
+                // A WhatsApp number handles the chat and replies may go to WhatsApp (inc/whatsapp/wabot.php).
+                whatsapp: <?php echo (function_exists('sc_wabot_pick_number') && sc_wabot_pick_number('chat') && !empty(sc_wabot_settings()['chat_replies'])) ? 'true' : 'false'; ?>
             };
         </script>
         <?php

@@ -56,7 +56,7 @@ function sc_chat_inbox() {
     };
 
     $rows = $wpdb->get_results($wpdb->prepare(
-        "SELECT c.id, c.event_id, c.user_id, c.visitor_name, c.visitor_email, c.visitor_phone, c.status, c.unread_organizer, c.created_at,
+        "SELECT c.id, c.event_id, c.user_id, c.visitor_name, c.visitor_email, c.visitor_phone, c.wa_opt_in, c.status, c.unread_organizer, c.created_at,
                 COALESCE(c.last_message_at, c.created_at) AS last_at, e.title AS event_title,
                 (SELECT COUNT(*) FROM {$p}sc_chat_messages m WHERE m.conversation_id = c.id) AS message_count,
                 (SELECT CONCAT(m.sender_type, '|', m.message_type, '|', LEFT(m.message, 160)) FROM {$p}sc_chat_messages m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_message
@@ -86,6 +86,7 @@ function sc_chat_inbox_row($c) {
         'name'     => (string) $c->visitor_name,
         'email'    => (string) $c->visitor_email,
         'phone'    => (string) $c->visitor_phone,
+        'whatsapp' => !empty($c->wa_opt_in),
         'account'  => (bool) $c->user_id,
         'event'    => (string) $c->event_title,
         'status'   => $c->status,
@@ -107,7 +108,7 @@ function sc_chat_thread() {
     $limit = 100;
 
     $c = $wpdb->get_row($wpdb->prepare(
-        "SELECT c.id, c.event_id, c.user_id, c.visitor_name, c.visitor_email, c.visitor_phone, c.status, c.unread_organizer, c.created_at,
+        "SELECT c.id, c.event_id, c.user_id, c.visitor_name, c.visitor_email, c.visitor_phone, c.wa_opt_in, c.status, c.unread_organizer, c.created_at,
                 COALESCE(c.last_message_at, c.created_at) AS last_at, e.title AS event_title, NULL AS last_message,
                 (SELECT COUNT(*) FROM {$p}sc_chat_messages m WHERE m.conversation_id = c.id) AS message_count
          FROM {$p}sc_conversations c LEFT JOIN {$p}sc_events e ON e.id = c.event_id WHERE c.id = %d",

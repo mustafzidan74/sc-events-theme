@@ -534,10 +534,18 @@ class SC_Chat {
             $this->invalidate_stats_cache();
         }
 
-        return $wpdb->get_row($wpdb->prepare(
+        $saved = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->messages_table} WHERE id = %d",
             $message_id
         ));
+
+        /**
+         * A chat message was stored (visitor, organizer or system). WhatsApp alerts and replies
+         * hang off this: inc/whatsapp/wabot.php.
+         */
+        do_action('sc_chat_message_saved', (int) $conversation_id, $saved);
+
+        return $saved;
     }
 
     /**
@@ -664,6 +672,14 @@ class SC_Chat {
         }
         $event_title = $event ? $event->title : 'Event';
 
+        /**
+         * Whether to email about this message. WhatsApp alerts and replies (inc/whatsapp/wabot.php)
+         * turn it off for the side they already cover, so nobody waits on a second channel.
+         */
+        if (!apply_filters('sc_chat_email_notification', true, $conversation, $sender_type)) {
+            return;
+        }
+
         if ($sender_type === 'visitor') {
             // Notify organizer
             $admin_email = get_option('admin_email');
@@ -736,6 +752,16 @@ class SC_Chat {
 
         // Get or create conversation (event_id can be 0 for global chat)
         $conversation = $this->get_or_create_conversation($event_id, $visitor_data);
+
+        // The visitor asked for replies on WhatsApp (needs a phone number).
+        if (!empty($_POST['wa_opt_in']) && $visitor_data['phone'] !== '' && property_exists($conversation, 'wa_opt_in')) {
+            global $wpdb;
+            $update = array('wa_opt_in' => 1);
+            if (empty($conversation->visitor_phone)) {
+                $update['visitor_phone'] = $visitor_data['phone'];
+            }
+            $wpdb->update($this->conversations_table, $update, array('id' => $conversation->id));
+        }
 
         // Send initial message
         if (!empty($initial_message)) {

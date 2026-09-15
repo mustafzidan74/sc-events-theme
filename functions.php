@@ -279,6 +279,8 @@ require get_template_directory() . '/inc/admin-dashboard/scanners-ajax-handlers.
 require get_template_directory() . '/inc/admin-dashboard/badges-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/booths-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/chat-dashboard.php';
+require get_template_directory() . '/inc/whatsapp/wabot.php';
+require get_template_directory() . '/inc/admin-dashboard/whatsapp-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/modules-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/settings-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/reports-dashboard.php';

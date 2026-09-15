@@ -62,6 +62,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                     </button>
                     <div class="w-chat__who">
                         <strong id="th-name"></strong>
+                        <span class="w-tag w-tag--teal" id="th-wa-on" hidden><?php echo esc_html(sc_t('chat.replies_whatsapp', 'Your replies also go to their WhatsApp')); ?></span>
                         <span class="w-sub w-ltr" id="th-contact"></span>
                         <span class="w-sub" id="th-meta"></span>
                     </div>
@@ -263,6 +264,7 @@ jQuery(function ($) {
 
     function renderHeader(c) {
         $('#th-name').text(c.name || c.email || L.visitor);
+        $('#th-wa-on').prop('hidden', !(c.whatsapp && <?php echo (function_exists('sc_wabot_pick_number') && sc_wabot_pick_number('chat') && !empty(sc_wabot_settings()['chat_replies'])) ? 'true' : 'false'; ?>));
         $('#th-contact').html([c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '', c.phone ? '<a href="tel:' + esc(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(c.phone) + '</a>' : ''].filter(Boolean).join(' · '));
         var meta = [c.event, L.started.replace('%s', toDate(c.started).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))];
         if (c.account) { meta.unshift(L.account); }

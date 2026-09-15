@@ -921,3 +921,22 @@ body.sc-light-theme .sc-chat-toggle {
 body.sc-light-theme .sc-chat-input-area button:hover {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
+
+
+/* "Send the reply to my WhatsApp too" (shown when a WhatsApp number handles the chat) */
+.sc-chat-wa {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--sc-chat-text);
+    cursor: pointer;
+    text-align: start;
+}
+.sc-chat-wa input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #128C4A;
+    flex: none;
+}

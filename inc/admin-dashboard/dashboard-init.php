@@ -315,6 +315,7 @@ class SC_Event_Manager_Dashboard {
             'analytics',
             // Notifications
             'notifications',
+            'whatsapp',
             // Module Manager
             'module-manager'
         );
