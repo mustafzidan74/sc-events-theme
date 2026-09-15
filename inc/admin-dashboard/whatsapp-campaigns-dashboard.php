@@ -20,7 +20,7 @@ function sc_wabot_campaign_input() {
         'manual'           => sanitize_textarea_field(wp_unslash($_POST['manual'] ?? '')),
         'message'          => sanitize_textarea_field(wp_unslash($_POST['message'] ?? '')),
         'interval_seconds' => absint($_POST['interval_seconds'] ?? 45),
-        'attach'           => !empty($_POST['attach_qr']) && $source === 'event' ? 'ticket_qr' : '',
+        'attach'           => empty($_POST['attach_qr']) ? '' : ($source === 'event' ? 'ticket_qr' : ($source === 'certificates' ? 'certificate_pdf' : '')),
     );
 }
 

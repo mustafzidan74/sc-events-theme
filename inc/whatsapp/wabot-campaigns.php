@@ -162,8 +162,14 @@ function sc_wabot_create_campaign($args) {
         return new WP_Error('number', __('Add a WhatsApp number allowed for bulk sending first.', 'sc_events'));
     }
     $interval = max(15, min(600, (int) $args['interval_seconds']));
-    // Each person's own ticket QR can go with the message (event lists only: the row is the attendee).
-    $attach = ($args['attach'] ?? '') === 'ticket_qr' && $args['source'] === 'event' ? 'ticket_qr' : '';
+    // Each person's own file can go with the message: ticket QR for event lists (row = attendee),
+    // certificate PDF for certificate holders (row = certificate).
+    $attach = '';
+    if (($args['attach'] ?? '') === 'ticket_qr' && $args['source'] === 'event') {
+        $attach = 'ticket_qr';
+    } elseif (($args['attach'] ?? '') === 'certificate_pdf' && $args['source'] === 'certificates') {
+        $attach = 'certificate_pdf';
+    }
     $now = current_time('mysql');
     $wpdb->insert("{$p}sc_wa_campaigns", array(
         'title'            => mb_substr(sanitize_text_field($args['title']), 0, 190),

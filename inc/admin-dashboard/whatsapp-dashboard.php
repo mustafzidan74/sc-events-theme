@@ -291,7 +291,7 @@ add_action('wp_ajax_sc_wabot_log', function () {
         $body = sc_wabot_is_secret_context($r->context) ? sc_wabot_mask_codes($r->body) : $r->body;
         $out[] = array(
             'id' => (int) $r->id, 'number' => $labels[$r->used_number ?: $r->number_key] ?? '—', 'to' => $r->to_phone,
-            'text' => mb_substr($body, 0, 160), 'context' => $r->context, 'media' => !empty($r->media_ref),
+            'text' => mb_substr($body, 0, 160), 'context' => $r->context, 'media' => $r->media_ref ? strtok($r->media_ref, ':') : '',
             'conversation' => $r->context_id && strpos($r->context, 'chat_') === 0 ? (int) $r->context_id : null,
             'status' => $r->status, 'delivery' => $r->delivery, 'attempts' => (int) $r->attempts, 'error' => $r->error, 'at' => $r->updated_at ?: $r->created_at,
         );

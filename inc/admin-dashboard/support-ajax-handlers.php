@@ -103,7 +103,13 @@ function sc_submit_contact_form() {
     if ($result === false) {
         wp_send_json_error(array('message' => __('Failed to save message. Please try again.', 'sc_events')));
     }
+    $message_id = (int) $wpdb->insert_id; // read before set_transient(), which inserts too
     set_transient($throttle_key, $sent + 1, 15 * MINUTE_IN_SECONDS);
+
+    // WhatsApp: a receipt to the sender and an alert to the team (goes out after the page has its answer).
+    if (function_exists('sc_notify_support_message')) {
+        sc_notify_support_message($message_id);
+    }
 
     // Send email notification to admin
     $admin_email = get_option('sc_platform_email', get_option('admin_email'));
@@ -148,6 +154,81 @@ function sc_support_view_condition($view) {
     );
     return $map[$view] ?? '';
 }
+
+/** One message in the list's row format (for links from WhatsApp alerts). */
+function sc_support_row($r) {
+    return array(
+        'id'            => (int) $r->id,
+        'name'          => (string) $r->name,
+        'email'         => (string) $r->email,
+        'phone'         => (string) $r->phone,
+        'subject'       => (string) $r->subject,
+        'message'       => (string) $r->message,
+        'status'        => in_array($r->status, array('new', 'contacted', 'resolved'), true) ? $r->status : 'new',
+        'created'       => $r->created_at,
+        'updated'       => $r->updated_at,
+        'registrations' => 0,
+        'certificates'  => 0,
+    );
+}
+
+/** WhatsApp replies already sent for a message, oldest first. */
+function sc_support_replies($id) {
+    global $wpdb;
+    $out = array();
+    foreach ($wpdb->get_results($wpdb->prepare(
+        "SELECT body, status, delivery, error, recipient_name, created_at FROM {$wpdb->prefix}sc_wa_outbox WHERE context = 'support_reply' AND context_id = %d ORDER BY id LIMIT 50",
+        (int) $id
+    )) as $r) {
+        $out[] = array('text' => $r->body, 'status' => $r->status, 'delivery' => (string) $r->delivery, 'error' => (string) $r->error, 'by' => (string) $r->recipient_name, 'at' => $r->created_at);
+    }
+    return $out;
+}
+
+add_action('wp_ajax_sc_support_get', function () {
+    sc_support_verify_request();
+    global $wpdb;
+    $r = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}sc_support_messages WHERE id = %d", absint($_POST['id'] ?? 0)));
+    if (!$r) {
+        wp_send_json_error(array('message' => __('Message not found.', 'sc_events')));
+    }
+    wp_send_json_success(array('row' => sc_support_row($r), 'replies' => function_exists('sc_wabot_enqueue') ? sc_support_replies($r->id) : array()));
+});
+
+/** Reply to a contact message on WhatsApp from the site's number; the message is marked as replied. */
+add_action('wp_ajax_sc_support_whatsapp_reply', function () {
+    sc_support_verify_request();
+    global $wpdb;
+    $table = $wpdb->prefix . 'sc_support_messages';
+    $r = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", absint($_POST['id'] ?? 0)));
+    if (!$r) {
+        wp_send_json_error(array('message' => __('Message not found.', 'sc_events')));
+    }
+    $text = trim(sanitize_textarea_field(wp_unslash($_POST['text'] ?? '')));
+    if ($text === '') {
+        wp_send_json_error(array('message' => __('Write the reply.', 'sc_events')));
+    }
+    $phone = sc_wabot_phone($r->phone);
+    if ($phone === '') {
+        wp_send_json_error(array('message' => __('This message has no valid WhatsApp number. Reply by email.', 'sc_events')));
+    }
+    $number = sc_wabot_candidates(null, 'support_reply')[0] ?? null;
+    if (!$number) {
+        wp_send_json_error(array('message' => __('No WhatsApp number is set up for these messages.', 'sc_events')));
+    }
+    $platform = wp_specialchars_decode(get_option('sc_platform_name', get_bloginfo('name')), ENT_QUOTES);
+    $body = mb_substr($text, 0, 3000) . "
+
+— " . $platform;
+    $user = wp_get_current_user();
+    if (!sc_wabot_enqueue($number, $phone, $body, 'support_reply', (int) $r->id, 1440, '', $user->display_name)) {
+        wp_send_json_error(array('message' => __('Could not queue the reply.', 'sc_events')));
+    }
+    if ($r->status === 'new') {
+        $wpdb->update($table, array('status' => 'contacted'), array('id' => (int) $r->id));
+    }
+    wp_send_json_success(array('message' => __('Reply on its way on WhatsApp. The message is marked as replied.', 'sc_events'), 'replies' => sc_support_replies($r->id)));
+});
 
 add_action('wp_ajax_sc_support_list', 'sc_support_list');
 function sc_support_list() {

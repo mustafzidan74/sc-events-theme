@@ -266,6 +266,21 @@ function sc_wabot_media($ref) {
         $code = $wpdb->get_var($wpdb->prepare("SELECT ticket_code FROM {$wpdb->prefix}sc_attendees WHERE id = %d AND status = 'active'", $id));
         $png = $code ? sc_wabot_qr_png($code) : false;
         $file = $png ? array('bytes' => $png, 'mime' => 'image/png', 'name' => 'ticket-' . $code . '.png') : null;
+    } elseif ($kind === 'certificate_pdf' && $id) {
+        $c = $wpdb->get_row($wpdb->prepare("SELECT certificate_number, status FROM {$wpdb->prefix}sc_certificates WHERE id = %d", $id));
+        if ($c && $c->status !== 'revoked') {
+            // Built in memory; this is not a download, so the certificate's download count is untouched.
+            if (!class_exists('SC_Certificate_PDF')) {
+                require_once get_template_directory() . '/inc/certificates/class-sc-certificate-pdf.php';
+            }
+            try {
+                $generator = new SC_Certificate_PDF($id);
+                $pdf = $generator->generate('S');
+            } catch (Throwable $e) {
+                $pdf = '';
+            }
+            $file = $pdf ? array('bytes' => $pdf, 'mime' => 'application/pdf', 'name' => 'certificate-' . $c->certificate_number . '.pdf') : null;
+        }
     } elseif ($kind === 'company_qr' && $id) {
         $c = $wpdb->get_row($wpdb->prepare("SELECT company_code, qr_data FROM {$wpdb->prefix}sc_company_attendees WHERE id = %d AND status = 'active'", $id));
         $png = $c ? sc_wabot_qr_png($c->qr_data ?: $c->company_code) : false;
@@ -284,6 +299,18 @@ function sc_wabot_media($ref) {
     }
     $file['name'] = $file['name'] ?? 'file';
     return $file;
+}
+
+/**
+ * Seconds to wait before the next message of a batch sent outside a campaign (badges, certificates):
+ * one shared lane, so batches started from different pages don't go out together.
+ */
+function sc_wabot_next_delay($gap = 60) {
+    $now = time();
+    $next = (int) get_option('sc_wabot_slow_lane', 0);
+    $at = max($now, $next);
+    update_option('sc_wabot_slow_lane', $at + max(15, (int) $gap) + wp_rand(0, 10), false);
+    return $at - $now;
 }
 
 /** Contexts whose text holds a one-time code: never shown in logs, wiped after sending. */

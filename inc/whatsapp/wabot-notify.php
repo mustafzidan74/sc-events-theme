@@ -53,6 +53,41 @@ function sc_notify_types() {
             'subject'  => 'النهارده: {event}',
             'template' => "صباح الخير {first_name} ☀️\n{event} النهارده.\n\n🕘 {time}\n📍 {venue}\n🗺️ {map_link}\n\nجهّز الـ QR ده على الباب.\nالتذكرة: {ticket_link}",
         ),
+        'certificate_ready' => array(
+            'label'    => __('Certificate', 'sc_events'),
+            'when'     => __('When someone gets their certificate from My Account. From the dashboard, “Send the certificate” (and the option on the issue page) sends it even when this is off; a batch goes out one by one.', 'sc_events'),
+            'tags'     => array('{name}', '{first_name}', '{event}', '{certificate_number}', '{certificate_link}', '{verify_link}', '{site}'),
+            'attach'   => 'certificate_pdf',
+            'enabled'  => 1,
+            'subject'  => 'شهادتك: {event}',
+            'template' => "أهلاً {first_name} 🎓\nشهادة حضورك في {event} جاهزة، ومرفقة هنا PDF.\n\nرقم الشهادة: {certificate_number}\nتحميل: {certificate_link}\nأي حد يقدر يتأكد منها هنا: {verify_link}\n\n{site}",
+        ),
+        'support_received' => array(
+            'label'    => __('Contact form: we got your message', 'sc_events'),
+            'when'     => __('Right after someone sends the contact form with a phone number.', 'sc_events'),
+            'tags'     => array('{name}', '{first_name}', '{subject}', '{site}'),
+            'enabled'  => 1,
+            'subject'  => 'وصلتنا رسالتك',
+            'template' => "أهلاً {first_name}،\nوصلتنا رسالتك بخصوص «{subject}» وهنرد عليك في أقرب وقت.\n\n{site}",
+        ),
+        'support_alert' => array(
+            'label'    => __('Contact form: alert the team', 'sc_events'),
+            'when'     => __('Right after a contact form message arrives, to the people listed in Chat alerts on the WhatsApp page.', 'sc_events'),
+            'tags'     => array('{name}', '{phone}', '{email}', '{subject}', '{message}', '{link}'),
+            'enabled'  => 1,
+            'subject'  => 'رسالة جديدة: {subject}',
+            'template' => "📩 رسالة جديدة من صفحة التواصل\nمن: {name} · {phone}\n{email}\nالموضوع: {subject}\n\n«{message}»\n\nالرد من هنا: {link}",
+        ),
+        'daily_summary' => array(
+            'label'      => __('Daily summary', 'sc_events'),
+            'when'       => __('Once a day at the hour you set: registrations, check-ins, unanswered chats and contact messages, and how WhatsApp sending went.', 'sc_events'),
+            'tags'       => array('{summary}', '{date}', '{site}'),
+            'hour'       => 21,
+            'recipients' => true,
+            'enabled'    => 0,
+            'subject'    => 'ملخص اليوم',
+            'template'   => "📊 ملخص {date} — {site}\n\n{summary}",
+        ),
         'password_changed' => array(
             'label'    => __('Password changed', 'sc_events'),
             'when'     => __('Right after a password is changed, from “Forgot password” or My Account, so the owner of the account knows.', 'sc_events'),
@@ -96,6 +131,15 @@ function sc_notify_tag_labels() {
         '{booth}'       => __('Booth', 'sc_events'),
         '{badge_link}'  => __('Badge link', 'sc_events'),
         '{site}'        => __('Site name', 'sc_events'),
+        '{certificate_number}' => __('Certificate number', 'sc_events'),
+        '{certificate_link}'   => __('Certificate download link', 'sc_events'),
+        '{verify_link}' => __('Verification page', 'sc_events'),
+        '{subject}'     => __('Message subject', 'sc_events'),
+        '{message}'     => __('Message text', 'sc_events'),
+        '{phone}'       => __('Phone', 'sc_events'),
+        '{email}'       => __('Email', 'sc_events'),
+        '{link}'        => __('Dashboard link', 'sc_events'),
+        '{summary}'     => __('The day’s numbers', 'sc_events'),
     );
 }
 
@@ -115,6 +159,7 @@ function sc_notify_settings() {
             'template' => isset($s['template']) && trim($s['template']) !== '' ? (string) $s['template'] : $def['template'],
             'subject'  => isset($s['subject']) && trim($s['subject']) !== '' ? (string) $s['subject'] : $def['subject'],
             'hour'     => isset($def['hour']) ? (isset($s['hour']) ? max(0, min(23, (int) $s['hour'])) : $def['hour']) : null,
+            'to'       => !empty($def['recipients']) ? (string) ($s['to'] ?? '') : null,
         );
     }
     return $out;
@@ -386,6 +431,137 @@ function sc_notify_company_badge($company_id, $force = false, $args = array()) {
         },
     ));
 }
+
+/**
+ * Certificate with its PDF. $args may carry delay_seconds for a batch.
+ */
+function sc_notify_certificate($certificate_id, $force = false, $args = array()) {
+    global $wpdb;
+    $c = $wpdb->get_row($wpdb->prepare(
+        "SELECT c.*, a.phone, a.email, a.user_id FROM {$wpdb->prefix}sc_certificates c LEFT JOIN {$wpdb->prefix}sc_attendees a ON a.id = c.attendee_id WHERE c.id = %d",
+        (int) $certificate_id
+    ));
+    if (!$c || $c->status === 'revoked') {
+        return array('whatsapp' => false, 'email' => null, 'reason' => 'not_found');
+    }
+    $download = add_query_arg(array('action' => 'sc_download_certificate', 'id' => (int) $c->id, 'token' => wp_hash($c->verification_code . $c->certificate_number)), admin_url('admin-ajax.php'));
+    $verify = class_exists('SC_Certificate') ? SC_Certificate::get_verification_url($c->verification_code) : '';
+    return sc_notify('certificate_ready', $args + array(
+        'force'         => $force,
+        'phone'         => sc_notify_attendee_phone($c),
+        'email'         => $c->email,
+        'name'          => $c->attendee_name,
+        'fields'        => array(
+            '{name}' => $c->attendee_name, '{first_name}' => sc_notify_first_name($c->attendee_name), '{event}' => $c->event_title,
+            '{certificate_number}' => $c->certificate_number, '{certificate_link}' => $download, '{verify_link}' => $verify,
+        ),
+        'context_id'    => (int) $c->id,
+        'media_ref'     => 'certificate_pdf:' . (int) $c->id,
+        'button_url'    => $download,
+        'button_label'  => __('Download your certificate', 'sc_events'),
+        'on_email_sent' => function () use ($c) {
+            SC_Certificate::mark_email_sent((int) $c->id);
+        },
+    ));
+}
+
+/** A contact form message: thank the sender and alert the team. */
+function sc_notify_support_message($message_id) {
+    global $wpdb;
+    $m = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}sc_support_messages WHERE id = %d", (int) $message_id));
+    if (!$m) {
+        return;
+    }
+    $phone = sc_wabot_phone($m->phone);
+    $fields = array('{name}' => $m->name, '{first_name}' => sc_notify_first_name($m->name), '{subject}' => $m->subject);
+    if ($phone !== '') {
+        sc_notify('support_received', array('phone' => $phone, 'name' => $m->name, 'fields' => $fields, 'context_id' => (int) $m->id));
+    }
+    $alert = $fields + array(
+        '{phone}'   => $phone !== '' ? '+' . $phone : '',
+        '{email}'   => $m->email,
+        '{message}' => mb_substr(trim($m->message), 0, 500),
+        '{link}'    => home_url('/event-manager-dashboard/support?message=' . (int) $m->id),
+    );
+    foreach (sc_wabot_recipients() as $r) {
+        sc_notify('support_alert', array('phone' => $r['phone'], 'name' => $r['name'], 'fields' => $alert, 'context_id' => (int) $m->id));
+    }
+}
+
+/** The numbers for the daily summary, as plain lines. */
+function sc_notify_summary_text($date) {
+    global $wpdb;
+    $p = $wpdb->prefix;
+    $from = $date . ' 00:00:00';
+    $to = $date . ' 23:59:59';
+    $lines = array();
+
+    $reg = $wpdb->get_results($wpdb->prepare(
+        "SELECT a.event_id, e.title, COUNT(*) AS n FROM {$p}sc_attendees a JOIN {$p}sc_events e ON e.id = a.event_id
+         WHERE a.created_at BETWEEN %s AND %s AND a.status = 'active' GROUP BY a.event_id, e.title ORDER BY n DESC LIMIT 6",
+        $from, $to
+    ));
+    $total = array_sum(array_map('intval', wp_list_pluck($reg, 'n')));
+    $lines[] = '🎟️ تسجيلات جديدة: ' . number_format_i18n($total);
+    foreach ($reg as $r) {
+        $all = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$p}sc_attendees WHERE event_id = %d AND status = 'active' AND payment_status IN ('success', 'completed')", $r->event_id));
+        $lines[] = '• ' . $r->title . ': ' . number_format_i18n($r->n) . ' (الإجمالي ' . number_format_i18n($all) . ')';
+    }
+    $checkins = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$p}sc_attendees WHERE checked_in_at BETWEEN %s AND %s", $from, $to));
+    if ($checkins) {
+        $lines[] = '✅ دخول: ' . number_format_i18n($checkins);
+    }
+    $companies = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$p}sc_company_attendees WHERE created_at BETWEEN %s AND %s", $from, $to));
+    if ($companies) {
+        $lines[] = '🏢 شركات جديدة: ' . number_format_i18n($companies);
+    }
+    $lines[] = '';
+    $waiting = (int) $wpdb->get_var(
+        "SELECT COUNT(*) FROM {$p}sc_conversations c WHERE c.status = 'active'
+         AND (SELECT m.sender_type FROM {$p}sc_chat_messages m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) = 'visitor'"
+    );
+    $lines[] = '💬 شات مستني رد: ' . number_format_i18n($waiting);
+    $support = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$p}sc_support_messages WHERE status = 'new'");
+    $lines[] = '📩 رسائل تواصل جديدة: ' . number_format_i18n($support);
+
+    $wa = $wpdb->get_row($wpdb->prepare(
+        "SELECT SUM(status = 'sent') AS sent, SUM(status IN ('failed', 'expired')) AS failed FROM {$p}sc_wa_outbox WHERE created_at BETWEEN %s AND %s AND context <> 'daily_summary'",
+        $from, $to
+    ));
+    $state = sc_wabot_overall_state();
+    $lines[] = '';
+    $lines[] = '📱 واتساب: اتبعت ' . number_format_i18n((int) $wa->sent) . ' · فشل ' . number_format_i18n((int) $wa->failed)
+        . ' · الأرقام المتصلة ' . (int) ($state['connected'] ?? 0) . '/' . count($state['numbers']);
+    return implode("\n", $lines);
+}
+
+/** Who gets the summary: the numbers typed on the card, else the chat alert list. */
+function sc_notify_summary_recipients() {
+    $to = (string) sc_notify_settings()['types']['daily_summary']['to'];
+    $out = array();
+    foreach (preg_split('/[\r\n,;]+/', $to) as $raw) {
+        $phone = sc_wabot_phone($raw);
+        if ($phone !== '') {
+            $out[$phone] = array('name' => '', 'phone' => $phone);
+        }
+    }
+    return $out ? array_values($out) : sc_wabot_recipients();
+}
+
+function sc_notify_daily_summary_tick() {
+    $cfg = sc_notify_settings()['types']['daily_summary'];
+    $now = current_time('timestamp');
+    $date = date('Y-m-d', $now);
+    if (empty($cfg['enabled']) || (int) date('G', $now) < (int) $cfg['hour'] || get_option('sc_notify_summary_sent') === $date) {
+        return;
+    }
+    update_option('sc_notify_summary_sent', $date, false);
+    $fields = array('{summary}' => sc_notify_summary_text($date), '{date}' => date_i18n('l j F', $now));
+    foreach (sc_notify_summary_recipients() as $r) {
+        sc_notify('daily_summary', array('phone' => $r['phone'], 'name' => $r['name'], 'fields' => $fields));
+    }
+}
+add_action('sc_wabot_tick', 'sc_notify_daily_summary_tick', 30);
 
 /** Tell the account owner their password was just changed. */
 function sc_notify_password_changed($user_id) {

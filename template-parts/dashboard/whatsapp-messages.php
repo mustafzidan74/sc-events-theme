@@ -95,6 +95,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 .w-wam__phone small { align-self: stretch; color: #54656F; font-size: 12px; }
 .w-wam__bubble { background: #D9FDD3; color: #111B21; border-radius: 8px 0 8px 8px; padding: 6px; max-width: 320px; width: 100%; box-shadow: 0 1px .5px rgba(11, 20, 26, .13); }
 .w-wam__bubble img { display: block; width: 100%; max-width: 100%; border-radius: 6px; background: #fff; }
+.w-wam__file { display: block; padding: 10px 12px; border-radius: 6px; background: rgba(0, 0, 0, .05); font-size: 13px; overflow-wrap: anywhere; }
 .w-wam__bubble p { margin: 6px 4px 2px; white-space: pre-line; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.45; }
 .w-wam__next { margin: 0; padding: 10px 12px; border-radius: var(--w-radius-md); background: var(--w-surface-2); font-size: 13px; }
 .w-wam__warn { margin: 0; padding: 10px 14px; border-radius: var(--w-radius-md); background: var(--w-warning-soft); color: var(--w-warning); font-size: 13.5px; }
@@ -168,7 +169,13 @@ jQuery(function ($) {
         t.tags.forEach(function (tag) { $('<button type="button" class="w-chipbtn">').attr({ 'data-insert': tag, title: state.tags[tag] || '' }).text(tag).appendTo($chips); });
         $('<p class="w-field__help">').text('A line whose tags are all empty (say, no venue) is left out.').appendTo($f1);
 
-        var $f2 = $('<div class="w-field wam-subject">').prop('hidden', !state.email).appendTo($form);
+        if (t.recipients) {
+            var $rf = $('<div class="w-field">').appendTo($form);
+            $('<label class="w-field__label">').attr('for', id + '-to').text('Send to').appendTo($rf);
+            $('<textarea class="form-control w-ltr" rows="3" data-field="to" placeholder="01012345678">').attr('id', id + '-to').val(t.to || '').appendTo($rf);
+            $('<p class="w-field__help">').text('One WhatsApp number per line. Leave empty to use the ' + state.alert_people + ' people in Chat alerts on the WhatsApp page.').appendTo($rf);
+        }
+        var $f2 = $('<div class="w-field wam-subject">').prop('hidden', !state.email || t.no_email).appendTo($form);
         $('<label class="w-field__label">').attr('for', id + '-subj').text('Email subject').appendTo($f2);
         $('<input class="form-control" maxlength="190" dir="auto" data-field="subject">').attr('id', id + '-subj').val(t.subject).appendTo($f2);
 
@@ -176,7 +183,7 @@ jQuery(function ($) {
         if (t.attach_kind) {
             var $at = $('<label class="w-switch">').appendTo($row);
             $('<input type="checkbox" data-field="attach">').prop('checked', !!t.attach).appendTo($at);
-            $at.append('<span class="w-switch__track" aria-hidden="true"></span>', $('<span class="w-switch__text">').append($('<strong>').text(t.attach_kind === 'company_qr' ? 'Attach the badge QR image' : 'Attach the ticket QR image')));
+            $at.append('<span class="w-switch__track" aria-hidden="true"></span>', $('<span class="w-switch__text">').append($('<strong>').text({ company_qr: 'Attach the badge QR image', certificate_pdf: 'Attach the certificate PDF' }[t.attach_kind] || 'Attach the ticket QR image')));
         }
         if (t.hour !== null && t.hour !== undefined) {
             var $hf = $('<div class="w-field w-wam__hour">').appendTo($row);
@@ -223,6 +230,7 @@ jQuery(function ($) {
             $ph.append($('<small>').text('Preview with ' + r.data.who + '’s details'));
             var $b = $('<div class="w-wam__bubble">').appendTo($ph);
             if (r.data.image) { $('<img alt="">').attr('src', r.data.image).appendTo($b); }
+            if (r.data.file) { $('<span class="w-wam__file">').text('📄 ' + r.data.file).appendTo($b); }
             $('<p dir="auto">').text(r.data.text).appendTo($b);
         });
     }
@@ -307,7 +315,7 @@ jQuery(function ($) {
         post('sc_notify_save', { scope: 'delivery', email: $f.find('input[name=email]').is(':checked') ? 1 : 0, interval: $('#wam-interval').val() }).done(function (r) {
             if (!r.success) { say($f, r.data.message, false); return; }
             state = r.data;
-            $('.wam-subject').prop('hidden', !state.email);
+            renderTypesKeep('', '');
             renderTypesKeep('', '');
             say($f, 'Saved.', true);
         }).fail(function (x) { say($f, errorOf(x), false); }).always(function () { $b.prop('disabled', false); });

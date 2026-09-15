@@ -2,7 +2,8 @@
 /**
  * Support inbox — contact form messages on the list pattern (sc_support_list / sc_support_bulk
  * in inc/admin-dashboard/support-ajax-handlers.php). A message opens in a reading dialog with
- * reply links: email and, when there is a phone number, WhatsApp.
+ * reply links: email and, when there is a phone number, a WhatsApp reply sent from the site's number
+ * (sc_support_whatsapp_reply) with the replies already sent listed under the message.
  *
  * @package sc_events
  */
@@ -21,6 +22,7 @@ $load_wd_form = true;
 
 $dashboard_url = home_url('/event-manager-dashboard/');
 $platform_name = get_option('sc_platform_name', get_bloginfo('name'));
+$wa_ready = function_exists('sc_wabot_candidates') && (bool) sc_wabot_candidates(null, 'support_reply');
 $js = function ($value) {
     return wp_json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 };
@@ -64,6 +66,15 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 </div>
 </div>
 
+<style>
+.w-msg__wa { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.w-msg__waactions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.w-msg__replies { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.w-msg__replies li { align-self: flex-end; max-width: 85%; min-width: 0; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+.w-msg__replies .w-sub { white-space: normal; text-align: end; overflow-wrap: anywhere; max-width: 100%; }
+.w-msg__reply { background: #D9FDD3; color: #111B21; border-radius: 8px 0 8px 8px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+</style>
+
 <div class="modal fade" id="msgModal" tabindex="-1" role="dialog" aria-labelledby="msg-subject">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -84,9 +95,20 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                     </div>
                 </div>
                 <div class="w-msg__body" id="msg-body" dir="auto"></div>
+                <?php if ($wa_ready): ?>
+                <div class="w-msg__wa" id="msg-wa-box" hidden>
+                    <ol class="w-msg__replies" id="msg-replies" aria-live="polite"></ol>
+                    <label class="w-field__label" for="msg-wa-text"><?php echo esc_html(sc_t('support.reply_on_whatsapp_label', 'Reply on WhatsApp from the site’s number')); ?></label>
+                    <textarea class="form-control" id="msg-wa-text" rows="4" dir="auto" maxlength="3000"></textarea>
+                    <div class="w-msg__waactions">
+                        <button type="button" class="btn btn-primary btn-sm" id="msg-wa-send"><?php echo esc_html(sc_t('support.send_whatsapp', 'Send on WhatsApp')); ?></button>
+                        <span class="w-sub" id="msg-wa-note" role="status"></span>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="w-aside-actions mt-3">
                     <a class="btn btn-primary btn-sm" id="msg-reply-email" href="#" target="_blank" rel="noopener"><?php echo esc_html(sc_t('support.reply_email', 'Reply by email')); ?></a>
-                    <a class="btn btn-secondary btn-sm" id="msg-reply-wa" href="#" target="_blank" rel="noopener"><?php echo esc_html(sc_t('support.reply_whatsapp', 'Reply on WhatsApp')); ?></a>
+                    <a class="btn btn-secondary btn-sm" id="msg-reply-wa" href="#" target="_blank" rel="noopener"><?php echo esc_html($wa_ready ? sc_t('support.open_my_whatsapp', 'Open in my WhatsApp') : sc_t('support.reply_whatsapp', 'Reply on WhatsApp')); ?></a>
                     <a class="btn btn-secondary btn-sm" id="msg-attendee" href="#"><?php echo esc_html(sc_t('support.see_registrations', 'See their registrations')); ?></a>
                 </div>
             </div>
@@ -107,6 +129,8 @@ jQuery(function ($) {
     var esc = WDList.esc;
     var dashboardUrl = <?php echo $js($dashboard_url); ?>;
     var platform = <?php echo $js($platform_name); ?>;
+    var waReady = <?php echo $wa_ready ? 'true' : 'false'; ?>;
+    var WA_STATUS = { pending: 'Waiting to send', sending: 'Sending', sent: 'Sent', failed: 'Failed', skipped: 'Not on WhatsApp', expired: 'Not sent in time' };
     var L = <?php echo $js(array(
         'views'     => array('new' => sc_t('support.new', 'New'), 'contacted' => sc_t('support.replied', 'Replied'), 'resolved' => sc_t('support.resolved', 'Resolved'), 'all' => sc_t('dashboard_pages.all', 'All')),
         'from'      => sc_t('support.from', 'From'),
@@ -193,11 +217,49 @@ jQuery(function ($) {
         $('#msg-reply-email').attr('href', 'mailto:' + encodeURIComponent(r.email).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Re: ' + r.subject) + '&body=' + encodeURIComponent(greeting + quoted.slice(0, 1500)));
         $('#msg-reply-wa').prop('hidden', !wa).attr('href', wa ? 'https://wa.me/' + wa + '?text=' + encodeURIComponent(greeting + '(' + platform + ') ' + r.subject) : '#');
         $('#msg-attendee').prop('hidden', !r.registrations).attr('href', dashboardUrl + 'attendees?search=' + encodeURIComponent(r.email));
+        if (waReady) {
+            $('#msg-wa-box').prop('hidden', !wa);
+            $('#msg-wa-text').val(wa ? L.replyGreeting.replace('%s', r.name) + '\n' : '');
+            $('#msg-wa-note').text('');
+            renderReplies([]);
+            if (wa) {
+                $.post(scDashboard.ajaxurl, { action: 'sc_support_get', nonce: scDashboard.nonce, id: r.id }).done(function (res) {
+                    if (res.success && current && current.id === r.id) { renderReplies(res.data.replies); }
+                });
+            }
+        }
         $('[data-msg-op="new"]').prop('hidden', r.status === 'new');
         $('[data-msg-op="contacted"]').prop('hidden', r.status === 'contacted');
         $('[data-msg-op="resolved"]').prop('hidden', r.status === 'resolved');
         $('#msgModal').modal('show');
     }
+    function renderReplies(replies) {
+        var $ol = $('#msg-replies').empty().prop('hidden', !replies.length);
+        replies.forEach(function (m) {
+            var state = WA_STATUS[m.status] || m.status;
+            if (m.status === 'sent' && (m.delivery === 'read' || m.delivery === 'delivered')) { state = 'Sent · ' + m.delivery; }
+            $ol.append($('<li>').append(
+                $('<div class="w-msg__reply" dir="auto">').text(m.text),
+                $('<span class="w-sub">').text((m.by ? m.by + ' · ' : '') + new Date(String(m.at).replace(' ', 'T')).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) + ' · ' + state + (m.error && m.status !== 'sent' ? ' — ' + m.error : ''))
+            ));
+        });
+    }
+    $('#msg-wa-send').on('click', function () {
+        if (!current) { return; }
+        var $b = $(this).prop('disabled', true);
+        $('#msg-wa-note').text('');
+        $.post(scDashboard.ajaxurl, { action: 'sc_support_whatsapp_reply', nonce: scDashboard.nonce, id: current.id, text: $('#msg-wa-text').val() })
+            .done(function (res) {
+                if (!res.success) { $('#msg-wa-note').text(res.data.message); return; }
+                $('#msg-wa-note').text(res.data.message);
+                $('#msg-wa-text').val('');
+                renderReplies(res.data.replies);
+                if (current.status === 'new') { current.status = 'contacted'; $('[data-msg-op="contacted"]').prop('hidden', true); $('[data-msg-op="new"]').prop('hidden', false); list.reload(); }
+            })
+            .fail(function () { $('#msg-wa-note').text(L.failed); })
+            .always(function () { $b.prop('disabled', false); });
+    });
+
     $('#msgModal').on('click', '[data-msg-op]', function () {
         var op = this.getAttribute('data-msg-op');
         if (!current) { return; }
@@ -267,6 +329,14 @@ jQuery(function ($) {
             return state.filters.search ? [{ label: L.search, value: state.filters.search, clear: function (l) { l.setFilter('search', ''); } }] : [];
         }
     });
+
+    // Opened from a WhatsApp alert: ?message=ID
+    var deepId = parseInt(new URLSearchParams(window.location.search).get('message'), 10);
+    if (deepId) {
+        $.post(scDashboard.ajaxurl, { action: 'sc_support_get', nonce: scDashboard.nonce, id: deepId }).done(function (res) {
+            if (res.success) { openMessage(res.data.row); }
+        });
+    }
 
     $('#support-list').on('click', '[data-open]', function () {
         var id = +this.getAttribute('data-open');

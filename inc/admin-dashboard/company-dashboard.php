@@ -247,17 +247,17 @@ function sc_save_company_attendee() {
 
 /**
  * Send the company its badge: WhatsApp with the QR image, and email when email is on.
- * In a batch, $position spaces the WhatsApp messages out so they don't go all at once.
+ * In a batch every message takes its turn in the shared slow lane.
  *
  * @return bool True when something was sent or queued.
  */
-function sc_companies_send_badge_email($id, $position = 0) {
+function sc_companies_send_badge_email($id, $in_batch = false) {
     if (!function_exists('sc_notify_company_badge')) {
         return false;
     }
     $result = sc_notify_company_badge((int) $id, true, array(
-        'email_now'     => $position === 0,
-        'delay_seconds' => $position > 0 ? $position * 45 + wp_rand(0, 15) : 0,
+        'email_now'     => !$in_batch,
+        'delay_seconds' => $in_batch ? sc_wabot_next_delay(sc_notify_settings()['interval']) : 0,
     ));
     return (bool) ($result['whatsapp'] || $result['email']);
 }
@@ -297,8 +297,8 @@ function sc_company_bulk() {
             if (count($ids) > 50) {
                 wp_send_json_error(array('message' => __('Send at most 50 badges at a time.', 'sc_events')));
             }
-            foreach ($ids as $i => $id) {
-                sc_companies_send_badge_email($id, $i) ? $done++ : $failed++;
+            foreach ($ids as $id) {
+                sc_companies_send_badge_email($id, count($ids) > 1) ? $done++ : $failed++;
             }
             $message = sprintf(_n('%d badge sent.', '%d badges sent.', $done, 'sc_events'), $done)
                 . ($done > 1 ? ' ' . __('WhatsApp messages go out one by one, about a minute apart.', 'sc_events') : '')

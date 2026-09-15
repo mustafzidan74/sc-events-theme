@@ -23,6 +23,8 @@ function sc_notify_page_state() {
             'attach_kind' => $def['attach'] ?? '',
             'bulk'        => !empty($def['bulk']),
             'manual'      => !empty($def['manual']),
+            'recipients'  => !empty($def['recipients']),
+            'no_email'    => in_array($type, array('support_alert', 'daily_summary'), true),
             'is_default'  => trim($settings['types'][$type]['template']) === trim($def['template']),
         ) + $settings['types'][$type];
     }
@@ -53,6 +55,7 @@ function sc_notify_page_state() {
         'tags'      => sc_notify_tag_labels(),
         'upcoming'  => $upcoming,
         'numbers'   => count(sc_wabot_candidates(null, 'ticket')),
+        'alert_people' => count(sc_wabot_recipients()),
         'bulk'      => count(sc_wabot_candidates(null, 'campaign')),
         'send_url'  => home_url('/event-manager-dashboard/whatsapp-send'),
         'wa_url'    => home_url('/event-manager-dashboard/whatsapp'),
@@ -63,6 +66,41 @@ function sc_notify_page_state() {
 function sc_notify_sample($type) {
     global $wpdb;
     $p = $wpdb->prefix;
+    if ($type === 'certificate_ready') {
+        $c = $wpdb->get_row("SELECT c.*, a.phone FROM {$p}sc_certificates c LEFT JOIN {$p}sc_attendees a ON a.id = c.attendee_id WHERE c.status <> 'revoked' ORDER BY c.id DESC LIMIT 1");
+        if (!$c) {
+            return null;
+        }
+        return array(
+            'who'    => $c->attendee_name,
+            'fields' => array(
+                '{name}' => $c->attendee_name, '{first_name}' => sc_notify_first_name($c->attendee_name), '{event}' => $c->event_title,
+                '{certificate_number}' => $c->certificate_number,
+                '{certificate_link}' => add_query_arg(array('action' => 'sc_download_certificate', 'id' => (int) $c->id, 'token' => wp_hash($c->verification_code . $c->certificate_number)), admin_url('admin-ajax.php')),
+                '{verify_link}' => class_exists('SC_Certificate') ? SC_Certificate::get_verification_url($c->verification_code) : '',
+            ),
+            'media'  => 'certificate_pdf:' . (int) $c->id,
+            'file'   => 'certificate-' . $c->certificate_number . '.pdf',
+        );
+    }
+    if ($type === 'support_received' || $type === 'support_alert') {
+        $m = $wpdb->get_row("SELECT * FROM {$p}sc_support_messages ORDER BY id DESC LIMIT 1");
+        if (!$m) {
+            return null;
+        }
+        $phone = sc_wabot_phone($m->phone);
+        return array('who' => $m->name, 'media' => '', 'fields' => array(
+            '{name}' => $m->name, '{first_name}' => sc_notify_first_name($m->name), '{subject}' => $m->subject,
+            '{phone}' => $phone !== '' ? '+' . $phone : '', '{email}' => $m->email, '{message}' => mb_substr(trim($m->message), 0, 500),
+            '{link}' => home_url('/event-manager-dashboard/support?message=' . (int) $m->id),
+        ));
+    }
+    if ($type === 'daily_summary') {
+        $now = current_time('timestamp');
+        return array('who' => __('today', 'sc_events'), 'media' => '', 'fields' => array(
+            '{summary}' => sc_notify_summary_text(date('Y-m-d', $now)), '{date}' => date_i18n('l j F', $now),
+        ));
+    }
     if ($type === 'exhibitor_badge') {
         $id = (int) $wpdb->get_var("SELECT id FROM {$p}sc_company_attendees WHERE status = 'active' ORDER BY id DESC LIMIT 1");
         if (!$id) {
@@ -139,7 +177,21 @@ add_action('wp_ajax_sc_notify_save', function () {
             $t['subject'] = $subject !== '' ? mb_substr($subject, 0, 190) : $def['subject'];
         }
         if (isset($_POST['hour']) && isset($def['hour'])) {
-            $t['hour'] = max(0, min(20, absint($_POST['hour'])));
+            $t['hour'] = max(0, min(23, absint($_POST['hour'])));
+        }
+        if (isset($_POST['to']) && !empty($def['recipients'])) {
+            $numbers = array();
+            foreach (preg_split('/[\r\n,;]+/', sanitize_textarea_field(wp_unslash($_POST['to']))) as $line) {
+                if (trim($line) === '') {
+                    continue;
+                }
+                $phone = sc_wabot_phone($line);
+                if ($phone === '') {
+                    wp_send_json_error(array('message' => sprintf(__('“%s” is not a valid WhatsApp number.', 'sc_events'), trim($line)), 'field' => 'to'));
+                }
+                $numbers[$phone] = '+' . $phone;
+            }
+            $t['to'] = implode("\n", $numbers);
         }
         if (!empty($_POST['restore'])) {
             $t['template'] = $def['template'];
@@ -160,8 +212,13 @@ add_action('wp_ajax_sc_notify_preview', function () {
         wp_send_json_error(array('message' => __('There is nobody registered yet to preview with.', 'sc_events')));
     }
     $fields = $sample['fields'] + array('{site}' => wp_specialchars_decode(get_option('sc_platform_name', get_bloginfo('name')), ENT_QUOTES));
-    $out = array('who' => $sample['who'], 'text' => sc_wabot_render_message($template, $fields), 'image' => '');
-    if (!empty($_POST['attach']) && $_POST['attach'] !== '0') {
+    $out = array('who' => $sample['who'], 'text' => sc_wabot_render_message($template, $fields), 'image' => '', 'file' => '');
+    if (!empty($sample['file'])) {
+        // A PDF is not built for every keystroke: the preview shows its name.
+        if (!empty($_POST['attach']) && $_POST['attach'] !== '0') {
+            $out['file'] = $sample['file'];
+        }
+    } elseif (!empty($_POST['attach']) && $_POST['attach'] !== '0' && $sample['media'] !== '') {
         $file = sc_wabot_media($sample['media']);
         if (!is_wp_error($file)) {
             $out['image'] = 'data:' . $file['mime'] . ';base64,' . base64_encode($file['bytes']);
@@ -194,7 +251,7 @@ add_action('wp_ajax_sc_notify_test', function () {
     }
     $fields = $sample['fields'] + array('{site}' => wp_specialchars_decode(get_option('sc_platform_name', get_bloginfo('name')), ENT_QUOTES));
     set_transient('sc_notify_test_' . get_current_user_id(), 1, 10);
-    $id = sc_wabot_enqueue($number, $phone, sc_wabot_render_message($template, $fields), 'test', null, 30, $attach ? $sample['media'] : '');
+    $id = sc_wabot_enqueue($number, $phone, sc_wabot_render_message($template, $fields), 'test', null, 30, $attach ? (string) $sample['media'] : '');
     if (!$id) {
         wp_send_json_error(array('message' => __('Could not queue the test.', 'sc_events')));
     }

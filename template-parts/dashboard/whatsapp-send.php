@@ -116,7 +116,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                 <label class="w-switch" id="was-attach-field">
                     <input type="checkbox" id="was-attach" name="attach_qr" value="1">
                     <span class="w-switch__track" aria-hidden="true"></span>
-                    <span class="w-switch__text"><strong><?php echo esc_html(sc_t('whatsapp.attach_qr', 'Attach each person’s ticket QR')); ?></strong><span><?php echo esc_html(sc_t('whatsapp.attach_qr_sub', 'The message goes as the caption of a QR image they can show at the door.')); ?></span></span>
+                    <span class="w-switch__text"><strong id="was-attach-title"><?php echo esc_html(sc_t('whatsapp.attach_qr', 'Attach each person’s ticket QR')); ?></strong><span id="was-attach-sub"><?php echo esc_html(sc_t('whatsapp.attach_qr_sub', 'The message goes as the caption of a QR image they can show at the door.')); ?></span></span>
                 </label>
 
                 <div class="w-field w-was__gap">
@@ -224,8 +224,10 @@ jQuery(function ($) {
         var s = source();
         $('#was-event-fields').prop('hidden', s === 'manual');
         $('#was-manual-field').prop('hidden', s !== 'manual');
-        $('#was-attach-field').prop('hidden', s !== 'event');
-        if (s !== 'event') { $('#was-attach').prop('checked', false); }
+        $('#was-attach-field').prop('hidden', s === 'manual');
+        if (s === 'manual') { $('#was-attach').prop('checked', false); }
+        $('#was-attach-title').text(s === 'certificates' ? 'Attach each person’s certificate PDF' : 'Attach each person’s ticket QR');
+        $('#was-attach-sub').text(s === 'certificates' ? 'The message goes with the PDF file of their certificate.' : 'The message goes as the caption of a QR image they can show at the door.');
         if (!messageTouched || !$('#was-message').val().trim()) { $('#was-message').val(templates[s] || ''); messageTouched = false; }
         fillAudience();
         $('#was-preview-box').prop('hidden', true).empty();
@@ -255,7 +257,7 @@ jQuery(function ($) {
     });
 
     function formData() {
-        return { title: $('#was-title').val(), source: source(), event_id: $('#was-event').val(), audience: $('#was-audience').val(), manual: $('#was-manual').val(), message: $('#was-message').val(), interval_seconds: $('#was-interval').val(), attach_qr: $('#was-attach').is(':checked') && source() === 'event' ? 1 : 0 };
+        return { title: $('#was-title').val(), source: source(), event_id: $('#was-event').val(), audience: $('#was-audience').val(), manual: $('#was-manual').val(), message: $('#was-message').val(), interval_seconds: $('#was-interval').val(), attach_qr: $('#was-attach').is(':checked') && source() !== 'manual' ? 1 : 0 };
     }
     function say(text) { $('.w-was__msg').text(text || '').prop('hidden', !text); }
 
@@ -272,7 +274,7 @@ jQuery(function ($) {
             if (p.invalid) { $stats.append($('<span>').text(num(p.invalid) + ' without a valid number')); }
             if (p.duplicates) { $stats.append($('<span>').text(num(p.duplicates) + ' duplicate numbers sent once')); }
             if (p.opted_out) { $stats.append($('<span>').text(num(p.opted_out) + ' asked to stop')); }
-            if (p.attach) { $stats.append($('<span>').text('each with their ticket QR')); }
+            if (p.attach) { $stats.append($('<span>').text(p.attach === 'certificate_pdf' ? 'each with their certificate PDF' : 'each with their ticket QR')); }
             $stats.append($('<span>').text('about ' + (p.minutes >= 120 ? (Math.round(p.minutes / 6) / 10) + ' hours' : p.minutes + ' minutes')));
             var $bub = $('<div class="w-was__bubbles">').appendTo($box);
             p.samples.forEach(function (s) { $bub.append($('<div class="w-was__bubble" dir="auto">').append($('<small class="w-ltr">').text((s.name ? s.name + ' · ' : '') + '+' + s.to)).append(document.createTextNode(s.text))); });

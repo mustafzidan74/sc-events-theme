@@ -1400,6 +1400,9 @@ function sc_request_certificate_public_handler() {
 
     $certificate = SC_Certificate::get($cert_id);
     if (is_array($certificate)) {
+        if (function_exists('sc_notify_certificate')) {
+            sc_notify_certificate((int) $cert_id);
+        }
         $token = wp_hash($certificate['verification_code'] . $certificate['certificate_number']);
         $url = add_query_arg(array(
             'action' => 'sc_download_certificate',

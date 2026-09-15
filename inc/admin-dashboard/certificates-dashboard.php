@@ -170,30 +170,28 @@ function sc_get_certificates_list() {
 }
 
 /**
- * Email a certificate's download link. Returns true when wp_mail accepted it.
+ * Send a certificate: WhatsApp with the PDF, and email when email is on (Automatic messages).
+ * One certificate goes at once; in a batch every message takes its turn in the shared slow lane.
+ *
+ * @return bool True when something was sent or queued.
  */
-function sc_certs_send_email($c) {
-    if (empty($c->email) || !is_email($c->email)) {
+function sc_certs_send_email($c, $in_batch = false) {
+    if (!function_exists('sc_notify_certificate')) {
         return false;
     }
-    $platform = get_option('sc_platform_name', get_bloginfo('name'));
-    $download = add_query_arg(array('action' => 'sc_download_certificate', 'id' => (int) $c->id, 'token' => wp_hash($c->verification_code . $c->certificate_number)), admin_url('admin-ajax.php'));
-    $verify = SC_Certificate::get_verification_url($c->verification_code);
-    $subject = sprintf(__('Your certificate for %s', 'sc_events'), $c->event_title);
-    $message = sprintf(
-        /* translators: 1: attendee name, 2: event title, 3: download URL, 4: certificate number, 5: verification URL, 6: platform name */
-        __("Hello %1\$s,\n\nYour certificate for %2\$s is ready.\n\nDownload it (PDF):\n%3\$s\n\nCertificate number: %4\$s\nAnyone can check it is genuine here:\n%5\$s\n\n%6\$s", 'sc_events'),
-        $c->attendee_name, $c->event_title, $download, $c->certificate_number, $verify, $platform
-    );
-    $sent = wp_mail($c->email, $subject, $message, array('Content-Type: text/plain; charset=UTF-8'));
-    if ($sent) {
+    $interval = function_exists('sc_notify_settings') ? sc_notify_settings()['interval'] : 60;
+    $result = sc_notify_certificate((int) $c->id, true, array(
+        'email_now'     => !$in_batch,
+        'delay_seconds' => $in_batch ? sc_wabot_next_delay($interval) : 0,
+    ));
+    if ($result['whatsapp']) {
         SC_Certificate::mark_email_sent((int) $c->id);
     }
-    return (bool) $sent;
+    return (bool) ($result['whatsapp'] || $result['email']);
 }
 
 /**
- * Bulk actions: email, revoke, reinstate. Emails go out at most 50 per request.
+ * Bulk actions: send (op "email"), revoke, reinstate. At most 50 per request.
  */
 add_action('wp_ajax_sc_certificates_bulk', 'sc_certificates_bulk');
 function sc_certificates_bulk() {
@@ -221,22 +219,27 @@ function sc_certificates_bulk() {
             break;
         case 'email':
             if (count($ids) > 50) {
-                wp_send_json_error(array('message' => __('Send at most 50 emails at a time.', 'sc_events')));
+                wp_send_json_error(array('message' => __('Send at most 50 certificates at a time.', 'sc_events')));
             }
             $rows = $wpdb->get_results("SELECT c.*, a.email FROM $t c LEFT JOIN {$wpdb->prefix}sc_attendees a ON a.id = c.attendee_id WHERE c.id IN ($in)");
             $sent = $failed = $skipped = 0;
+            // A batch (also one arriving in chunks from the issue page) goes through the slow lane.
+            $in_batch = count($rows) > 1 || !empty($_POST['continuing']);
             foreach ($rows as $c) {
                 if ($c->status === 'revoked') {
                     $skipped++;
-                } elseif (sc_certs_send_email($c)) {
+                } elseif (sc_certs_send_email($c, $in_batch)) {
                     $sent++;
                 } else {
                     $failed++;
                 }
             }
-            $message = sprintf(_n('%d email sent.', '%d emails sent.', $sent, 'sc_events'), $sent);
+            $message = sprintf(_n('%d certificate sent.', '%d certificates sent.', $sent, 'sc_events'), $sent);
+            if ($sent > 1) {
+                $message .= ' ' . __('WhatsApp messages go out one by one, about a minute apart.', 'sc_events');
+            }
             if ($failed) {
-                $message .= ' ' . sprintf(_n('%d could not be sent — check the site’s email settings.', '%d could not be sent — check the site’s email settings.', $failed, 'sc_events'), $failed);
+                $message .= ' ' . sprintf(_n('%d could not be sent — no valid WhatsApp number, and email is off or failed.', '%d could not be sent — no valid WhatsApp number, and email is off or failed.', $failed, 'sc_events'), $failed);
             }
             if ($skipped) {
                 $message .= ' ' . sprintf(_n('%d revoked certificate skipped.', '%d revoked certificates skipped.', $skipped, 'sc_events'), $skipped);

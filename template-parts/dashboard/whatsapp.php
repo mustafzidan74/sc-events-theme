@@ -258,7 +258,7 @@ jQuery(function ($) {
     };
     var OUT = { pending: 'Waiting to send', sending: 'Sending', sent: 'Sent', skipped: 'Not on WhatsApp', failed: 'Failed', expired: 'Not sent in time' };
     var DELIVERY = { server_ack: 'sent', delivered: 'delivered', read: 'read', played: 'played', error: 'error' };
-    var CONTEXT = { chat_alert: 'Chat alert', chat_reply: 'Chat reply', test: 'Test', ticket: 'Ticket', exhibitor_badge: 'Exhibitor badge', otp_login: 'Sign-in code', otp_register: 'Sign-up code', otp_reset: 'Password code', otp_phone: 'Phone code', password_changed: 'Password changed', certificate_ready: 'Certificate' };
+    var CONTEXT = { chat_alert: 'Chat alert', chat_reply: 'Chat reply', test: 'Test', ticket: 'Ticket', exhibitor_badge: 'Exhibitor badge', otp_login: 'Sign-in code', otp_register: 'Sign-up code', otp_reset: 'Password code', otp_phone: 'Phone code', password_changed: 'Password changed', certificate_ready: 'Certificate', support_received: 'Contact form receipt', support_alert: 'Contact form alert', support_reply: 'Contact form reply', daily_summary: 'Daily summary' };
 
     function post(action, data) {
         return $.post(ajax, $.extend({ action: action, nonce: nonce }, data || {}));
@@ -527,7 +527,7 @@ jQuery(function ($) {
             r.data.outbox.forEach(function (m) {
                 var status = OUT[m.status] || m.status;
                 if (m.status === 'sent' && m.delivery && DELIVERY[m.delivery]) { status = 'Sent · ' + DELIVERY[m.delivery]; }
-                var $what = $('<td>').append($('<div class="w-sub">').text((CONTEXT[m.context] || m.context || 'Message') + (m.media ? ' · with QR' : '') + (m.number ? ' · ' + m.number : '')), $('<div class="w-wa__text" dir="auto">').text(m.text));
+                var $what = $('<td>').append($('<div class="w-sub">').text((CONTEXT[m.context] || m.context || 'Message') + (m.media ? (m.media === 'certificate_pdf' ? ' · with PDF' : ' · with QR') : '') + (m.number ? ' · ' + m.number : '')), $('<div class="w-wa__text" dir="auto">').text(m.text));
                 if (m.conversation) { $what.append($('<a>').attr('href', '<?php echo esc_js(home_url('/event-manager-dashboard/chat')); ?>?conversation=' + m.conversation).text('Open chat')); }
                 $body.append($('<tr>').append(
                     $('<td class="w-nowrap">').text(when(m.at)),

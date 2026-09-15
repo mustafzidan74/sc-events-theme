@@ -97,7 +97,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
             <div class="w-issue__go">
                 <div>
                     <p class="w-issue__big" id="eligible-line">&nbsp;</p>
-                    <label class="w-check-line"><input type="checkbox" id="send-email"> <?php echo esc_html(sc_t('dashboard_pages.email_each_person', 'Email each person a link to their certificate')); ?></label>
+                    <label class="w-check-line"><input type="checkbox" id="send-email"> <?php echo esc_html(sc_t('dashboard_pages.send_each_person', 'Send each person their certificate (WhatsApp with the PDF, one by one; email when it is on)')); ?></label>
                 </div>
                 <button type="button" class="btn btn-primary btn-lg" id="issue-all" disabled><?php echo esc_html(sc_t('dashboard_pages.issue_to_all_eligible', 'Issue to everyone eligible')); ?></button>
             </div>
@@ -177,11 +177,11 @@ jQuery(function ($) {
         'tplNone'      => sc_t('dashboard_pages.template_not_set', 'No template set in its settings — choose one.'),
         'issueAllN'    => sc_t('dashboard_pages.issue_to_n', 'Issue to %s people'),
         'confirmAll'   => sc_t('dashboard_pages.confirm_issue_all', 'Issue certificates to %1$s people using “%2$s”?'),
-        'confirmEmail' => sc_t('dashboard_pages.confirm_issue_all_email', ' Each of them will also get an email.'),
+        'confirmEmail' => sc_t('dashboard_pages.confirm_issue_all_send', ' Each of them will also get their certificate on WhatsApp.'),
         'issuing'      => sc_t('dashboard_pages.issuing_progress', 'Issuing… %1$s of %2$s'),
         'emailing'     => sc_t('dashboard_pages.emailing_progress', 'Sending emails… %1$s of %2$s'),
         'doneIssued'   => sc_t('dashboard_pages.done_issued', '%s certificates issued.'),
-        'doneEmails'   => sc_t('dashboard_pages.done_emails', '%1$s emails sent, %2$s failed.'),
+        'doneEmails'   => sc_t('dashboard_pages.done_sent', '%1$s certificates sent, %2$s could not be sent. WhatsApp messages go out one by one.'),
         'issue'        => sc_t('dashboard_pages.issue_certificate', 'Issue certificate'),
         'issueAnyway'  => sc_t('dashboard_pages.issue_anyway', 'Issue anyway'),
         'confirmOverride' => sc_t('dashboard_pages.confirm_override', 'Some of these people don’t meet the rules (%s). Issue their certificates anyway? People with a cancelled or unpaid registration are always skipped.'),
@@ -241,7 +241,7 @@ jQuery(function ($) {
             if (i >= ids.length) { return $.Deferred().resolve({ sent: sent, failed: failed }).promise(); }
             var chunk = ids.slice(i, i + 50);
             progress(fmt(L.emailing, num(i), num(ids.length)), i, ids.length);
-            return post({ action: 'sc_certificates_bulk', op: 'email', ids: chunk }).then(function (res) {
+            return post({ action: 'sc_certificates_bulk', op: 'email', ids: chunk, continuing: i > 0 ? 1 : 0 }).then(function (res) {
                 if (res.success) { sent += res.data.sent; failed += res.data.failed; } else { failed += chunk.length; }
                 i += 50;
                 return next();
