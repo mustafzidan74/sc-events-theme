@@ -123,6 +123,8 @@ $i18n = array(
     'workshop_tag'      => sc_t('scanner.workshop_tag', 'Workshop'),
     'cancelled_tag'     => sc_t('scanner.cancelled_tag', 'Cancelled'),
     'in_tag'            => sc_t('scanner.in_tag', 'Checked in'),
+    'mode_out'          => sc_t('scanner.mode_out', 'Scanning the same ticket again today checks the person out.'),
+    'mode_warn'         => sc_t('scanner.mode_warn', 'Scanning the same ticket again today shows "Already checked in".'),
 );
 
 global $load_wd_form;
@@ -227,6 +229,7 @@ if (!$is_scanner_only) {
                 <?php endif; ?>
             </div>
             <p class="w-scan__hint" id="event-required-hint" hidden><?php echo esc_html($i18n['choose_event']); ?></p>
+            <p class="w-scan__mode" id="scan-mode-note" hidden></p>
         </section>
 
         <!-- Scanning -->
@@ -324,7 +327,12 @@ jQuery(function ($) {
     var urlSessionId = <?php echo isset($_GET['session_id']) ? (int) $_GET['session_id'] : 0; ?>;
     var venuesEnabled = <?php echo $venues_enabled ? 'true' : 'false'; ?>;
     var sessionsEnabled = <?php echo $sessions_enabled ? 'true' : 'false'; ?>;
-    var restrictedSessions = <?php echo ($is_scanner_only && !$is_full_scanner_access) ? wp_json_encode(array_map('intval', $scanner_allowed_session_ids)) : 'null'; ?>;
+    var eventTracking = <?php
+        $tracking_map = array();
+        foreach ($filtered_events as $ev) { $tracking_map[(int) $ev->id] = (int) $ev->attendance_tracking === 1; }
+        echo wp_json_encode($tracking_map ?: new stdClass());
+    ?>;
+    var restrictedSessions =<?php echo ($is_scanner_only && !$is_full_scanner_access) ? wp_json_encode(array_map('intval', $scanner_allowed_session_ids)) : 'null'; ?>;
 
     var scanner = null;
     var isScanning = false;
@@ -350,7 +358,13 @@ jQuery(function ($) {
         return '';
     }
 
+    function refreshMode() {
+        var show = !!selectedEventId && !selectedSessionId;
+        $('#scan-mode-note').prop('hidden', !show).text(show ? (eventTracking[selectedEventId] ? T.mode_out : T.mode_warn) : '');
+    }
+
     function refreshReady() {
+        refreshMode();
         var ready = !!selectedEventId;
         $('#event-required-hint, #select-event-message').prop('hidden', ready);
         $('#start-camera-btn, #manual-scan-btn, #manual-ticket-id').prop('disabled', !ready);

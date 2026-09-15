@@ -632,10 +632,25 @@ function sc_scan_and_checkin() {
         $action_type      = 'check_in';
         $duration         = '';
         $gate_info        = null;
+        $today            = current_time('Y-m-d');
+
+        // Without in/out tracking a later scan the same day is not a new entry: tell the door, so a
+        // shared QR stands out. The first scan on a new day of a multi-day event is a normal check-in.
+        $first_in_today = null;
+        if (!$tracking_enabled) {
+            $first_in_today = $wpdb->get_var($wpdb->prepare(
+                "SELECT MIN(created_at) FROM {$checkins_table}
+                 WHERE attendee_id = %d AND action IN ('checkin', 'manual_checkin') AND DATE(created_at) = %s",
+                $sc_attendee->id, $today
+            ));
+            if (!$first_in_today && (int) $sc_attendee->checked_in === 1 && $sc_attendee->checked_in_at && substr($sc_attendee->checked_in_at, 0, 10) === $today) {
+                $first_in_today = $sc_attendee->checked_in_at;
+            }
+        }
+        $already_checked_in = (bool) $first_in_today;
 
         // If tracking enabled, decide check_in vs check_out from the last log entry today
         if ($tracking_enabled) {
-            $today = date('Y-m-d');
             $last = $wpdb->get_row($wpdb->prepare(
                 "SELECT action, created_at FROM {$checkins_table}
                  WHERE attendee_id = %d AND DATE(created_at) = %s
@@ -663,9 +678,6 @@ function sc_scan_and_checkin() {
             'created_at'   => $now,
         ));
 
-        // Without in/out tracking a second scan is not a new entry: tell the door so a shared QR stands out.
-        $already_checked_in = !$tracking_enabled && (int) $sc_attendee->checked_in === 1;
-
         // First-time check-in: flip the cached flag and bump event counter
         if ($action_type === 'check_in' && !(int) $sc_attendee->checked_in) {
             $wpdb->update($attendees_table, array(
@@ -685,7 +697,7 @@ function sc_scan_and_checkin() {
         $today_scans = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$checkins_table}
              WHERE attendee_id = %d AND DATE(created_at) = %s",
-            $sc_attendee->id, date('Y-m-d')
+            $sc_attendee->id, $today
         ));
 
         // Decode extra_fields JSON for display
@@ -721,7 +733,7 @@ function sc_scan_and_checkin() {
             'action_type'      => $action_type,
             'already_checked_in' => $already_checked_in,
             // UTC ISO time; the scanner shows it in the device's own time zone.
-            'first_checked_in_at' => $already_checked_in && $sc_attendee->checked_in_at ? get_gmt_from_date($sc_attendee->checked_in_at, 'Y-m-d\TH:i:s\Z') : '',
+            'first_checked_in_at' => $first_in_today ? get_gmt_from_date($first_in_today, 'Y-m-d\TH:i:s\Z') : '',
             'scan_time'        => date('h:i A', $current_time),
             'scan_date'        => date('M d, Y', $current_time),
             'tracking_enabled' => $tracking_enabled,

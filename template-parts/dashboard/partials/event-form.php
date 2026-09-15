@@ -337,7 +337,7 @@ $add_button = function ($id, $label) {
                     <label class="w-switch">
                         <input type="checkbox" name="attendance_tracking" value="1" <?php checked((int) $e->attendance_tracking, 1); ?>>
                         <span class="w-switch__track" aria-hidden="true"></span>
-                        <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.attendance_tracking', 'Track time inside')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.attendance_tracking_help', 'Scanners record check-in and check-out, so you can see how long each person stayed.')); ?></span></span>
+                        <span class="w-switch__text"><strong><?php echo esc_html(sc_t('dashboard_pages.scan_out_toggle', 'Second scan checks people out')); ?></strong><span><?php echo esc_html(sc_t('dashboard_pages.scan_out_toggle_help', 'On: scanning a ticket again the same day records a check-out, so you see how long each person stayed. Off: scanning it again the same day shows "Already checked in", so a shared ticket stands out. Each new day starts with a normal check-in either way.')); ?></span></span>
                     </label>
                 </div>
             </section>

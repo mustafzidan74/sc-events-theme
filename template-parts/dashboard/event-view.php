@@ -389,8 +389,8 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                     <dd class="w-ltr"><a href="<?php echo esc_url($public_url); ?>" target="_blank" rel="noopener">/event/<?php echo esc_html($event->slug); ?>/</a></dd>
                     <dt><?php echo esc_html(sc_t('dashboard_pages.venue_type', 'Where')); ?></dt>
                     <dd><?php echo esc_html(array('offline' => sc_t('dashboard_pages.in_person', 'In person'), 'online' => sc_t('dashboard_pages.online', 'Online'), 'hybrid' => sc_t('dashboard_pages.hybrid', 'Hybrid'))[$event->location_type] ?? $event->location_type); ?><?php echo $event->venue_address && $event->venue_address !== $event->venue_name ? '<span class="w-sub">' . esc_html($event->venue_address) . '</span>' : ''; ?></dd>
-                    <dt><?php echo esc_html(sc_t('dashboard_pages.attendance_tracking', 'Time inside')); ?></dt>
-                    <dd><?php echo esc_html((int) $event->attendance_tracking ? sc_t('dashboard_pages.tracked', 'Tracked') : sc_t('dashboard_pages.not_tracked', 'Not tracked')); ?></dd>
+                    <dt><?php echo esc_html(sc_t('dashboard_pages.second_scan', 'Second scan same day')); ?></dt>
+                    <dd><?php echo esc_html((int) $event->attendance_tracking ? sc_t('dashboard_pages.second_scan_out', 'Checks the person out') : sc_t('dashboard_pages.second_scan_warn', 'Warns "Already checked in"')); ?></dd>
                     <dt><?php echo esc_html(sc_t('dashboard_pages.section_certificates', 'Certificates')); ?></dt>
                     <dd><?php echo esc_html((int) $event->enable_certificates
                         ? sprintf(sc_t('dashboard_pages.certificates_on_n', 'On · %s issued'), number_format_i18n($certificates)) . ((int) $event->auto_issue_certificate ? ' · ' . sc_t('dashboard_pages.issue_auto', 'automatic') : '')

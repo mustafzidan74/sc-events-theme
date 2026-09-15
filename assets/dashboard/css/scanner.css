@@ -107,6 +107,8 @@
   font-weight: 500;
 }
 
+.w-scan__mode { margin: 0; color: var(--w-text-2); font-size: 13px; }
+
 /* ---- Camera ------------------------------------------------------------ */
 
 .w-scan__panel {
