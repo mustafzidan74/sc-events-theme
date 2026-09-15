@@ -1,7 +1,10 @@
 <?php
 /**
- * Attendance Scanner Page - Full Screen Design
- * QR Code Scanner with auto check-in functionality
+ * Scanner — check people in at the door by QR code, ticket code or phone.
+ *
+ * Handlers: sc_scan_and_checkin (attendance-ajax-handlers.php), sc_session_checkin
+ * (sessions-ajax-handlers.php), sc_search_attendee_by_phone (attendees-ajax-handlers.php),
+ * sc_venues_get_gates_by_event and sc_sessions_get_by_event.
  *
  * @package sc_events
  */
@@ -10,24 +13,17 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Check permissions - allow event_manager OR event_scanner
 if (!SC_Event_Manager_Dashboard::is_event_manager() && !SC_Event_Manager_Dashboard::is_event_scanner()) {
     wp_die(__('You do not have permission to access this page.', 'sc_events'));
 }
 
-// Check if user is scanner-only role
-$is_scanner_only = SC_Event_Manager_Dashboard::is_event_scanner();
+// Scanner staff see a bare frame and only the events they are assigned to.
+$is_scanner_only = SC_Event_Manager_Dashboard::is_event_scanner() && !SC_Event_Manager_Dashboard::is_event_manager();
 
-// Check scanner_type permission for scanner users
-if ($is_scanner_only) {
-    $scanner_type = get_user_meta(get_current_user_id(), 'sc_scanner_type', true);
-    // If scanner_type is 'company' only, deny access to attendee scanner
-    if ($scanner_type === 'company') {
-        wp_die(__('You only have access to the Company Scanner. Please use the Company Scanner page.', 'sc_events'));
-    }
+if ($is_scanner_only && get_user_meta(get_current_user_id(), 'sc_scanner_type', true) === 'company') {
+    wp_die(__('You only have access to the Company Scanner. Please use the Company Scanner page.', 'sc_events'));
 }
 
-// Load scanner permissions for access filtering
 $scanner_allowed_event_ids = array();
 $scanner_allowed_session_ids = array();
 $is_full_scanner_access = true;
@@ -35,1215 +31,718 @@ $is_full_scanner_access = true;
 if ($is_scanner_only) {
     global $wpdb;
     $perms_table = $wpdb->prefix . 'sc_scanner_permissions';
-
-    // Check table exists before querying
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$perms_table'");
-    if ($table_exists) {
-        $scanner_perms = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $perms_table WHERE user_id = %d",
-            get_current_user_id()
-        ));
-
+    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $perms_table))) {
+        $scanner_perms = $wpdb->get_results($wpdb->prepare("SELECT * FROM $perms_table WHERE user_id = %d", get_current_user_id()));
         if (!empty($scanner_perms)) {
             $is_full_scanner_access = (count($scanner_perms) === 1 && $scanner_perms[0]->access_type === 'full');
-
             if (!$is_full_scanner_access) {
                 foreach ($scanner_perms as $perm) {
-                    if ($perm->event_id) $scanner_allowed_event_ids[] = (int) $perm->event_id;
-                    if ($perm->session_id) $scanner_allowed_session_ids[] = (int) $perm->session_id;
+                    if ($perm->event_id) { $scanner_allowed_event_ids[] = (int) $perm->event_id; }
+                    if ($perm->session_id) { $scanner_allowed_session_ids[] = (int) $perm->session_id; }
                 }
-                $scanner_allowed_event_ids = array_unique($scanner_allowed_event_ids);
+                $scanner_allowed_event_ids = array_values(array_unique($scanner_allowed_event_ids));
             }
         }
     }
 }
 
-$page_title = sc_t('dashboard_pages.attendance_scanner', 'Attendance Scanner');
-get_template_part('template-parts/dashboard/components/dashboard', 'header');
-
-// Translations
-$t = array(
-    'scanner' => sc_t('dashboard_pages.scanner', 'Scanner'),
-    'attendance_scanner' => sc_t('dashboard_pages.attendance_scanner', 'Attendance Scanner'),
-    'select_event_first' => sc_t('dashboard_pages.select_event_first', 'Select Event First'),
-    'required' => sc_t('dashboard_pages.required', 'Required'),
-    'no_gate_optional' => sc_t('dashboard_pages.no_gate_optional', 'No Gate (Optional)'),
-    'loading_gates' => sc_t('dashboard_pages.loading_gates', 'Loading gates...'),
-    'all_sessions' => sc_t('dashboard_pages.all_sessions', 'All Sessions'),
-    'loading_sessions' => sc_t('dashboard_pages.loading_sessions', 'Loading sessions...'),
-    'ready_to_scan' => sc_t('dashboard_pages.ready_to_scan', 'Ready to Scan'),
-    'please_select_event' => sc_t('dashboard_pages.please_select_event', 'Please select an event first'),
-    'start_camera' => sc_t('dashboard_pages.start_camera', 'Start Camera'),
-    'stop_camera' => sc_t('dashboard_pages.stop_camera', 'Stop Camera'),
-    'or_enter_manually' => sc_t('dashboard_pages.or_enter_manually', 'Or enter ticket ID manually below'),
-    'ticket_id' => sc_t('dashboard_pages.ticket_id', 'Ticket ID'),
-    'phone' => sc_t('dashboard_pages.phone', 'Phone'),
-    'enter_ticket_id' => sc_t('dashboard_pages.enter_ticket_id', 'Enter Ticket ID...'),
-    'search' => sc_t('dashboard_pages.search', 'Search'),
-    'checkin_successful' => sc_t('dashboard_pages.checkin_successful', 'Check-in Successful!'),
-    'checkout_successful' => sc_t('dashboard_pages.checkout_successful', 'Check-out Successful!'),
-    'attendee_details' => sc_t('dashboard_pages.attendee_details', 'Attendee Details'),
-    'name' => sc_t('dashboard_pages.name', 'Name'),
-    'email' => sc_t('dashboard_pages.email', 'Email'),
-    'ticket' => sc_t('dashboard_pages.ticket', 'Ticket'),
-    'event' => sc_t('dashboard_pages.event', 'Event'),
-    'status' => sc_t('dashboard_pages.status', 'Status'),
-    'scans' => sc_t('dashboard_pages.scans', 'Scans'),
-    'duration' => sc_t('dashboard_pages.duration', 'Duration'),
-    'additional_info' => sc_t('dashboard_pages.additional_info', 'Additional Information'),
-    'another_scan' => sc_t('dashboard_pages.another_scan', 'Another Scan'),
-    'view_attendees' => sc_t('dashboard_pages.view_attendees', 'View Attendees'),
-    'invalid_ticket' => sc_t('dashboard_pages.invalid_ticket', 'Invalid Ticket'),
-    'ticket_not_found' => sc_t('dashboard_pages.ticket_not_found', 'This ticket was not found in the system.'),
-    'scan_again' => sc_t('dashboard_pages.scan_again', 'Scan Again'),
-    'processing' => sc_t('dashboard_pages.processing', 'Processing...'),
-    'click_start_camera' => sc_t('dashboard_pages.click_start_camera', 'Click "Start Camera" to begin scanning'),
-    'scanning' => sc_t('dashboard_pages.scanning', 'Scanning... Point camera at QR code'),
-    'camera_stopped' => sc_t('dashboard_pages.camera_stopped', 'Camera stopped'),
-    'used_checked_in' => sc_t('dashboard_pages.used_checked_in', 'Used / Checked-in'),
-    'select_gate_optional' => sc_t('dashboard_pages.select_gate_optional', 'Select Gate (Optional)'),
-    'all_sessions_event' => sc_t('dashboard_pages.all_sessions_event', 'All Sessions (Event Check-in)'),
-    'select_attendee' => sc_t('dashboard_pages.select_attendee', 'Select Attendee'),
-    'checked_in' => sc_t('dashboard_pages.checked_in', 'Checked-in'),
-    'not_checked_in' => sc_t('dashboard_pages.not_checked_in', 'Not checked-in'),
-);
-
-// Only show sidebar for full access users
-if (!$is_scanner_only) {
-    get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
-}
-
-// Add CSS to hide navbar for scanner-only users
-if ($is_scanner_only):
-    $current_user_scanner = wp_get_current_user();
-    $is_rtl = is_rtl() || (function_exists('sc_is_rtl') && sc_is_rtl());
-?>
-<!-- Scanner Styles -->
-<link rel="stylesheet" href="<?php echo esc_url(get_template_directory_uri()); ?>/assets/dashboard/css/scanner.css">
-<style>
-    /* Scanner-only layout overrides - must stay inline for immediate effect */
-    .navbar.navbar-fixed-top { display: none !important; }
-    #left-sidebar { display: none !important; }
-    #sc-admin-chat-widget { display: none !important; }
-    #main-content { margin-left: 0 !important; margin-top: 0 !important; padding-top: 70px !important; }
-    body { padding-top: 0 !important; }
-    .container-fluid { padding: 10px 15px !important; }
-    .block-header { display: none !important; }
-    /* Ensure hidden scanner panels are completely invisible and don't leak text */
-    #result-mode[hidden],
-    #error-mode[hidden],
-    #processing-overlay[hidden],
-    #result-mode[aria-hidden="true"],
-    #error-mode[aria-hidden="true"],
-    #processing-overlay[aria-hidden="true"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        overflow: hidden !important;
-        position: absolute !important;
-        clip: rect(0,0,0,0) !important;
-    }
-</style>
-
-<!-- Scanner-Only Top Bar -->
-<div class="scanner-topbar">
-    <div class="scanner-brand">
-        <div class="brand-icon"><i class="fa fa-qrcode"></i></div>
-        <div>
-            <div class="brand-text"><?php echo esc_html(sc_t('dashboard_pages.attendance_scanner', 'Attendance Scanner')); ?></div>
-            <div class="brand-sub"><?php echo esc_html(get_option('sc_platform_name', get_bloginfo('name'))); ?></div>
-        </div>
-    </div>
-    <div class="topbar-actions">
-        <span class="user-info"><i class="fa fa-user"></i> <?php echo esc_html($current_user_scanner->display_name); ?></span>
-        <?php if (!get_option('sc_site_language', '')): // Hidden while the site is pinned to one language. ?>
-        <a href="#" class="topbar-btn btn-lang scanner-lang-switch" data-lang="<?php echo $is_rtl ? 'en' : 'ar'; ?>">
-            <?php echo $is_rtl ? 'EN' : 'ع'; ?>
-        </a>
-        <?php endif; ?>
-        <a href="#" class="topbar-btn btn-logout logout-link">
-            <i class="fa fa-power-off"></i>
-        </a>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.scanner-lang-switch').forEach(function(el) {
-        el.addEventListener('click', function(e) {
-            e.preventDefault();
-            var lang = this.getAttribute('data-lang');
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '<?php echo admin_url("admin-ajax.php"); ?>', true);
-            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-            xhr.onload = function() { if (xhr.status === 200) window.location.reload(); };
-            xhr.send('action=sc_switch_language&lang=' + lang + '&nonce=<?php echo wp_create_nonce("sc_language_switch"); ?>');
-        });
-    });
-});
-</script>
-<?php endif;
-
-// Get event_id from URL if passed
-$url_event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
-
-// Check which modules are enabled for graceful degradation
+$url_event_id = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
 $sessions_enabled = !function_exists('sc_is_module_enabled') || sc_is_module_enabled('sessions');
 $venues_enabled = !function_exists('sc_is_module_enabled') || sc_is_module_enabled('venues');
 
-// Get all events from Custom Tables — include 'completed' so check-ins for past
-// events still work (e.g., late arrivals, retroactive marking).
-$all_events = array();
-if (class_exists('SC_Event')) {
-    $all_events = SC_Event::get_all(array(
-        'status' => array('publish', 'completed'),
-        'limit'  => 1000,
-        'orderby' => 'start_date',
-        'order'   => 'DESC',
+// Completed events stay listed so late arrivals can still be marked.
+$all_events = class_exists('SC_Event') ? SC_Event::get_all(array(
+    'status'  => array('publish', 'completed'),
+    'limit'   => 1000,
+    'orderby' => 'start_date',
+    'order'   => 'DESC',
+)) : array();
+
+$filtered_events = array();
+foreach ($all_events as $event) {
+    if ($is_scanner_only && !$is_full_scanner_access && !in_array((int) $event->id, $scanner_allowed_event_ids, true)) {
+        continue;
+    }
+    $filtered_events[] = $event;
+}
+
+// No event asked for: start on the featured event when it is in the list.
+if (!$url_event_id && count($filtered_events) > 1) {
+    $featured = (int) get_option('sc_featured_event_id', 0);
+    if ($featured && in_array($featured, array_map('intval', wp_list_pluck($filtered_events, 'id')), true)) {
+        $url_event_id = $featured;
+    }
+}
+if (count($filtered_events) === 1) {
+    $url_event_id = (int) $filtered_events[0]->id;
+}
+
+// Workshops of the listed events: scanning at a workshop door accepts only that workshop's tickets.
+$scanner_workshops = array();
+if ($filtered_events) {
+    global $wpdb;
+    $ids = array_map('intval', wp_list_pluck($filtered_events, 'id'));
+    $ws_rows = $wpdb->get_results($wpdb->prepare(
+        'SELECT id, event_id, title FROM ' . $wpdb->prefix . 'sc_workshops WHERE event_id IN (' . implode(',', array_fill(0, count($ids), '%d')) . ") AND status <> 'cancelled' ORDER BY start_date, start_time, title",
+        $ids
     ));
+    foreach ($ws_rows as $ws) {
+        $scanner_workshops[(int) $ws->event_id][] = array('id' => (int) $ws->id, 'title' => $ws->title);
+    }
+}
+
+$i18n = array(
+    'choose_event'      => sc_t('scanner.choose_event', 'Choose the event you are scanning for.'),
+    'start_camera'      => sc_t('scanner.start_camera', 'Start camera'),
+    'camera_idle'       => sc_t('scanner.camera_idle', 'Camera is off'),
+    'camera_on'         => sc_t('scanner.camera_on', 'Scanning — hold the QR code inside the square'),
+    'camera_starting'   => sc_t('scanner.camera_starting', 'Starting camera…'),
+    'camera_stopped'    => sc_t('scanner.camera_stopped', 'Camera stopped'),
+    'camera_error'      => sc_t('scanner.camera_error', 'The camera could not start. Allow camera access for this site, or type the ticket code below.'),
+    'checking'          => sc_t('scanner.checking', 'Checking…'),
+    'enter_code'        => sc_t('scanner.enter_code', 'Type the ticket code first.'),
+    'enter_phone'       => sc_t('scanner.enter_phone', 'Type at least 4 digits of the phone number.'),
+    'code_placeholder'  => sc_t('scanner.code_placeholder', 'Ticket or badge code'),
+    'phone_placeholder' => sc_t('scanner.phone_placeholder', 'Phone number'),
+    'checked_in'        => sc_t('scanner.checked_in', 'Checked in'),
+    'checked_out'       => sc_t('scanner.checked_out', 'Checked out'),
+    'already'           => sc_t('scanner.already', 'Already checked in'),
+    'already_company'   => sc_t('scanner.already_company', 'Company already checked in'),
+    'first_in'          => sc_t('scanner.first_in', 'First checked in: %s. Make sure this is the same person.'),
+    'scans_today'       => sc_t('scanner.scans_today', '%d scans today'),
+    'not_found'         => sc_t('scanner.not_found', 'Not found'),
+    'no_phone_match'    => sc_t('scanner.no_phone_match', 'Nobody registered for this event has that phone number.'),
+    'network'           => sc_t('scanner.network', 'Could not reach the server. Check the connection and scan again.'),
+    'network_title'     => sc_t('scanner.network_title', 'No connection'),
+    'error_title'       => sc_t('scanner.error_title', 'Not accepted'),
+    'pick_person'       => sc_t('scanner.pick_person', 'Who is it?'),
+    'session_prefix'    => sc_t('scanner.session_prefix', 'Session: %s'),
+    'workshop_prefix'   => sc_t('scanner.workshop_prefix', 'Workshop: %s'),
+    'all_sessions'      => sc_t('scanner.all_sessions', 'Event check-in (no session)'),
+    'no_gate'           => sc_t('scanner.no_gate', 'No gate'),
+    'workshop_tag'      => sc_t('scanner.workshop_tag', 'Workshop'),
+    'cancelled_tag'     => sc_t('scanner.cancelled_tag', 'Cancelled'),
+    'in_tag'            => sc_t('scanner.in_tag', 'Checked in'),
+);
+
+global $load_wd_form;
+$load_wd_form = true;
+
+$dashboard_url = home_url('/event-manager-dashboard/');
+$page_title = sc_t('dashboard_pages.scanner', 'Scanner');
+get_template_part('template-parts/dashboard/components/dashboard', 'header');
+if (!$is_scanner_only) {
+    get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
 }
 ?>
+<link rel="stylesheet" href="<?php echo esc_url(sc_dashboard_asset('dashboard/css/scanner.css')); ?>">
+
+<?php if ($is_scanner_only):
+    $platform_name = get_option('sc_platform_name', get_bloginfo('name'));
+    $logo_id = get_option('sc_platform_logo');
+    $logo = $logo_id ? wp_get_attachment_image_src($logo_id, 'medium') : false;
+    $is_rtl = is_rtl() || (function_exists('sc_is_rtl') && sc_is_rtl());
+    ?>
+    <header class="w-scanbar">
+        <div class="w-scanbar__brand">
+            <?php if ($logo): ?>
+                <img src="<?php echo esc_url($logo[0]); ?>" alt="<?php echo esc_attr($platform_name); ?>">
+            <?php else: ?>
+                <strong><?php echo esc_html($platform_name); ?></strong>
+            <?php endif; ?>
+            <span class="w-scanbar__title"><?php echo esc_html(sc_t('dashboard_pages.scanner', 'Scanner')); ?></span>
+        </div>
+        <div class="w-scanbar__actions">
+            <span class="w-scanbar__user w-truncate"><?php echo esc_html(wp_get_current_user()->display_name); ?></span>
+            <?php if (!get_option('sc_site_language', '')): // Hidden while the site is pinned to one language. ?>
+                <button type="button" class="w-scanbar__btn lang-switch" data-lang="<?php echo $is_rtl ? 'en' : 'ar'; ?>"><?php echo $is_rtl ? 'EN' : 'عربي'; ?></button>
+            <?php endif; ?>
+            <a href="#" class="w-scanbar__btn logout-link"><?php echo esc_html(sc_t('dashboard.logout', 'Log out')); ?></a>
+        </div>
+    </header>
+<?php endif; ?>
 
 <div id="main-content">
 <div class="container-fluid">
-    <div class="block-header">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <h2><?php echo $t['scanner']; ?></h2>
-                <ul class="breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a href="<?php echo esc_url( home_url( '/event-manager-dashboard/home' ) ); ?>">
-                            <i class="fa fa-dashboard"></i>
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active"><?php echo $t['scanner']; ?></li>
-                </ul>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-12">
-                <div class="d-flex flex-row-reverse">
-                    <div class="page_action"></div>
+
+    <div class="w-scan">
+        <?php if (!$is_scanner_only): ?>
+            <div class="w-page-head">
+                <div>
+                    <h1><?php echo esc_html($page_title); ?></h1>
+                    <p class="w-page-head__sub"><?php echo esc_html(sc_t('scanner.sub', 'Scan tickets and exhibitor badges at the door, or look people up by code or phone.')); ?></p>
                 </div>
             </div>
-        </div>
-    </div>
+        <?php endif; ?>
 
-    <!-- Scanner Mode: Full Screen Camera -->
-    <div id="scanner-mode">
-        <!-- Top Bar -->
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <div class="d-flex align-items-center flex-wrap">
-                    <div class="d-flex align-items-center flex-wrap gap-2">
-                        <select class="form-control form-control-sm" id="scanner-event-select" style="max-width: 300px;">
-                            <option value="">-- <?php echo $t['select_event_first']; ?> --</option>
-                            <?php
-                            $filtered_events = array();
-                            foreach ($all_events as $event):
-                                // Filter events based on scanner permissions
-                                if (!$is_full_scanner_access && $is_scanner_only) {
-                                    if (!in_array((int)$event->id, $scanner_allowed_event_ids)) continue;
-                                }
-                                $filtered_events[] = $event;
-                                $event_date = isset($event->start_date) ? $event->start_date : '';
-                                $has_tracking = isset($event->attendance_tracking) && $event->attendance_tracking === 'yes';
-                                $selected = ($url_event_id === (int)$event->id) ? 'selected' : '';
-                            ?>
-                                <option value="<?php echo $event->id; ?>" data-tracking="<?php echo $has_tracking ? 'yes' : 'no'; ?>" <?php echo $selected; ?>>
-                                    <?php echo esc_html($event->title); ?>
-                                    <?php if ($event_date): ?>(<?php echo date('Y-m-d', strtotime($event_date)); ?>)<?php endif; ?>
-                                    <?php if ($has_tracking): ?> ⏱️<?php endif; ?>
-                                </option>
-                            <?php endforeach; ?>
+        <?php if (!$filtered_events): ?>
+            <div class="w-section">
+                <p class="mb-0"><?php echo esc_html($is_scanner_only
+                    ? sc_t('scanner.no_assigned_events', 'You are not assigned to any open event. Ask the event manager to give you access.')
+                    : sc_t('scanner.no_events', 'There are no published events to scan for.')); ?></p>
+            </div>
+        <?php else: ?>
+
+        <section class="w-section w-scan__setup" aria-labelledby="scan-at">
+            <h2 class="w-scan__label" id="scan-at"><?php echo esc_html(sc_t('dashboard_pages.scanning_at', 'Scanning at')); ?></h2>
+            <div class="w-scan__fields">
+                <div class="w-field" <?php echo count($filtered_events) === 1 ? 'hidden' : ''; ?>>
+                    <label class="w-field__label" for="scanner-event-select"><?php echo esc_html(sc_t('events.event', 'Event')); ?></label>
+                    <select class="form-control" id="scanner-event-select">
+                        <option value=""><?php echo esc_html(sc_t('scanner.pick_event', 'Choose an event')); ?></option>
+                        <?php foreach ($filtered_events as $event): ?>
+                            <option value="<?php echo esc_attr($event->id); ?>" <?php selected($url_event_id, (int) $event->id); ?>>
+                                <?php echo esc_html($event->title . (!empty($event->start_date) ? ' · ' . mysql2date('j M Y', $event->start_date) : '')); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php if (count($filtered_events) === 1): ?>
+                    <div class="w-field">
+                        <span class="w-field__label"><?php echo esc_html(sc_t('events.event', 'Event')); ?></span>
+                        <span class="w-scan__static" dir="auto"><?php echo esc_html($filtered_events[0]->title); ?></span>
+                    </div>
+                <?php endif; ?>
+                <div class="w-field" id="workshop-field" hidden>
+                    <label class="w-field__label" for="scanner-workshop-select"><?php echo esc_html(sc_t('scanner.door', 'Door')); ?></label>
+                    <select class="form-control" id="scanner-workshop-select">
+                        <option value=""><?php echo esc_html(sc_t('dashboard_pages.event_entrance', 'Event entrance')); ?></option>
+                    </select>
+                </div>
+                <?php if ($sessions_enabled): ?>
+                    <div class="w-field" id="session-field" hidden>
+                        <label class="w-field__label" for="scanner-session-select"><?php echo esc_html(sc_t('scanner.session', 'Session')); ?></label>
+                        <select class="form-control" id="scanner-session-select">
+                            <option value=""><?php echo esc_html($i18n['all_sessions']); ?></option>
                         </select>
-                        <?php
-                        // Workshops of the listed events: scanning at a workshop door accepts only that workshop's tickets.
-                        $scanner_workshops = array();
-                        if ($filtered_events) {
-                            global $wpdb;
-                            $ws_rows = $wpdb->get_results('SELECT id, event_id, title FROM ' . $wpdb->prefix . 'sc_workshops WHERE event_id IN (' . implode(',', array_map('intval', wp_list_pluck($filtered_events, 'id'))) . ") AND status <> 'cancelled' ORDER BY start_date, start_time, title");
-                            foreach ($ws_rows as $ws) {
-                                $scanner_workshops[(int) $ws->event_id][] = array('id' => (int) $ws->id, 'title' => $ws->title);
-                            }
-                        }
-                        ?>
-                        <select class="form-control form-control-sm ml-2" id="scanner-workshop-select" style="max-width: 300px; display: none;" aria-label="<?php echo esc_attr(sc_t('dashboard_pages.scanning_at', 'Scanning at')); ?>">
-                            <option value=""><?php echo esc_html(sc_t('dashboard_pages.event_entrance', 'Event entrance')); ?></option>
+                    </div>
+                <?php endif; ?>
+                <?php if ($venues_enabled): ?>
+                    <div class="w-field" id="gate-field" hidden>
+                        <label class="w-field__label" for="scanner-gate-select"><?php echo esc_html(sc_t('scanner.gate', 'Gate')); ?></label>
+                        <select class="form-control" id="scanner-gate-select">
+                            <option value=""><?php echo esc_html($i18n['no_gate']); ?></option>
                         </select>
-                        <span id="event-required-hint" class="text-danger ml-2" style="font-size: 12px;">
-                            <i class="fa fa-exclamation-circle"></i> <?php echo $t['required']; ?>
-                        </span>
-
-                        <?php if ($venues_enabled): ?>
-                        <!-- Gate Selection (Only if Venues module is enabled) -->
-                        <select class="form-control form-control-sm ml-2" id="scanner-gate-select" style="max-width: 250px; display: none;">
-                            <option value="">-- <?php echo $t['no_gate_optional']; ?> --</option>
-                        </select>
-                        <span id="gate-loading" class="text-muted ml-2" style="display: none; font-size: 12px;" aria-hidden="true" role="status">
-                            <i class="fa fa-spinner fa-spin"></i> <?php echo $t['loading_gates']; ?>
-                        </span>
-                        <?php endif; ?>
-
-                        <?php if ($sessions_enabled): ?>
-                        <!-- Session Selection (Only if Sessions module is enabled) -->
-                        <select class="form-control form-control-sm ml-2" id="scanner-session-select" style="max-width: 300px; display: none;">
-                            <option value="">-- <?php echo $t['all_sessions']; ?> --</option>
-                        </select>
-                        <span id="session-loading" class="text-muted ml-2" style="display: none; font-size: 12px;" aria-hidden="true" role="status">
-                            <i class="fa fa-spinner fa-spin"></i> <?php echo $t['loading_sessions']; ?>
-                        </span>
-                        <?php endif; ?>
                     </div>
+                <?php endif; ?>
+            </div>
+            <p class="w-scan__hint" id="event-required-hint" hidden><?php echo esc_html($i18n['choose_event']); ?></p>
+        </section>
+
+        <!-- Scanning -->
+        <section class="w-scan__panel" id="scanner-mode" aria-label="<?php echo esc_attr(sc_t('scanner.camera', 'Camera')); ?>">
+            <div class="w-scan__camera" id="camera-container">
+                <div id="qr-video-container" class="w-scan__video"></div>
+                <div class="w-scan__start" id="camera-start-overlay">
+                    <svg class="w-scan__start-icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+                    <button type="button" id="start-camera-btn" class="btn btn-primary btn-lg w-scan__startbtn"><?php echo esc_html($i18n['start_camera']); ?></button>
+                    <p class="w-scan__start-note" id="select-event-message" hidden><?php echo esc_html($i18n['choose_event']); ?></p>
+                </div>
+                <div class="w-scan__status" id="status-bar">
+                    <span class="w-scan__dot" id="scanner-dot" aria-hidden="true"></span>
+                    <span id="scanner-status" role="status"><?php echo esc_html($i18n['camera_idle']); ?></span>
+                    <button type="button" class="w-scan__stop" id="stop-camera-btn" hidden><?php echo esc_html(sc_t('scanner.stop', 'Stop')); ?></button>
                 </div>
             </div>
-        </div>
 
-        <!-- Full Width Camera -->
-        <div class="card">
-            <div class="card-body p-0">
-                <div id="camera-container" style="position: relative; background: #1a1a2e; border-radius: 8px; overflow: hidden; min-height: 450px;">
-                    <!-- QR Scanner Container (html5-qrcode uses this div) -->
-                    <div id="qr-video-container" style="width: 100%; min-height: 450px;"></div>
-
-                    <!-- Status Bar -->
-                    <div id="status-bar" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); padding: 15px; text-align: center; z-index: 10;">
-                        <span id="scanner-status" class="text-white">
-                            <i class="fa fa-circle text-muted"></i> <?php echo $t['click_start_camera']; ?>
-                        </span>
-                    </div>
-
-                    <!-- Camera Not Started Overlay -->
-                    <div id="camera-start-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(26,26,46,0.98); z-index: 20;">
-                        <div class="text-center">
-                            <i class="fa fa-camera fa-4x text-muted mb-3"></i>
-                            <h4 class="text-white mb-3"><?php echo $t['ready_to_scan']; ?></h4>
-                            <p class="text-warning mb-3" id="select-event-message">
-                                <i class="fa fa-exclamation-triangle"></i> <?php echo $t['please_select_event']; ?>
-                            </p>
-                            <button id="start-camera-btn" class="btn btn-secondary btn-lg px-5" disabled>
-                                <i class="fa fa-play"></i> <?php echo $t['start_camera']; ?>
-                            </button>
-                            <p class="text-muted mt-3 mb-0"><?php echo $t['or_enter_manually']; ?></p>
-                        </div>
+            <form class="w-scan__manual" id="manual-form" novalidate>
+                <div class="w-scan__manualhead">
+                    <span class="w-scan__label" id="lookup-label"><?php echo esc_html(sc_t('scanner.lookup', 'Look up by')); ?></span>
+                    <div class="w-scan__seg" role="radiogroup" aria-labelledby="lookup-label">
+                        <label><input type="radio" name="search-type" value="ticket" checked><span><?php echo esc_html(sc_t('scanner.code', 'Code')); ?></span></label>
+                        <label><input type="radio" name="search-type" value="phone"><span><?php echo esc_html(sc_t('scanner.phone', 'Phone')); ?></span></label>
                     </div>
                 </div>
+                <div class="w-scan__manualrow">
+                    <input type="text" id="manual-ticket-id" class="form-control" autocomplete="off" autocapitalize="characters" spellcheck="false" dir="ltr"
+                           placeholder="<?php echo esc_attr($i18n['code_placeholder']); ?>" aria-label="<?php echo esc_attr($i18n['code_placeholder']); ?>" aria-describedby="manual-note">
+                    <button type="submit" class="btn btn-primary" id="manual-scan-btn"><?php echo esc_html(sc_t('scanner.check', 'Check')); ?></button>
+                </div>
+                <p class="w-scan__note" id="manual-note" role="alert" hidden></p>
+            </form>
+        </section>
 
-                <!-- Manual Entry -->
-                <div class="p-3 bg-light border-top">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <div class="input-group">
-                                <div class="input-group-prepend">
-                                    <select class="form-control form-control-lg" id="search-type" style="border-radius: 4px 0 0 4px; min-width: 140px;">
-                                        <option value="ticket"><?php echo $t['ticket_id']; ?></option>
-                                        <option value="phone"><?php echo $t['phone']; ?></option>
-                                    </select>
-                                </div>
-                                <input type="text" id="manual-ticket-id" class="form-control form-control-lg" placeholder="<?php echo $t['enter_ticket_id']; ?>">
-                                <div class="input-group-append">
-                                    <button class="btn btn-primary btn-lg" id="manual-scan-btn">
-                                        <i class="fa fa-search"></i> <?php echo $t['search']; ?>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-right">
-                            <button id="stop-camera-btn" class="btn btn-outline-danger" style="display: none;">
-                                <i class="fa fa-stop"></i> <?php echo $t['stop_camera']; ?>
-                            </button>
-                        </div>
-                    </div>
+        <!-- Result -->
+        <section class="w-scan__result" id="result-mode" data-tone="ok" hidden aria-live="assertive">
+            <div class="w-scan__band">
+                <span class="w-scan__bandicon" id="result-icon" aria-hidden="true"></span>
+                <div>
+                    <h2 class="w-scan__bandtitle" id="result-status-text"></h2>
+                    <p class="w-scan__bandsub" id="result-time"></p>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Result Mode: After Scan -->
-    <div id="result-mode" style="display: none;" aria-hidden="true" hidden>
-        <div class="row">
-            <div class="col-lg-8 offset-lg-2">
-                <div class="card">
-                    <!-- Result Header -->
-                    <div class="card-header p-4" id="result-header-bg" style="background: linear-gradient(135deg, #28a745, #20c997);">
-                        <div class="d-flex align-items-center">
-                            <div id="result-icon" style="font-size: 60px; color: white;" class="mr-4">
-                                <i class="fa fa-check-circle"></i>
-                            </div>
-                            <div class="text-white">
-                                <h2 class="mb-1" id="result-status-text"><?php echo $t['checkin_successful']; ?></h2>
-                                <p class="mb-0 opacity-75" id="result-time"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Attendee Details -->
-                    <div class="card-body">
-                        <h4 class="border-bottom pb-3 mb-4"><i class="fa fa-user"></i> <?php echo $t['attendee_details']; ?></h4>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <th width="40%"><i class="fa fa-user text-primary"></i> <?php echo $t['name']; ?>:</th>
-                                        <td><strong id="result-name"></strong></td>
-                                    </tr>
-                                    <tr>
-                                        <th><i class="fa fa-envelope text-primary"></i> <?php echo $t['email']; ?>:</th>
-                                        <td id="result-email"></td>
-                                    </tr>
-                                    <tr>
-                                        <th><i class="fa fa-phone text-primary"></i> <?php echo $t['phone']; ?>:</th>
-                                        <td id="result-phone"></td>
-                                    </tr>
-                                    <tr>
-                                        <th><i class="fa fa-ticket text-primary"></i> <?php echo $t['ticket']; ?>:</th>
-                                        <td id="result-ticket"></td>
-                                    </tr>
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <th width="40%"><i class="fa fa-calendar text-info"></i> <?php echo $t['event']; ?>:</th>
-                                        <td id="result-event"></td>
-                                    </tr>
-                                    <tr>
-                                        <th><i class="fa fa-tag text-info"></i> <?php echo $t['status']; ?>:</th>
-                                        <td id="result-ticket-status"></td>
-                                    </tr>
-                                    <tr id="tracking-row-scans" style="display: none;">
-                                        <th><i class="fa fa-refresh text-info"></i> <?php echo $t['scans']; ?>:</th>
-                                        <td id="result-scan-count"></td>
-                                    </tr>
-                                    <tr id="tracking-row-duration" style="display: none;">
-                                        <th><i class="fa fa-clock-o text-info"></i> <?php echo $t['duration']; ?>:</th>
-                                        <td id="result-duration"></td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Extra Fields -->
-                        <div id="extra-fields-section" style="display: none;">
-                            <h5 class="border-bottom pb-2 mb-3 mt-4"><i class="fa fa-list-alt"></i> <?php echo $t['additional_info']; ?></h5>
-                            <div id="extra-fields-content" class="row"></div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="text-center mt-5 pt-4 border-top">
-                            <button id="another-scan-btn" class="btn btn-success btn-lg px-5 mr-3">
-                                <i class="fa fa-qrcode"></i> <?php echo $t['another_scan']; ?>
-                            </button>
-                            <a href="<?php echo home_url('/event-manager-dashboard/attendees'); ?>" class="btn btn-info btn-lg px-5">
-                                <i class="fa fa-users"></i> <?php echo $t['view_attendees']; ?>
-                            </a>
-                        </div>
-                    </div>
+            <div class="w-scan__body">
+                <p class="w-scan__warn" id="result-note" hidden></p>
+                <p class="w-scan__name" id="result-name" dir="auto"></p>
+                <p class="w-scan__ticket" id="result-ticket" dir="auto"></p>
+                <dl class="w-scan__facts" id="result-facts"></dl>
+                <div class="w-scan__actions">
+                    <button type="button" id="another-scan-btn" class="btn btn-primary btn-lg"><?php echo esc_html(sc_t('scanner.next', 'Scan next')); ?></button>
+                    <?php if (!$is_scanner_only): ?>
+                        <a class="btn btn-outline-secondary btn-lg" id="result-attendee-link" href="<?php echo esc_url($dashboard_url . 'attendees'); ?>"><?php echo esc_html(sc_t('scanner.open_attendees', 'Attendee list')); ?></a>
+                    <?php endif; ?>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <!-- Error Mode -->
-    <div id="error-mode" style="display: none;" aria-hidden="true" hidden>
-        <div class="row">
-            <div class="col-lg-6 offset-lg-3">
-                <div class="card border-danger">
-                    <div class="card-header bg-danger text-white text-center p-4">
-                        <i class="fa fa-times-circle fa-4x mb-3"></i>
-                        <h3 id="error-title"><?php echo $t['invalid_ticket']; ?></h3>
-                    </div>
-                    <div class="card-body text-center py-5">
-                        <p class="lead" id="error-message"><?php echo $t['ticket_not_found']; ?></p>
-                        <div class="mt-4">
-                            <button id="error-scan-again-btn" class="btn btn-primary btn-lg px-5">
-                                <i class="fa fa-refresh"></i> <?php echo $t['scan_again']; ?>
-                            </button>
-                        </div>
-                    </div>
+        <!-- Refused -->
+        <section class="w-scan__result" id="error-mode" data-tone="error" hidden aria-live="assertive">
+            <div class="w-scan__band">
+                <span class="w-scan__bandicon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+                <div>
+                    <h2 class="w-scan__bandtitle" id="error-title"></h2>
                 </div>
             </div>
-        </div>
-    </div>
+            <div class="w-scan__body">
+                <p class="w-scan__errmsg" id="error-message"></p>
+                <div class="w-scan__actions">
+                    <button type="button" id="error-scan-again-btn" class="btn btn-primary btn-lg"><?php echo esc_html(sc_t('scanner.try_next', 'Scan again')); ?></button>
+                </div>
+            </div>
+        </section>
 
-    <!-- Processing Overlay -->
-    <div id="processing-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999;" aria-hidden="true" hidden>
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-            <i class="fa fa-spinner fa-spin fa-4x text-white mb-3"></i>
-            <h4 class="text-white"><?php echo $t['processing']; ?></h4>
+        <div class="w-scan__busy" id="processing-overlay" hidden>
+            <span class="w-scan__spinner" aria-hidden="true"></span>
+            <span><?php echo esc_html($i18n['checking']); ?></span>
         </div>
+
+        <?php endif; ?>
     </div>
 
 </div>
 </div>
 
-<!-- QR Scanner Library - Using html5-qrcode (more compatible, no worker issues) -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
+<?php if ($filtered_events): ?>
+<script src="<?php echo esc_url(sc_dashboard_asset('dashboard/js/lib/html5-qrcode/html5-qrcode.min.js')); ?>"></script>
 <script>
-var scannerTranslations = {
-    select_event_first: '<?php echo esc_js(sc_t("scanner.select_event_first", "Please select an event first")); ?>',
-    camera_error: '<?php echo esc_js(sc_t("scanner.camera_error", "Camera error")); ?>',
-    enter_phone: '<?php echo esc_js(sc_t("scanner.enter_phone", "Please enter a phone number")); ?>',
-    enter_ticket_id: '<?php echo esc_js(sc_t("scanner.enter_ticket_id", "Please enter a ticket ID")); ?>'
-};
-
-jQuery(document).ready(function($) {
+jQuery(function ($) {
     'use strict';
 
-    let scanner = null;
-    let isScanning = false;
-    let selectedEventId = $('#scanner-event-select').val() || null;
-    let selectedGateId = null;
-    let selectedSessionId = null;
-    let selectedWorkshopId = null;
-    const workshopsByEvent = <?php echo wp_json_encode($scanner_workshops, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
-    const urlWorkshopId = <?php echo isset($_GET['workshop_id']) ? (int) $_GET['workshop_id'] : 0; ?>;
-    let urlSessionId = <?php echo isset($_GET['session_id']) ? (int) $_GET['session_id'] : 0; ?>;
+    var T = <?php echo wp_json_encode($i18n); ?>;
+    var workshopsByEvent = <?php echo wp_json_encode($scanner_workshops, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    var urlWorkshopId = <?php echo isset($_GET['workshop_id']) ? (int) $_GET['workshop_id'] : 0; ?>;
+    var urlSessionId = <?php echo isset($_GET['session_id']) ? (int) $_GET['session_id'] : 0; ?>;
+    var venuesEnabled = <?php echo $venues_enabled ? 'true' : 'false'; ?>;
+    var sessionsEnabled = <?php echo $sessions_enabled ? 'true' : 'false'; ?>;
+    var restrictedSessions = <?php echo ($is_scanner_only && !$is_full_scanner_access) ? wp_json_encode(array_map('intval', $scanner_allowed_session_ids)) : 'null'; ?>;
 
-    // Module availability flags (set from PHP)
-    const venuesEnabled = <?php echo $venues_enabled ? 'true' : 'false'; ?>;
-    const sessionsEnabled = <?php echo $sessions_enabled ? 'true' : 'false'; ?>;
+    var scanner = null;
+    var isScanning = false;
+    var cameraWanted = false;
+    var busy = false;
+    var selectedEventId = $('#scanner-event-select').val() || null;
+    var selectedWorkshopId = null;
+    var selectedSessionId = null;
+    var selectedGateId = null;
 
-    // Scanner permission filtering
-    const isFullScannerAccess = <?php echo $is_full_scanner_access ? 'true' : 'false'; ?>;
-    const allowedSessionIds = <?php echo json_encode(array_map('intval', $scanner_allowed_session_ids)); ?>;
-    const isScannerOnly = <?php echo $is_scanner_only ? 'true' : 'false'; ?>;
+    function fmt(str, value) { return String(str).replace(/%[sd]/, value); }
 
-    // ===============================
-    // Event Selection
-    // ===============================
-    $('#scanner-event-select').on('change', function() {
-        selectedEventId = $(this).val() || null;
-        selectedGateId = null;
-        fillWorkshops(selectedEventId);
+    // ---- Setup ------------------------------------------------------------
 
-        // Update UI based on event selection
-        if (selectedEventId) {
-            $('#event-required-hint').hide();
-            $('#select-event-message').hide();
-            $('#start-camera-btn').prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
-            $('#manual-scan-btn').prop('disabled', false);
-            $('#manual-ticket-id').prop('disabled', false);
+    function setStatus(text, state) {
+        $('#scanner-status').text(text);
+        $('#scanner-dot').attr('data-state', state || 'off');
+    }
 
-            // Load gates for this event (only if Venues module is enabled)
-            if (venuesEnabled) {
-                loadGatesForEvent(selectedEventId);
-            }
+    function modeLabel() {
+        if (selectedWorkshopId) { return fmt(T.workshop_prefix, $('#scanner-workshop-select option:selected').text()); }
+        if (selectedSessionId) { return fmt(T.session_prefix, $('#scanner-session-select option:selected').text()); }
+        return '';
+    }
 
-            // Load sessions for this event (only if Sessions module is enabled)
-            if (sessionsEnabled) {
-                loadSessionsForEvent(selectedEventId);
-            }
-        } else {
-            $('#event-required-hint').show();
-            $('#select-event-message').show();
-            $('#start-camera-btn').prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
-            $('#manual-scan-btn').prop('disabled', true);
-            $('#manual-ticket-id').prop('disabled', true);
+    function refreshReady() {
+        var ready = !!selectedEventId;
+        $('#event-required-hint, #select-event-message').prop('hidden', ready);
+        $('#start-camera-btn, #manual-scan-btn, #manual-ticket-id').prop('disabled', !ready);
+        if (!isScanning) { setStatus(modeLabel() || T.camera_idle, 'off'); }
+    }
 
-            // Hide gate dropdown
-            $('#scanner-gate-select').hide().html('<option value="">-- No Gate (Optional) --</option>');
-
-            // Hide session dropdown
-            $('#scanner-session-select').hide().html('<option value="">-- All Sessions --</option>');
-            selectedSessionId = null;
-        }
-    });
-
-    // Gate Selection
-    $('#scanner-gate-select').on('change', function() {
-        selectedGateId = $(this).val() || null;
-    });
-
-    // Workshop Selection — "Event entrance" scans event tickets; a workshop scans only its own tickets.
     function fillWorkshops(eventId) {
-        const list = (eventId && workshopsByEvent[eventId]) || [];
-        const $sel = $('#scanner-workshop-select');
+        var list = (eventId && workshopsByEvent[eventId]) || [];
+        var $sel = $('#scanner-workshop-select');
         $sel.find('option:not(:first)').remove();
         list.forEach(function (w) { $('<option>').val(w.id).text(w.title).appendTo($sel); });
-        const keep = list.some(function (w) { return w.id === urlWorkshopId; }) ? String(urlWorkshopId) : '';
-        $sel.val(keep).toggle(list.length > 0);
+        var keep = list.some(function (w) { return w.id === urlWorkshopId; }) ? String(urlWorkshopId) : '';
+        $sel.val(keep);
+        $('#workshop-field').prop('hidden', list.length === 0);
         selectedWorkshopId = keep || null;
-        applyWorkshopMode();
     }
-    function applyWorkshopMode() {
-        if (selectedWorkshopId) {
-            // Sessions belong to the event programme, not to a workshop door.
-            $('#scanner-session-select').val('').hide();
-            selectedSessionId = null;
-            $('#scanner-status').html('<i class="fa fa-wrench text-info"></i> ' + $('<span>').text('Workshop: ' + $('#scanner-workshop-select option:selected').text()).html());
+
+    function loadGates(eventId) {
+        if (!venuesEnabled) { return; }
+        var $sel = $('#scanner-gate-select');
+        $('#gate-field').prop('hidden', true);
+        $sel.find('option:not(:first)').remove();
+        selectedGateId = null;
+        $.post(scDashboard.ajaxurl, { action: 'sc_venues_get_gates_by_event', nonce: scDashboard.nonce, event_id: eventId }).done(function (res) {
+            var gates = (res && res.success && res.data && res.data.gates) || [];
+            if (String(eventId) !== String(selectedEventId) || !gates.length) { return; }
+            var groups = {};
+            gates.forEach(function (g) { (groups[g.venue_name] = groups[g.venue_name] || []).push(g); });
+            var many = Object.keys(groups).length > 1;
+            Object.keys(groups).forEach(function (venue) {
+                var $parent = many ? $('<optgroup>').attr('label', venue).appendTo($sel) : $sel;
+                groups[venue].forEach(function (g) {
+                    var label = g.name + (g.zone_name ? ' → ' + g.zone_name : '') + (g.status !== 'open' ? ' (closed)' : '');
+                    $('<option>').val(g.id).text(label).appendTo($parent);
+                });
+            });
+            $('#gate-field').prop('hidden', false);
+        });
+    }
+
+    function loadSessions(eventId) {
+        if (!sessionsEnabled) { return; }
+        var $sel = $('#scanner-session-select');
+        $('#session-field').prop('hidden', true);
+        $sel.find('option:not(:first), optgroup').remove();
+        selectedSessionId = null;
+        $.post(scDashboard.ajaxurl, { action: 'sc_sessions_get_by_event', nonce: scDashboard.nonce, event_id: eventId, status: 'all' }).done(function (res) {
+            var sessions = (res && res.success && res.data && res.data.sessions) || [];
+            if (String(eventId) !== String(selectedEventId)) { return; }
+            if (restrictedSessions && restrictedSessions.length) {
+                sessions = sessions.filter(function (s) { return restrictedSessions.indexOf(parseInt(s.id, 10)) !== -1; });
+            }
+            if (!sessions.length) { return; }
+            var byDate = {};
+            sessions.forEach(function (s) {
+                var d = s.start_time ? String(s.start_time).split(' ')[0] : '';
+                (byDate[d] = byDate[d] || []).push(s);
+            });
+            var dates = Object.keys(byDate).sort();
+            dates.forEach(function (d) {
+                var $parent = dates.length > 1 ? $('<optgroup>').attr('label', d || '—').appendTo($sel) : $sel;
+                byDate[d].forEach(function (s) {
+                    var time = s.start_time && String(s.start_time).indexOf(' ') > 0 ? String(s.start_time).split(' ')[1].substring(0, 5) + ' · ' : '';
+                    var label = time + s.title + (s.hall ? ' · ' + s.hall : '') + (s.status === 'live' ? ' (live)' : '');
+                    $('<option>').val(s.id).text(label).appendTo($parent);
+                });
+            });
+            $('#session-field').prop('hidden', !!selectedWorkshopId);
+
+            if (urlSessionId && !selectedWorkshopId && $sel.find('option[value="' + urlSessionId + '"]').length) {
+                $sel.val(String(urlSessionId)).trigger('change');
+                urlSessionId = 0;
+            }
+            // A scanner assigned to one session scans only that session.
+            if (restrictedSessions && sessions.length === 1) {
+                $sel.val(String(sessions[0].id)).trigger('change');
+                $('#session-field').prop('hidden', true);
+            }
+        });
+    }
+
+    function selectEvent(eventId) {
+        selectedEventId = eventId || null;
+        fillWorkshops(selectedEventId);
+        if (selectedEventId) {
+            loadGates(selectedEventId);
+            if (!selectedWorkshopId) { loadSessions(selectedEventId); }
+        } else {
+            $('#gate-field, #session-field').prop('hidden', true);
+            selectedGateId = selectedSessionId = null;
         }
+        refreshReady();
     }
+
+    $('#scanner-event-select').on('change', function () { selectEvent($(this).val()); });
+    $('#scanner-gate-select').on('change', function () { selectedGateId = $(this).val() || null; });
     $('#scanner-workshop-select').on('change', function () {
         selectedWorkshopId = $(this).val() || null;
         if (selectedWorkshopId) {
-            applyWorkshopMode();
-        } else if (sessionsEnabled && selectedEventId) {
-            loadSessionsForEvent(selectedEventId);
+            // Sessions belong to the event programme, not to a workshop door.
+            selectedSessionId = null;
+            $('#scanner-session-select').val('');
+            $('#session-field').prop('hidden', true);
+        } else if (selectedEventId) {
+            loadSessions(selectedEventId);
         }
+        refreshReady();
     });
-    fillWorkshops(selectedEventId);
-
-    // Session Selection
-    $('#scanner-session-select').on('change', function() {
+    $('#scanner-session-select').on('change', function () {
         selectedSessionId = $(this).val() || null;
-
-        // Update UI to show session mode
-        if (selectedSessionId) {
-            $('#scanner-status').html('<i class="fa fa-clock-o text-info"></i> Session Mode: Scanning for specific session');
-        }
+        refreshReady();
     });
 
-    // ===============================
-    // Load Gates for Event
-    // ===============================
-    function loadGatesForEvent(eventId) {
-        $('#gate-loading').show();
-        $('#scanner-gate-select').hide();
+    selectEvent(selectedEventId);
 
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_venues_get_gates_by_event',
-                nonce: scDashboard.nonce,
-                event_id: eventId
-            }
-        }).done(function(response) {
-            $('#gate-loading').hide();
+    // ---- Camera -----------------------------------------------------------
 
-            if (response.success && response.data.gates && response.data.gates.length > 0) {
-                let html = '<option value="">-- Select Gate (Optional) --</option>';
-
-                // Group gates by venue
-                const gatesByVenue = {};
-                response.data.gates.forEach(function(gate) {
-                    if (!gatesByVenue[gate.venue_name]) {
-                        gatesByVenue[gate.venue_name] = [];
-                    }
-                    gatesByVenue[gate.venue_name].push(gate);
-                });
-
-                // Build options with optgroups
-                Object.keys(gatesByVenue).forEach(function(venueName) {
-                    if (Object.keys(gatesByVenue).length > 1) {
-                        html += `<optgroup label="${venueName}">`;
-                    }
-                    gatesByVenue[venueName].forEach(function(gate) {
-                        const statusIcon = gate.status === 'open' ? '🟢' : '🔴';
-                        const typeLabel = gate.gate_type === 'entry' ? '↓' : (gate.gate_type === 'exit' ? '↑' : '↕');
-                        const zoneInfo = gate.zone_name ? ` → ${gate.zone_name}` : '';
-                        html += `<option value="${gate.id}" data-status="${gate.status}" data-type="${gate.gate_type}">
-                            ${statusIcon} ${gate.name} ${typeLabel}${zoneInfo}
-                        </option>`;
-                    });
-                    if (Object.keys(gatesByVenue).length > 1) {
-                        html += '</optgroup>';
-                    }
-                });
-
-                $('#scanner-gate-select').html(html).show();
-            } else {
-                // No gates configured - hide the dropdown
-                $('#scanner-gate-select').hide().html('<option value="">-- No Gate (Optional) --</option>');
-            }
-        }).fail(function() {
-            $('#gate-loading').hide();
-            $('#scanner-gate-select').hide();
-        });
-    }
-
-    // ===============================
-    // Load Sessions for Event
-    // ===============================
-    function loadSessionsForEvent(eventId) {
-        $('#session-loading').show();
-        $('#scanner-session-select').hide();
-        selectedSessionId = null;
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_sessions_get_by_event',
-                nonce: scDashboard.nonce,
-                event_id: eventId,
-                status: 'all' // Get all sessions for today
-            }
-        }).done(function(response) {
-            $('#session-loading').hide();
-
-            if (response.success && response.data.sessions && response.data.sessions.length > 0) {
-                let sessions = response.data.sessions;
-
-                // Filter sessions by scanner permissions
-                if (!isFullScannerAccess && isScannerOnly && allowedSessionIds.length > 0) {
-                    sessions = sessions.filter(function(s) {
-                        return allowedSessionIds.indexOf(parseInt(s.id)) !== -1;
-                    });
-                }
-
-                if (sessions.length === 0) {
-                    $('#scanner-session-select').hide();
-                    return;
-                }
-
-                let html = '<option value="">-- All Sessions (Event Check-in) --</option>';
-
-                // Group sessions by date
-                const sessionsByDate = {};
-                sessions.forEach(function(session) {
-                    const date = session.start_time ? session.start_time.split(' ')[0] : 'No Date';
-                    if (!sessionsByDate[date]) {
-                        sessionsByDate[date] = [];
-                    }
-                    sessionsByDate[date].push(session);
-                });
-
-                // Build options with optgroups by date
-                Object.keys(sessionsByDate).sort().forEach(function(date) {
-                    if (Object.keys(sessionsByDate).length > 1) {
-                        html += `<optgroup label="${date}">`;
-                    }
-                    sessionsByDate[date].forEach(function(session) {
-                        const time = session.start_time ? session.start_time.split(' ')[1].substring(0, 5) : '';
-                        const typeEmoji = getSessionTypeEmoji(session.session_type);
-                        const statusClass = session.status === 'live' ? '🟢' : (session.status === 'ended' ? '⚫' : '🔵');
-                        const hall = session.hall ? ` [${session.hall}]` : '';
-                        const cme = session.cme_hours > 0 ? ` 📚${session.cme_hours}h` : '';
-
-                        html += `<option value="${session.id}" data-type="${session.session_type}" data-status="${session.status}">
-                            ${statusClass} ${time} ${typeEmoji} ${session.title}${hall}${cme}
-                        </option>`;
-                    });
-                    if (Object.keys(sessionsByDate).length > 1) {
-                        html += '</optgroup>';
-                    }
-                });
-
-                $('#scanner-session-select').html(html).toggle(!selectedWorkshopId);
-
-                // Opened from a session's page: start on that session (once).
-                if (urlSessionId && !selectedWorkshopId && $('#scanner-session-select option[value="' + urlSessionId + '"]').length) {
-                    $('#scanner-session-select').val(String(urlSessionId)).trigger('change');
-                    urlSessionId = 0;
-                }
-
-                // Auto-select if scanner has only one allowed session
-                if (!isFullScannerAccess && isScannerOnly && sessions.length === 1) {
-                    $('#scanner-session-select').val(sessions[0].id).trigger('change');
-                    $('#scanner-session-select').hide();
-                }
-            } else {
-                // No sessions configured - hide the dropdown
-                $('#scanner-session-select').hide().html('<option value="">-- All Sessions --</option>');
-            }
-        }).fail(function() {
-            $('#session-loading').hide();
-            $('#scanner-session-select').hide();
-        });
-    }
-
-    // Get emoji for session type
-    function getSessionTypeEmoji(type) {
-        const emojis = {
-            'lecture': '📖',
-            'workshop': '🛠️',
-            'panel': '👥',
-            'keynote': '🎤',
-            'break': '☕',
-            'networking': '🤝',
-            'exhibition': '🎪',
-            'poster': '📋',
-            'symposium': '🎓',
-            'hands_on': '✋',
-            'other': '📌'
-        };
-        return emojis[type] || '📌';
-    }
-
-    // Auto-select for permission-restricted scanners
-    <?php if ($is_scanner_only && !$is_full_scanner_access && count($filtered_events) === 1): ?>
-    (function() {
-        var $sel = $('#scanner-event-select');
-        $sel.val('<?php echo (int)$filtered_events[0]->id; ?>').trigger('change');
-        // Hide event dropdown when scanner has only one event
-        $sel.closest('.d-flex').find('#event-required-hint').hide();
-        $sel.hide();
-    })();
-    <?php elseif (!$is_scanner_only || $is_full_scanner_access): ?>
-    // Initial state - disable controls if no event selected
-    if (!selectedEventId) {
-        $('#start-camera-btn').prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
-        $('#manual-scan-btn').prop('disabled', true);
-        $('#manual-ticket-id').prop('disabled', true);
-        $('#select-event-message').show();
-    } else {
-        $('#event-required-hint').hide();
-        $('#select-event-message').hide();
-        // Load gates for pre-selected event
-        loadGatesForEvent(selectedEventId);
-        // Load sessions for pre-selected event
-        loadSessionsForEvent(selectedEventId);
-    }
-    <?php else: ?>
-    // Multiple events for restricted scanner - normal init
-    if (!selectedEventId) {
-        $('#start-camera-btn').prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
-        $('#manual-scan-btn').prop('disabled', true);
-        $('#manual-ticket-id').prop('disabled', true);
-        $('#select-event-message').show();
-    } else {
-        $('#event-required-hint').hide();
-        $('#select-event-message').hide();
-        loadGatesForEvent(selectedEventId);
-        loadSessionsForEvent(selectedEventId);
-    }
-    <?php endif; ?>
-
-    // ===============================
-    // Initialize Scanner
-    // ===============================
-    function initScanner() {
-        if (scanner) return;
-
-        scanner = new Html5Qrcode("qr-video-container");
-    }
-
-    // ===============================
-    // Start Camera
-    // ===============================
-    $('#start-camera-btn').on('click', function() {
-        // Check if event is selected
-        if (!selectedEventId) {
-            toastr.warning(scannerTranslations.select_event_first);
-            $('#scanner-event-select').focus();
-            return;
-        }
-
-        initScanner();
-
-        const config = {
+    function cameraConfig() {
+        return {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.777778
+            qrbox: function (w, h) { var s = Math.max(160, Math.floor(Math.min(w, h) * 0.7)); return { width: s, height: s }; },
+            aspectRatio: window.matchMedia('(max-width: 767px)').matches ? 1 : 1.333334
         };
+    }
 
-        scanner.start(
-            { facingMode: "environment" },
-            config,
-            (decodedText, decodedResult) => {
-                onScanDetected(decodedText);
-            },
-            (errorMessage) => {
-                // QR code parse error - ignore these
-            }
-        ).then(() => {
+    function startCamera() {
+        if (!selectedEventId) { refreshReady(); $('#scanner-event-select').trigger('focus'); return; }
+        if (typeof Html5Qrcode === 'undefined') { setStatus(T.camera_error, 'error'); return; }
+        if (!scanner) { scanner = new Html5Qrcode('qr-video-container'); }
+        cameraWanted = true;
+        setStatus(T.camera_starting, 'wait');
+        $('#start-camera-btn').prop('disabled', true);
+        scanner.start({ facingMode: 'environment' }, cameraConfig(), onScanDetected, function () {}).then(function () {
             isScanning = true;
-            $('#camera-start-overlay').fadeOut();
-            $('#stop-camera-btn').show();
-            $('#scanner-status').html('<i class="fa fa-circle text-success blink"></i> Scanning... Point camera at QR code');
-            playSound('start');
-        }).catch(err => {
-            toastr.error(scannerTranslations.camera_error + ': ' + err);
-        });
-    });
-
-    // ===============================
-    // Stop Camera
-    // ===============================
-    $('#stop-camera-btn').on('click', function() {
-        if (scanner && isScanning) {
-            scanner.stop().then(() => {
-                isScanning = false;
-                $('#camera-start-overlay').fadeIn();
-                $('#stop-camera-btn').hide();
-                $('#scanner-status').html('<i class="fa fa-circle text-muted"></i> Camera stopped');
-            }).catch(err => console.log('Stop error:', err));
-        }
-    });
-
-    // ===============================
-    // Manual Entry
-    // ===============================
-
-    // Update placeholder based on search type
-    $('#search-type').on('change', function() {
-        const type = $(this).val();
-        if (type === 'phone') {
-            $('#manual-ticket-id').attr('placeholder', 'Enter Phone Number...').val('');
-        } else {
-            $('#manual-ticket-id').attr('placeholder', 'Enter Ticket ID...').val('');
-        }
-    });
-
-    $('#manual-scan-btn').on('click', function() {
-        // Check if event is selected
-        if (!selectedEventId) {
-            toastr.warning(scannerTranslations.select_event_first);
-            $('#scanner-event-select').focus();
-            return;
-        }
-
-        const searchType = $('#search-type').val();
-        const searchValue = $('#manual-ticket-id').val().trim();
-
-        if (!searchValue) {
-            toastr.warning(searchType === 'phone' ? scannerTranslations.enter_phone : scannerTranslations.enter_ticket_id);
-            $('#manual-ticket-id').focus();
-            return;
-        }
-
-        if (searchType === 'phone') {
-            searchByPhone(searchValue);
-        } else {
-            processTicket(searchValue);
-        }
-    });
-
-    $('#manual-ticket-id').on('keypress', function(e) {
-        if (e.which === 13) $('#manual-scan-btn').click();
-    });
-
-    // ===============================
-    // Search by Phone
-    // ===============================
-    function searchByPhone(phone) {
-        showProcessing(true);
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_search_attendee_by_phone',
-                nonce: scDashboard.nonce,
-                phone: phone,
-                event_id: selectedEventId
-            }
-        }).done(function(response) {
-            showProcessing(false);
-
-            if (response.success) {
-                if (response.data.attendees && response.data.attendees.length > 0) {
-                    if (response.data.attendees.length === 1) {
-                        // Single result - process directly
-                        processTicket(response.data.attendees[0].ticket_id);
-                    } else {
-                        // Multiple results - show selection modal
-                        showPhoneSearchResults(response.data.attendees);
-                    }
-                } else {
-                    showError('No attendee found with this phone number', 'Not Found');
-                    playSound('error');
-                }
-            } else {
-                showError(response.data.message || 'Search failed', 'Error');
-                playSound('error');
-            }
-        }).fail(function() {
-            showProcessing(false);
-            showError('Connection error. Please try again.', 'Network Error');
-            playSound('error');
+            $('#camera-start-overlay').prop('hidden', true);
+            $('#stop-camera-btn').prop('hidden', false);
+            setStatus(modeLabel() ? modeLabel() + ' — ' + T.camera_on : T.camera_on, 'on');
+            beep('start');
+        }).catch(function () {
+            cameraWanted = false;
+            setStatus(T.camera_error, 'error');
+            $('#start-camera-btn').prop('disabled', false);
         });
     }
 
-    // Show phone search results modal
-    function showPhoneSearchResults(attendees) {
-        let html = '<div class="list-group">';
-        attendees.forEach(function(a) {
-            const statusClass = a.ticket_status === 'used' ? 'list-group-item-success' : 'list-group-item-light';
-            const statusIcon = a.ticket_status === 'used' ? '<i class="fa fa-check-circle text-success"></i>' : '<i class="fa fa-ticket text-muted"></i>';
-            html += `
-                <a href="#" class="list-group-item list-group-item-action ${statusClass} phone-result-item" data-ticket-id="${a.ticket_id}">
-                    <div class="d-flex w-100 justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">${statusIcon} ${a.name}</h6>
-                            <small class="text-muted">${a.ticket_id}</small>
-                        </div>
-                        <span class="badge ${a.ticket_status === 'used' ? 'badge-success' : 'badge-secondary'}">${a.ticket_status === 'used' ? 'Checked-in' : 'Not checked-in'}</span>
-                    </div>
-                </a>
-            `;
-        });
-        html += '</div>';
+    function pauseCamera() {
+        if (scanner && isScanning) {
+            isScanning = false;
+            return scanner.stop().catch(function () {});
+        }
+        return $.Deferred().resolve().promise();
+    }
 
+    $('#start-camera-btn').on('click', startCamera);
+    $('#stop-camera-btn').on('click', function () {
+        cameraWanted = false;
+        pauseCamera();
+        $('#camera-start-overlay').prop('hidden', false);
+        $('#start-camera-btn').prop('disabled', !selectedEventId);
+        $('#stop-camera-btn').prop('hidden', true);
+        setStatus(T.camera_stopped, 'off');
+    });
+
+    // ---- Manual lookup ----------------------------------------------------
+
+    function searchType() { return $('input[name="search-type"]:checked').val(); }
+
+    function manualNote(text) { $('#manual-note').text(text || '').prop('hidden', !text); }
+
+    $('input[name="search-type"]').on('change', function () {
+        var phone = searchType() === 'phone';
+        $('#manual-ticket-id').val('').attr({
+            placeholder: phone ? T.phone_placeholder : T.code_placeholder,
+            'aria-label': phone ? T.phone_placeholder : T.code_placeholder,
+            inputmode: phone ? 'tel' : 'text',
+            autocapitalize: phone ? 'off' : 'characters'
+        }).trigger('focus');
+        manualNote('');
+    });
+
+    $('#manual-form').on('submit', function (e) {
+        e.preventDefault();
+        if (!selectedEventId) { refreshReady(); return; }
+        var value = $.trim($('#manual-ticket-id').val());
+        if (searchType() === 'phone') {
+            if (value.replace(/\D/g, '').length < 4) { manualNote(T.enter_phone); $('#manual-ticket-id').trigger('focus'); return; }
+            manualNote('');
+            searchByPhone(value);
+        } else {
+            if (!value) { manualNote(T.enter_code); $('#manual-ticket-id').trigger('focus'); return; }
+            manualNote('');
+            processTicket(value);
+        }
+    });
+    $('#manual-ticket-id').on('input', function () { manualNote(''); });
+
+    function searchByPhone(phone) {
+        showBusy(true);
+        $.post(scDashboard.ajaxurl, { action: 'sc_search_attendee_by_phone', nonce: scDashboard.nonce, phone: phone, event_id: selectedEventId }).done(function (res) {
+            showBusy(false);
+            if (!res || !res.success) { showError((res && res.data && res.data.message) || T.network, T.error_title); return; }
+            var people = res.data.attendees || [];
+            if (!people.length) { showError(T.no_phone_match, T.not_found); return; }
+            if (people.length === 1) { processTicket(people[0].ticket_id); return; }
+            pickPerson(people);
+        }).fail(function () {
+            showBusy(false);
+            showError(T.network, T.network_title);
+        });
+    }
+
+    function pickPerson(people) {
+        var $list = $('<div class="w-scan__people">');
+        people.forEach(function (p) {
+            var $b = $('<button type="button" class="w-scan__person">').attr('data-ticket', p.ticket_id);
+            $('<span class="w-scan__personname" dir="auto">').text(p.name || p.email || p.ticket_id).appendTo($b);
+            var $meta = $('<span class="w-scan__personmeta">').text(p.ticket_id + (p.phone ? ' · ' + p.phone : '')).appendTo($b);
+            if (p.workshop_id) { $('<span class="w-tag">').text(T.workshop_tag).appendTo($meta); }
+            if (p.status && p.status !== 'active') { $('<span class="w-tag w-tag--red">').text(T.cancelled_tag).appendTo($meta); }
+            if (p.ticket_status === 'used') { $('<span class="w-tag w-tag--teal">').text(T.in_tag).appendTo($meta); }
+            $list.append($b);
+        });
         Swal.fire({
-            title: '<i class="fa fa-users"></i> Select Attendee',
-            html: html,
+            title: T.pick_person,
+            html: $list[0],
             showConfirmButton: false,
             showCloseButton: true,
-            width: '500px',
-            didOpen: () => {
-                $('.phone-result-item').on('click', function(e) {
-                    e.preventDefault();
-                    const ticketId = $(this).data('ticket-id');
+            width: 520,
+            didOpen: function (popup) {
+                $(popup).on('click', '.w-scan__person', function () {
+                    var code = $(this).attr('data-ticket');
                     Swal.close();
-                    processTicket(ticketId);
+                    processTicket(code);
                 });
             }
         });
     }
 
-    // ===============================
-    // QR Scan Detected
-    // ===============================
+    // ---- Check in ---------------------------------------------------------
+
     function onScanDetected(data) {
-        // Pause scanner
-        if (scanner && isScanning) {
-            scanner.stop().then(() => {
-                isScanning = false;
-            }).catch(err => {});
-        }
-        $('#scanner-status').html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-        playSound('scan');
-
-        // Extract ticket ID from various URL formats
-        let ticketId = data;
-        if (/^s*{/.test(data)) {
+        if (busy) { return; }
+        pauseCamera();
+        beep('scan');
+        var code = String(data).trim();
+        if (/^\s*\{/.test(code)) {
             // Badge QR as JSON, e.g. company badges: {"type":"company","code":"COMP-…"}
-            try { const qr = JSON.parse(data); ticketId = qr.code || qr.company_code || qr.ticket_code || data; } catch (e) {}
-        } else if (data.includes('ticket_code=')) {
-            // New secure format: /ticket-view/?attendee_id=X&ticket_code=XXXX-XXXX-XXXX
-            const m = data.match(/ticket_code=([^&]+)/);
-            if (m) ticketId = decodeURIComponent(m[1]);
-        } else if (data.includes('ticket=')) {
-            try { ticketId = new URL(data).searchParams.get('ticket'); } catch(e) {}
-        } else if (data.includes('sc_unique_ticket_id=')) {
-            const m = data.match(/sc_unique_ticket_id=([^&]+)/);
-            if (m) ticketId = m[1];
-        } else if (data.includes('ticket_id=')) {
-            const m = data.match(/ticket_id=([^&]+)/);
-            if (m) ticketId = m[1];
+            try { var qr = JSON.parse(code); code = qr.code || qr.company_code || qr.ticket_code || code; } catch (e) {}
+        } else if (code.indexOf('ticket_code=') !== -1) {
+            var m1 = code.match(/ticket_code=([^&]+)/);
+            if (m1) { code = decodeURIComponent(m1[1]); }
+        } else if (code.indexOf('sc_unique_ticket_id=') !== -1) {
+            var m2 = code.match(/sc_unique_ticket_id=([^&]+)/);
+            if (m2) { code = decodeURIComponent(m2[1]); }
+        } else if (code.indexOf('ticket_id=') !== -1) {
+            var m3 = code.match(/ticket_id=([^&]+)/);
+            if (m3) { code = decodeURIComponent(m3[1]); }
+        } else if (code.indexOf('ticket=') !== -1) {
+            try { code = new URL(code).searchParams.get('ticket') || code; } catch (e) {}
         }
-
-        processTicket(ticketId);
+        processTicket(code);
     }
 
-    // ===============================
-    // Process Ticket (Auto Confirm)
-    // ===============================
-    function processTicket(ticketId) {
-        showProcessing(true);
+    function processTicket(code) {
+        if (busy) { return; }
+        showBusy(true);
+        var sessionMode = !!selectedSessionId && !selectedWorkshopId;
+        var req = { action: sessionMode ? 'sc_session_checkin' : 'sc_scan_and_checkin', nonce: scDashboard.nonce, ticket_id: code, event_id: selectedEventId };
+        if (selectedGateId) { req.gate_id = selectedGateId; }
+        if (selectedWorkshopId) { req.workshop_id = selectedWorkshopId; }
+        if (sessionMode) { req.session_id = selectedSessionId; }
 
-        // Build request data
-        const requestData = {
-            action: 'sc_scan_and_checkin',
-            nonce: scDashboard.nonce,
-            ticket_id: ticketId,
-            event_id: selectedEventId
-        };
-
-        // Add gate_id if selected
-        if (selectedGateId) {
-            requestData.gate_id = selectedGateId;
-        }
-
-        if (selectedWorkshopId) {
-            requestData.workshop_id = selectedWorkshopId;
-        }
-
-        // Add session_id if selected (for session-specific check-in)
-        const sessionMode = !!selectedSessionId;
-        if (sessionMode) {
-            requestData.session_id = selectedSessionId;
-            requestData.action = 'sc_session_checkin';
-        }
-
-        $.ajax({
-            url: scDashboard.ajaxurl,
-            type: 'POST',
-            data: requestData
-        }).done(function(response) {
-            showProcessing(false);
-
-            if (response.success) {
-                showResult(sessionMode ? sessionCheckinToResult(response.data) : response.data);
-                playSound('success');
+        $.post(scDashboard.ajaxurl, req).done(function (res) {
+            showBusy(false);
+            if (res && res.success) {
+                showResult(sessionMode ? fromSession(res.data) : res.data);
             } else {
-                showError(response.data.message || 'Invalid ticket', response.data.title || 'Error');
-                playSound('error');
+                showError((res && res.data && res.data.message) || T.network, (res && res.data && res.data.title) || T.error_title);
             }
-        }).fail(function() {
-            showProcessing(false);
-            showError('Network error. Please try again.', 'Connection Error');
-            playSound('error');
+        }).fail(function () {
+            showBusy(false);
+            showError(T.network, T.network_title);
         });
     }
 
-    // ===============================
-    // Show Result
-    // ===============================
-    // sc_session_checkin answers in its own shape; map it onto the gate result.
-    function sessionCheckinToResult(d) {
-        const when = new Date(String(d.check_in_time).replace(' ', 'T'));
+    // sc_session_checkin answers in its own shape; map it onto the door result.
+    function fromSession(d) {
         return {
             action_type: 'check_in',
             already_checked_in: !!d.already_checked_in,
-            scan_time: when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            scan_date: when.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-            tracking_enabled: false,
-            attendee: {
-                name: d.attendee_name,
-                email: d.attendee_email,
-                phone: d.attendee_phone,
-                ticket_type: d.ticket_name,
-                event_name: d.session_title
-            },
+            attendee: { name: d.attendee_name, email: d.attendee_email, phone: d.attendee_phone, ticket_type: d.ticket_name, event_name: d.session_title },
             extra_fields: {}
         };
     }
 
+    var ICONS = {
+        ok: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+        warn: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>',
+        out: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>'
+    };
+
+    function nowLabel() {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
     function showResult(data) {
-        // Hide scanner, show result
-        $('#scanner-mode').hide();
-        $('#error-mode').hide().attr('aria-hidden', 'true').prop('hidden', true);
-        $('#result-mode').removeAttr('hidden').attr('aria-hidden', 'false').fadeIn();
+        var a = data.attendee || {};
+        var tone = data.already_checked_in ? 'warn' : (data.action_type === 'check_out' ? 'out' : 'ok');
+        var title = data.already_checked_in ? (data.is_company ? T.already_company : T.already) : (data.action_type === 'check_out' ? T.checked_out : T.checked_in);
 
-        // Header styling based on action
-        if (data.already_checked_in) {
-            $('#result-header-bg').css('background', 'linear-gradient(135deg, #ffc107, #ff9800)');
-            $('#result-icon').html('<i class="fa fa-exclamation-circle"></i>');
-            $('#result-status-text').text(data.is_company ? 'Company already checked in' : 'Already checked in');
-        } else if (data.action_type === 'check_out') {
-            $('#result-header-bg').css('background', 'linear-gradient(135deg, #ffc107, #ff9800)');
-            $('#result-icon').html('<i class="fa fa-sign-out"></i>');
-            $('#result-status-text').text('Check-out Successful!');
-        } else {
-            $('#result-header-bg').css('background', 'linear-gradient(135deg, #28a745, #20c997)');
-            $('#result-icon').html('<i class="fa fa-check-circle"></i>');
-            $('#result-status-text').text('Check-in Successful!');
-        }
+        $('#result-mode').attr('data-tone', tone);
+        $('#result-icon').html(ICONS[tone]);
+        $('#result-status-text').text(title);
+        $('#result-time').text([nowLabel(), a.event_name].filter(Boolean).join(' · '));
+        var firstIn = data.already_checked_in && data.first_checked_in_at ? new Date(data.first_checked_in_at) : null;
+        var firstLabel = firstIn && !isNaN(firstIn) ? firstIn.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+        $('#result-note').text(firstLabel ? fmt(T.first_in, firstLabel) : '').prop('hidden', !firstLabel);
+        $('#result-name').text(a.name || '—');
+        $('#result-ticket').text(a.ticket_type || '').prop('hidden', !a.ticket_type);
 
-        // Time
-        $('#result-time').text(data.scan_time + ' - ' + data.scan_date);
-
-        // Basic info
-        $('#result-name').text(data.attendee.name || 'N/A');
-        $('#result-email').text(data.attendee.email || 'N/A');
-        $('#result-phone').text(data.attendee.phone || 'N/A');
-        $('#result-ticket').text(data.attendee.ticket_type || 'General');
-        $('#result-event').text(data.attendee.event_name || 'N/A');
-        $('#result-ticket-status').html('<span class="badge badge-success"><i class="fa fa-check"></i> Used / Checked-in</span>');
-
-        // Tracking info (only if enabled)
+        var facts = [
+            ['<?php echo esc_js(sc_t('attendees.email', 'Email')); ?>', a.email],
+            ['<?php echo esc_js(sc_t('attendees.phone', 'Phone')); ?>', a.phone]
+        ];
         if (data.tracking_enabled) {
-            $('#tracking-row-scans').show();
-            $('#tracking-row-duration').show();
-            $('#result-scan-count').text(data.total_scans + ' scan(s) today');
-            $('#result-duration').text(data.duration || '-');
-        } else {
-            $('#tracking-row-scans').hide();
-            $('#tracking-row-duration').hide();
+            facts.push(['<?php echo esc_js(sc_t('scanner.today', 'Today')); ?>', fmt(T.scans_today, data.total_scans || 1)]);
+            if (data.duration) { facts.push(['<?php echo esc_js(sc_t('scanner.time_inside', 'Time inside')); ?>', data.duration]); }
+        }
+        if (data.gate && data.gate.name) { facts.push(['<?php echo esc_js(sc_t('scanner.gate', 'Gate')); ?>', data.gate.name]); }
+        $.each(data.extra_fields || {}, function (k, v) {
+            if (v !== null && v !== '' && typeof v !== 'object') { facts.push([k, v]); }
+        });
+        var $dl = $('#result-facts').empty();
+        facts.forEach(function (f) {
+            if (f[1] === undefined || f[1] === null || f[1] === '') { return; }
+            $('<div>').append($('<dt>').text(f[0]), $('<dd dir="auto">').text(String(f[1]))).appendTo($dl);
+        });
+
+        var $link = $('#result-attendee-link');
+        if ($link.length) {
+            $link.attr('href', '<?php echo esc_js($dashboard_url); ?>' + (data.is_company ? 'company-attendees' : 'attendees') + '?event_id=' + encodeURIComponent(a.event_id || selectedEventId || ''));
         }
 
-        // Extra fields
-        if (data.extra_fields && Object.keys(data.extra_fields).length > 0) {
-            $('#extra-fields-section').show();
-            let html = '';
-            for (const [key, value] of Object.entries(data.extra_fields)) {
-                html += `<div class="col-md-6 mb-2">
-                    <strong>${escapeHtml(key)}:</strong> ${escapeHtml(value || 'N/A')}
-                </div>`;
-            }
-            $('#extra-fields-content').html(html);
-        } else {
-            $('#extra-fields-section').hide();
-        }
+        $('#scanner-mode, #error-mode').prop('hidden', true);
+        $('#result-mode').prop('hidden', false);
+        beep(tone === 'ok' || tone === 'out' ? 'success' : 'error');
+        $('#another-scan-btn').trigger('focus');
     }
 
-    // ===============================
-    // Show Error
-    // ===============================
     function showError(message, title) {
-        $('#scanner-mode').hide();
-        $('#result-mode').hide().attr('aria-hidden', 'true').prop('hidden', true);
-        $('#error-mode').removeAttr('hidden').attr('aria-hidden', 'false').fadeIn();
-
-        $('#error-title').text(title || 'Invalid Ticket');
+        $('#error-title').text(title || T.error_title);
         $('#error-message').text(message);
+        $('#scanner-mode, #result-mode').prop('hidden', true);
+        $('#error-mode').prop('hidden', false);
+        beep('error');
+        $('#error-scan-again-btn').trigger('focus');
     }
 
-    // ===============================
-    // Back to Scanner
-    // ===============================
-    $('#another-scan-btn, #error-scan-again-btn').on('click', function() {
-        $('#result-mode').hide().attr('aria-hidden', 'true').prop('hidden', true);
-        $('#error-mode').hide().attr('aria-hidden', 'true').prop('hidden', true);
-        $('#scanner-mode').fadeIn();
+    $('#another-scan-btn, #error-scan-again-btn').on('click', function () {
+        $('#result-mode, #error-mode').prop('hidden', true);
+        $('#scanner-mode').prop('hidden', false);
         $('#manual-ticket-id').val('');
-
-        // Restart camera
-        if (scanner && !isScanning) {
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.777778
-            };
-
-            scanner.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText, decodedResult) => {
-                    onScanDetected(decodedText);
-                },
-                (errorMessage) => {}
-            ).then(() => {
-                isScanning = true;
-                $('#camera-start-overlay').hide();
-                $('#stop-camera-btn').show();
-                $('#scanner-status').html('<i class="fa fa-circle text-success blink"></i> Scanning...');
-            }).catch(err => {
-            });
+        if (cameraWanted) {
+            startCamera();
+        } else {
+            $('#manual-ticket-id').trigger('focus');
         }
     });
 
-    // ===============================
-    // Helpers
-    // ===============================
-    function showProcessing(show) {
-        if (show) {
-            $('#processing-overlay').removeAttr('hidden').attr('aria-hidden', 'false').css('display', 'flex');
-        } else {
-            $('#processing-overlay').hide().attr('aria-hidden', 'true').prop('hidden', true);
-        }
+    function showBusy(on) {
+        busy = on;
+        $('#processing-overlay').prop('hidden', !on);
     }
 
-    function escapeHtml(text) {
-        if (!text) return '';
-        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
-        return String(text).replace(/[&<>"']/g, m => map[m]);
-    }
-
-    function playSound(type) {
+    var audio = null;
+    function beep(type) {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+            audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+            var osc = audio.createOscillator();
+            var gain = audio.createGain();
             osc.connect(gain);
-            gain.connect(ctx.destination);
-
-            if (type === 'success') {
-                osc.frequency.value = 880;
-                osc.type = 'sine';
-            } else if (type === 'scan' || type === 'start') {
-                osc.frequency.value = 1200;
-                osc.type = 'sine';
-            } else {
-                osc.frequency.value = 280;
-                osc.type = 'square';
-            }
-
-            gain.gain.setValueAtTime(0.15, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.15);
+            gain.connect(audio.destination);
+            osc.type = type === 'error' ? 'square' : 'sine';
+            osc.frequency.value = type === 'success' ? 880 : (type === 'error' ? 280 : 1200);
+            gain.gain.setValueAtTime(0.15, audio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + (type === 'error' ? 0.35 : 0.15));
+            osc.start(audio.currentTime);
+            osc.stop(audio.currentTime + (type === 'error' ? 0.35 : 0.15));
         } catch (e) {}
     }
 });
 </script>
+<?php endif; ?>
 
-<!-- QR scanner styles moved to scanner.css -->
-
-<?php
-get_template_part('template-parts/dashboard/components/dashboard', 'footer');
-?>
+<?php get_template_part('template-parts/dashboard/components/dashboard', 'footer'); ?>

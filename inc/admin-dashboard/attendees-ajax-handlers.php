@@ -1896,6 +1896,8 @@ function sc_search_attendee_by_phone() {
 			'phone' => $att->phone,
 			'ticket_id' => $att->ticket_code,
 			'ticket_status' => $att->checked_in ? 'used' : 'unused',
+			'status' => $att->status,
+			'workshop_id' => (int) $att->workshop_id,
 			'event_id' => $att->event_id,
 			'event_title' => $event_title,
 			'extra_fields' => $extra_fields

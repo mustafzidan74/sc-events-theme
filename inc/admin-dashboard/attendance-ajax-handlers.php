@@ -663,6 +663,9 @@ function sc_scan_and_checkin() {
             'created_at'   => $now,
         ));
 
+        // Without in/out tracking a second scan is not a new entry: tell the door so a shared QR stands out.
+        $already_checked_in = !$tracking_enabled && (int) $sc_attendee->checked_in === 1;
+
         // First-time check-in: flip the cached flag and bump event counter
         if ($action_type === 'check_in' && !(int) $sc_attendee->checked_in) {
             $wpdb->update($attendees_table, array(
@@ -716,6 +719,9 @@ function sc_scan_and_checkin() {
 
         wp_send_json_success(array(
             'action_type'      => $action_type,
+            'already_checked_in' => $already_checked_in,
+            // UTC ISO time; the scanner shows it in the device's own time zone.
+            'first_checked_in_at' => $already_checked_in && $sc_attendee->checked_in_at ? get_gmt_from_date($sc_attendee->checked_in_at, 'Y-m-d\TH:i:s\Z') : '',
             'scan_time'        => date('h:i A', $current_time),
             'scan_date'        => date('M d, Y', $current_time),
             'tracking_enabled' => $tracking_enabled,
