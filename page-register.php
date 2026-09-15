@@ -2,9 +2,10 @@
 /**
  * Template Name: Register Page
  *
- * The form contract is public-scripts.js: #register-form with name, email,
- * phone, password, confirm_password and terms. The name goes over the wire as
- * one string; the two visible boxes feed the hidden field (wisdom-auth.js).
+ * #register-form (name, email, phone_code, phone, password, confirm_password, terms) is submitted
+ * by wisdom-otp.js; when WhatsApp codes are on, #register-verify asks for the code sent to the
+ * number before the account is created (inc/auth/sc-otp-handlers.php). The name goes over the
+ * wire as one string; the two visible boxes feed the hidden field (wisdom-auth.js).
  *
  * @package sc_events
  */
@@ -21,6 +22,8 @@ get_template_part('template-parts/public/header', 'public');
     <?php get_template_part('template-parts/public/auth-aside'); ?>
 
     <div class="w-auth__card">
+        <div class="w-auth__form">
+        <p class="w-otp-msg" id="register-msg" role="alert" hidden></p>
         <form class="w-auth__form" id="register-form">
             <nav class="w-auth__modes" aria-label="<?php echo esc_attr(sc_t('frontend.account', 'Account')); ?>">
                 <a class="w-auth__mode" href="<?php echo esc_url(home_url('/login/')); ?>">
@@ -54,35 +57,21 @@ get_template_part('template-parts/public/header', 'public');
                        placeholder="you@clinic.com" required>
             </div>
 
-            <div class="w-field">
-                <label class="w-label" for="phone"><?php echo esc_html(sc_t('frontend.mobile_for_badge', 'Mobile — for your e-badge')); ?></label>
-                <span class="w-auth__tel">
-                    <select class="w-select" id="phone_code" name="phone_code"
-                            aria-label="<?php echo esc_attr(sc_t('frontend.country_code', 'Country code')); ?>">
-                        <option value="+20" selected>+20</option>
-                        <option value="+966">+966</option>
-                        <option value="+971">+971</option>
-                        <option value="+965">+965</option>
-                        <option value="+974">+974</option>
-                        <option value="+218">+218</option>
-                        <option value="+249">+249</option>
-                    </select>
-                    <input class="w-input" type="tel" id="phone" name="phone" autocomplete="tel"
-                           placeholder="100 000 0000">
-                </span>
-            </div>
+            <?php get_template_part('template-parts/public/phone-field', null, array(
+                'hint' => sc_t('frontend.whatsapp_number_hint', 'Your ticket, e-badge and sign-in codes are sent here.'),
+            )); ?>
 
             <div class="w-field">
                 <label class="w-label" for="password"><?php echo esc_html(sc_t('frontend.password', 'Password')); ?></label>
                 <span class="w-auth__pw">
                     <input class="w-input" type="password" id="password" name="password"
-                           autocomplete="new-password" minlength="6" required>
+                           autocomplete="new-password" minlength="8" required>
                     <button class="w-auth__reveal" type="button" data-reveal="password"
                             aria-label="<?php echo esc_attr(sc_t('frontend.show_password', 'Show password')); ?>">
                         <i class="fa-solid fa-eye" aria-hidden="true"></i>
                     </button>
                 </span>
-                <span class="w-hint"><?php echo esc_html(sc_t('frontend.password_hint', 'At least 6 characters.')); ?></span>
+                <span class="w-hint"><?php echo esc_html(sc_t('frontend.password_hint_8', 'At least 8 characters.')); ?></span>
             </div>
 
             <div class="w-field">
@@ -120,7 +109,30 @@ get_template_part('template-parts/public/header', 'public');
                 </a>
             </p>
         </form>
+
+        <div class="w-auth__form" id="register-verify" hidden>
+            <h1 class="w-auth__title"><?php echo esc_html(sc_t('frontend.confirm_number', 'Confirm your number')); ?></h1>
+            <p class="w-otp-sent">
+                <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+                <span><?php echo esc_html(sc_t('frontend.code_sent_to', 'We sent a 6-digit code on WhatsApp to')); ?> <strong id="register-to"></strong></span>
+            </p>
+            <form class="w-auth__form" id="register-verify-form" novalidate>
+                <div class="w-field">
+                    <label class="w-label" for="register-code"><?php echo esc_html(sc_t('frontend.code', 'Code')); ?></label>
+                    <input class="w-input w-otp-code" id="register-code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                           maxlength="6" pattern="[0-9]{6}" placeholder="••••••" required>
+                </div>
+                <button class="w-btn w-btn--lg" type="submit"><?php echo esc_html(sc_t('frontend.create_account', 'Create account')); ?></button>
+                <div class="w-otp-row">
+                    <button type="button" class="w-otp-link" id="register-back"><?php echo esc_html(sc_t('frontend.change_number', 'Change number')); ?></button>
+                    <button type="button" class="w-otp-link" id="register-resend"><?php echo esc_html(sc_t('frontend.otp_resend', 'Send a new code')); ?></button>
+                </div>
+            </form>
+        </div>
+        </div>
     </div>
 </section>
 
-<?php get_template_part('template-parts/public/footer', 'public'); ?>
+<?php
+get_template_part('template-parts/public/otp-assets');
+get_template_part('template-parts/public/footer', 'public');

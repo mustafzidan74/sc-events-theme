@@ -1,0 +1,116 @@
+/* WhatsApp codes on the auth pages (template-parts/public/otp-assets.php). Built on auth.css. */
+
+.w-auth [hidden] { display: none !important; }
+
+/* Password / WhatsApp code: a real choice on one page, so a segmented control. */
+.w-otp-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--w-radius-pill, 999px);
+  background: var(--w-surface-2);
+}
+
+.w-otp-switch button {
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--w-radius-pill, 999px);
+  background: none;
+  color: var(--w-text-2);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.w-otp-switch button[aria-selected="true"] {
+  background: var(--w-surface);
+  color: var(--w-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+}
+
+.w-otp-switch .fa-whatsapp { color: #25D366; }
+
+.w-otp-sent {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--w-radius-sm, 6px);
+  background: var(--w-teal-soft);
+  color: var(--w-text);
+  font-size: 0.875rem;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.w-otp-sent .fa-whatsapp { color: #25D366; font-size: 1.125rem; margin-top: 1px; }
+.w-otp-sent strong { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+
+.w-otp-code {
+  font-family: var(--w-font-mono, ui-monospace, monospace);
+  font-size: 1.75rem;
+  letter-spacing: 0.35em;
+  text-align: center;
+  padding-inline-start: 0.35em;
+  direction: ltr;
+}
+
+.w-otp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.w-otp-link {
+  border: 0;
+  background: none;
+  padding: 6px 0;
+  color: var(--w-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.w-otp-link:disabled { color: var(--w-text-3); cursor: default; }
+
+.w-otp-msg {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 10px 12px;
+  border-radius: var(--w-radius-sm, 6px);
+}
+
+.w-otp-msg.is-error { background: rgba(180, 35, 24, .08); color: #B42318; }
+.w-otp-msg.is-ok { background: var(--w-teal-soft); color: var(--w-text); }
+
+.w-otp-accounts { display: flex; flex-direction: column; gap: 8px; }
+
+.w-otp-account {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-sm, 6px);
+  background: var(--w-surface);
+  color: var(--w-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.w-otp-account:hover { border-color: var(--w-primary); }
+.w-otp-account span { color: var(--w-text-2); font-size: 0.875rem; direction: ltr; }
+
+.w-btn[aria-busy="true"] { opacity: .7; cursor: progress; }

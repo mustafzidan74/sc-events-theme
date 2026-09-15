@@ -177,6 +177,12 @@ function sc_public_login_handler() {
 
     $redirect = isset($_POST['redirect']) ? esc_url($_POST['redirect']) : home_url('/');
 
+    // Some imported accounts were given their phone number as the password: ask for a new one.
+    if (function_exists('sc_password_is_phone') && sc_password_is_phone($user->ID, $password)) {
+        update_user_meta($user->ID, 'sc_must_change_password', 1);
+        $redirect = home_url('/my-account/#profile');
+    }
+
     wp_send_json_success(array(
         'message' => __('Login successful! Redirecting...', 'sc_events'),
         'redirect' => $redirect
@@ -193,12 +199,10 @@ function sc_public_register_handler() {
     $name = sanitize_text_field($_POST['name'] ?? '');
     $email = sanitize_email($_POST['email'] ?? '');
 
-    // Handle phone with country code
-    $phone_code = sanitize_text_field($_POST['phone_code'] ?? '+20');
-    $phone_number = sanitize_text_field($_POST['phone'] ?? '');
-    $phone = $phone_number ? $phone_code . $phone_number : '';
+    // The WhatsApp number, with the country code chosen on the form.
+    $phone = function_exists('sc_otp_phone_input') ? sc_otp_phone_input() : '';
 
-    $password = $_POST['password'] ?? '';
+    $password = (string) wp_unslash($_POST['password'] ?? '');
 
     // Security: Check rate limit (by IP for registration)
     $client_ip = sc_get_client_ip();
@@ -217,42 +221,37 @@ function sc_public_register_handler() {
         wp_send_json_error(array('message' => __('Please enter a valid email address.', 'sc_events')));
     }
 
-    if (strlen($password) < 6) {
-        wp_send_json_error(array('message' => __('Password must be at least 6 characters.', 'sc_events')));
+    if (strlen($password) < 8) {
+        wp_send_json_error(array('message' => __('Password must be at least 8 characters.', 'sc_events')));
     }
 
     if (email_exists($email)) {
         wp_send_json_error(array('message' => __('This email is already registered.', 'sc_events')));
     }
 
-    // Increment rate limit before creating user
-    sc_increment_auth_rate_limit($client_ip, 'register');
+    if ($phone === '') {
+        wp_send_json_error(array('message' => __('Enter your WhatsApp number: your ticket and codes are sent there.', 'sc_events'), 'field' => 'phone'));
+    }
 
-    // Create user
-    $user_id = wp_create_user($email, $password, $email);
+    if (sc_verified_owner_of_phone($phone)) {
+        wp_send_json_error(array('message' => __('This number already belongs to an account. Sign in with a WhatsApp code instead.', 'sc_events'), 'field' => 'phone'));
+    }
 
+    // Confirm the number with a code first. If WhatsApp can't send codes right now, don't turn
+    // people away: create the account with the number marked unconfirmed.
+    if (sc_otp_available()) {
+        $started = sc_register_start_verification($name, $email, $phone, $password);
+        if (is_wp_error($started)) {
+            sc_otp_error($started);
+        }
+        wp_send_json_success($started);
+    }
+
+    $user_id = sc_register_create_account($name, $email, $phone, false, $password);
     if (is_wp_error($user_id)) {
         wp_send_json_error(array('message' => $user_id->get_error_message()));
     }
-
-    // Update user meta
-    wp_update_user(array(
-        'ID' => $user_id,
-        'display_name' => $name,
-        'first_name' => $name
-    ));
-
-    if (!empty($phone)) {
-        update_user_meta($user_id, 'phone', $phone);
-    }
-
-    // Set role
-    $user = new WP_User($user_id);
-    $user->set_role('subscriber');
-
-    // Auto login
-    wp_set_current_user($user_id);
-    wp_set_auth_cookie($user_id, true);
+    sc_increment_auth_rate_limit($client_ip, 'register');
 
     wp_send_json_success(array(
         'message' => __('Registration successful! Redirecting...', 'sc_events'),
@@ -288,13 +287,55 @@ function sc_update_profile_handler() {
         wp_send_json_error(array('message' => __('Please login to continue.', 'sc_events')));
     }
 
-    $name = sanitize_text_field($_POST['name'] ?? '');
-    $phone = sanitize_text_field($_POST['phone'] ?? '');
-    $current_password = $_POST['current_password'] ?? '';
-    $new_password = $_POST['new_password'] ?? '';
+    $name = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
+    $phone = isset($_POST['phone_code']) ? sc_otp_phone_input() : sc_wabot_phone(sanitize_text_field(wp_unslash($_POST['phone'] ?? '')));
+    $current_password = (string) wp_unslash($_POST['current_password'] ?? '');
+    $new_password = (string) wp_unslash($_POST['new_password'] ?? '');
 
     if (empty($name)) {
         wp_send_json_error(array('message' => __('Name is required.', 'sc_events')));
+    }
+    if (trim((string) wp_unslash($_POST['phone'] ?? '')) !== '' && $phone === '') {
+        wp_send_json_error(array('message' => __('Enter a valid mobile number.', 'sc_events')));
+    }
+    if (!empty($new_password)) {
+        $user = get_user_by('ID', $user_id);
+        if (empty($current_password) || !wp_check_password($current_password, $user->user_pass, $user_id)) {
+            wp_send_json_error(array('message' => empty($current_password) ? __('Please enter your current password.', 'sc_events') : __('Current password is incorrect.', 'sc_events')));
+        }
+        if (strlen($new_password) < 8) {
+            wp_send_json_error(array('message' => __('Use at least 8 characters for the new password.', 'sc_events')));
+        }
+        if ($phone !== '' && sc_wabot_phone($new_password) === $phone) {
+            wp_send_json_error(array('message' => __('Don’t use your phone number as the password.', 'sc_events')));
+        }
+    }
+
+    // A different number is confirmed with a code sent to it before anything is saved.
+    $current_phone = sc_wabot_phone(get_user_meta($user_id, 'phone', true));
+    $phone_changed = $phone !== '' && $phone !== $current_phone;
+    $phone_verified = false;
+    if ($phone_changed && sc_otp_available()) {
+        if (sc_verified_owner_of_phone($phone, $user_id)) {
+            wp_send_json_error(array('message' => __('This number already belongs to another account.', 'sc_events')));
+        }
+        $code = sanitize_text_field(wp_unslash($_POST['otp_code'] ?? ''));
+        if ($code === '') {
+            $sent = sc_otp_send('phone', $phone, array('user_id' => $user_id));
+            if (is_wp_error($sent)) {
+                sc_otp_error($sent);
+            }
+            wp_send_json_success($sent + array(
+                'verify_phone' => true,
+                'phone'        => sc_otp_mask_phone($phone),
+                'message'      => __('We sent a 6-digit code to the new number on WhatsApp. Enter it to save.', 'sc_events'),
+            ));
+        }
+        $ok = sc_otp_verify('phone', $phone, $code);
+        if (is_wp_error($ok) || (int) $ok['user_id'] !== (int) $user_id) {
+            sc_otp_error(is_wp_error($ok) ? $ok : new WP_Error('sc_otp_wrong', __('Wrong code.', 'sc_events')));
+        }
+        $phone_verified = true;
     }
 
     // Update basic info
@@ -304,7 +345,11 @@ function sc_update_profile_handler() {
         'first_name' => $name
     ));
 
-    update_user_meta($user_id, 'phone', $phone);
+    if ($phone_changed) {
+        sc_set_user_phone($user_id, $phone, $phone_verified);
+    } elseif ($phone === '' && $current_phone !== '') {
+        sc_set_user_phone($user_id, '', false);
+    }
 
     // Update password if provided
     if (!empty($new_password)) {
@@ -323,13 +368,18 @@ function sc_update_profile_handler() {
         }
 
         wp_set_password($new_password, $user_id);
+        delete_user_meta($user_id, 'sc_must_change_password');
 
         // Re-login user
         wp_set_current_user($user_id);
         wp_set_auth_cookie($user_id, true);
+        if (function_exists('sc_notify_password_changed')) {
+            sc_notify_password_changed($user_id);
+        }
     }
 
-    wp_send_json_success(array('message' => __('Profile updated successfully.', 'sc_events')));
+    // A new password re-issues the session, so the page's security token must be reloaded.
+    wp_send_json_success(array('message' => __('Profile updated successfully.', 'sc_events'), 'reload' => !empty($new_password)));
 }
 
 /**
@@ -1172,383 +1222,6 @@ function sc_public_send_ticket_email($attendee_id) {
     }
     $result = sc_notify_ticket((int) $attendee_id);
     return (bool) ($result['whatsapp'] || $result['email']);
-}
-
-/**
- * Password reset is paused (2026-09-15). The old check asked for the last 4 digits of the phone on
- * file, and asking again reset the attempt counter, so anyone knowing an email could guess their
- * way in. It returns with a real code sent on WhatsApp. Until then every step answers with this.
- */
-function sc_password_reset_available() {
-    return (bool) apply_filters('sc_password_reset_available', false);
-}
-
-function sc_password_reset_paused() {
-    if (!sc_password_reset_available()) {
-        wp_send_json_error(array(
-            'message' => __('Password reset is temporarily unavailable. Please contact us and we will help you sign in.', 'sc_events'),
-            'paused'  => true,
-        ), 403);
-    }
-}
-
-/**
- * Send OTP Handler - Step 1
- */
-add_action('wp_ajax_nopriv_sc_send_otp', 'sc_send_otp_handler');
-function sc_send_otp_handler() {
-    sc_password_reset_paused();
-    sc_verify_public_nonce();
-
-    $email = sanitize_email($_POST['email'] ?? '');
-
-    if (empty($email)) {
-        wp_send_json_error(array('message' => __('Please enter your email address.', 'sc_events')));
-    }
-
-    if (!is_email($email)) {
-        wp_send_json_error(array('message' => __('Please enter a valid email address.', 'sc_events')));
-    }
-
-    $user = get_user_by('email', $email);
-
-    if (!$user) {
-        // For security, don't reveal that the email isn't registered.
-        // Return a fake hint so the attacker can't enumerate valid emails.
-        wp_send_json_success(array(
-            'phone_hint' => '*** **••',
-            'message'    => __('If an account exists, enter the last 4 digits of the phone on file.', 'sc_events'),
-        ));
-    }
-
-    // Try multiple meta keys to find the user's phone (most setups use 'phone')
-    $phone = '';
-    foreach (array('phone', 'sc_phone', 'billing_phone', 'user_phone') as $meta_key) {
-        $value = get_user_meta($user->ID, $meta_key, true);
-        if (!empty($value)) {
-            $phone = $value;
-            break;
-        }
-    }
-
-    // Fallback 1: look for phone in the attendees table — most registered users have a ticket
-    if (empty($phone)) {
-        global $wpdb;
-        $attendees_table = $wpdb->prefix . 'sc_attendees';
-        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $attendees_table)) === $attendees_table) {
-            $phone = $wpdb->get_var($wpdb->prepare(
-                "SELECT phone FROM {$attendees_table}
-                 WHERE (user_id = %d OR email = %s)
-                   AND phone IS NOT NULL AND phone <> ''
-                 ORDER BY id DESC LIMIT 1",
-                $user->ID,
-                $email
-            ));
-        }
-    }
-
-    // Fallback 2: legacy attendees stored as wp_postmeta ('etn_phone' or 'sc_phone')
-    if (empty($phone)) {
-        global $wpdb;
-        $phone = $wpdb->get_var($wpdb->prepare(
-            "SELECT pm2.meta_value
-               FROM {$wpdb->postmeta} pm1
-               JOIN {$wpdb->postmeta} pm2 ON pm1.post_id = pm2.post_id
-              WHERE pm1.meta_key = 'etn_email' AND pm1.meta_value = %s
-                AND pm2.meta_key IN ('etn_phone', 'sc_phone', 'phone')
-                AND pm2.meta_value <> ''
-              ORDER BY pm2.meta_id DESC LIMIT 1",
-            $email
-        ));
-    }
-
-    if (empty($phone)) {
-        wp_send_json_error(array(
-            'message' => __('No phone number is registered on this account. Please contact support to reset your password.', 'sc_events'),
-        ));
-    }
-
-    // Keep digits only and grab the last 4
-    $digits = preg_replace('/\D+/', '', $phone);
-    if (strlen($digits) < 4) {
-        wp_send_json_error(array(
-            'message' => __('The phone number on file is incomplete. Please contact support.', 'sc_events'),
-        ));
-    }
-    $last4 = substr($digits, -4);
-
-    // Build a friendly hint that hides everything except the last 2 digits
-    // Example: "01234567890" → "***** ***• 90"
-    $hint_visible = substr($digits, -2);
-    $hint_masked  = str_repeat('•', max(0, strlen($digits) - 2));
-    $phone_hint   = $hint_masked . $hint_visible;
-
-    // Store verification state in a transient (15 min expiry)
-    $transient_key = 'sc_otp_' . md5($email);
-    set_transient($transient_key, array(
-        'phone_last4' => $last4,
-        'email'       => $email,
-        'user_id'     => $user->ID,
-        'attempts'    => 0,
-        'verified'    => false,
-    ), 15 * MINUTE_IN_SECONDS);
-
-    wp_send_json_success(array(
-        'phone_hint' => $phone_hint,
-        'message'    => __('Enter the last 4 digits of the phone number on file.', 'sc_events'),
-    ));
-}
-
-/**
- * Verify OTP Handler - Step 2
- */
-add_action('wp_ajax_nopriv_sc_verify_otp', 'sc_verify_otp_handler');
-function sc_verify_otp_handler() {
-    sc_password_reset_paused();
-    sc_verify_public_nonce();
-
-    $email = sanitize_email($_POST['email'] ?? '');
-    $code  = sanitize_text_field($_POST['otp'] ?? ''); // JS still sends 'otp', it's now last-4
-
-    if (empty($email) || empty($code)) {
-        wp_send_json_error(array('message' => __('Email and verification digits are required.', 'sc_events')));
-    }
-
-    if (strlen($code) !== 4 || !ctype_digit($code)) {
-        wp_send_json_error(array('message' => __('Please enter the last 4 digits of the phone number.', 'sc_events')));
-    }
-
-    $transient_key = 'sc_otp_' . md5($email);
-    $stored        = get_transient($transient_key);
-
-    if (!$stored || empty($stored['phone_last4'])) {
-        wp_send_json_error(array('message' => __('Verification session has expired. Please start over.', 'sc_events')));
-    }
-
-    // Brute-force protection: max 5 wrong attempts before forcing restart
-    $attempts = isset($stored['attempts']) ? (int) $stored['attempts'] : 0;
-    if ($attempts >= 5) {
-        delete_transient($transient_key);
-        wp_send_json_error(array(
-            'message' => __('Too many failed attempts. Please start over from the beginning.', 'sc_events'),
-        ));
-    }
-
-    if (!hash_equals((string) $stored['phone_last4'], (string) $code)) {
-        $stored['attempts'] = $attempts + 1;
-        set_transient($transient_key, $stored, 15 * MINUTE_IN_SECONDS);
-        $remaining = 5 - $stored['attempts'];
-        wp_send_json_error(array(
-            'message' => sprintf(
-                __('Incorrect digits. %d attempts remaining.', 'sc_events'),
-                $remaining
-            ),
-        ));
-    }
-
-    if ($stored['email'] !== $email) {
-        wp_send_json_error(array('message' => __('Email does not match. Please try again.', 'sc_events')));
-    }
-
-    // Mark verified — required by sc_reset_password_with_otp_handler
-    $stored['verified'] = true;
-    $stored['otp']      = $code; // back-compat — reset handler reads $stored['otp']
-    set_transient($transient_key, $stored, 15 * MINUTE_IN_SECONDS);
-
-    wp_send_json_success(array(
-        'message' => __('Verification successful. Please enter your new password.', 'sc_events'),
-    ));
-}
-
-/**
- * Reset Password with OTP Handler - Step 3
- */
-add_action('wp_ajax_nopriv_sc_reset_password_with_otp', 'sc_reset_password_with_otp_handler');
-function sc_reset_password_with_otp_handler() {
-    sc_password_reset_paused();
-    sc_verify_public_nonce();
-
-    $email = sanitize_email($_POST['email'] ?? '');
-    $otp = sanitize_text_field($_POST['otp'] ?? '');
-    $new_password = $_POST['new_password'] ?? '';
-
-    if (empty($email) || empty($otp) || empty($new_password)) {
-        wp_send_json_error(array('message' => __('All fields are required.', 'sc_events')));
-    }
-
-    if (strlen($new_password) < 6) {
-        wp_send_json_error(array('message' => __('Password must be at least 6 characters.', 'sc_events')));
-    }
-
-    // Verify OTP again
-    $transient_key = 'sc_otp_' . md5($email);
-    $stored_data = get_transient($transient_key);
-
-    if (!$stored_data) {
-        wp_send_json_error(array('message' => __('OTP code has expired. Please start over.', 'sc_events')));
-    }
-
-    if (empty($stored_data['verified'])) {
-        wp_send_json_error(array('message' => __('Verification step incomplete. Please start over.', 'sc_events')));
-    }
-
-    if ($stored_data['otp'] !== $otp || $stored_data['email'] !== $email) {
-        wp_send_json_error(array('message' => __('Verification mismatch. Please start over.', 'sc_events')));
-    }
-
-    // Get user
-    $user = get_user_by('ID', $stored_data['user_id']);
-
-    if (!$user) {
-        wp_send_json_error(array('message' => __('User not found.', 'sc_events')));
-    }
-
-    // Reset password
-    wp_set_password($new_password, $user->ID);
-
-    // Delete the used OTP
-    delete_transient($transient_key);
-
-    // Send confirmation email
-    $platform_name = get_option('sc_platform_name', get_bloginfo('name'));
-    $subject = sprintf(__('[%s] Password Reset Successful', 'sc_events'), $platform_name);
-
-    $message = sprintf(__('Hi %s,', 'sc_events'), $user->display_name) . "\r\n\r\n";
-    $message .= __('Your password has been successfully reset.', 'sc_events') . "\r\n\r\n";
-    $message .= __('You can now log in with your new password.', 'sc_events') . "\r\n\r\n";
-    $message .= __('If you did not make this change, please contact support immediately.', 'sc_events') . "\r\n\r\n";
-    $message .= sprintf(__('Best regards,%sThe %s Team', 'sc_events'), "\r\n", $platform_name);
-
-    $headers = array('Content-Type: text/plain; charset=UTF-8');
-    wp_mail($email, $subject, $message, $headers);
-
-    wp_send_json_success(array(
-        'message' => __('Password reset successfully. Redirecting to login page...', 'sc_events')
-    ));
-}
-
-/**
- * Verify Identity Handler - Email + Last 4 digits of phone
- * New password reset method that doesn't require email sending
- */
-add_action('wp_ajax_nopriv_sc_verify_identity', 'sc_verify_identity_handler');
-add_action('wp_ajax_sc_verify_identity', 'sc_verify_identity_handler');
-function sc_verify_identity_handler() {
-    sc_password_reset_paused();
-    sc_verify_public_nonce();
-
-    $email = sanitize_email($_POST['email'] ?? '');
-    $phone_last4 = sanitize_text_field($_POST['phone_last4'] ?? '');
-
-    if (empty($email) || !is_email($email)) {
-        wp_send_json_error(array('message' => __('Please enter a valid email address.', 'sc_events')));
-    }
-
-    if (empty($phone_last4) || strlen($phone_last4) !== 4 || !ctype_digit($phone_last4)) {
-        wp_send_json_error(array('message' => __('Please enter the last 4 digits of your phone number.', 'sc_events')));
-    }
-
-    // Security: Check rate limit
-    $client_ip = sc_get_client_ip();
-    $rate_check = sc_check_auth_rate_limit($client_ip, 'password_reset');
-
-    if (is_array($rate_check) && $rate_check['blocked']) {
-        wp_send_json_error(array('message' => $rate_check['message']));
-    }
-
-    // Find user by email
-    $user = get_user_by('email', $email);
-
-    if (!$user) {
-        // Don't reveal if email exists or not for security
-        wp_send_json_error(array('message' => __('The information you entered does not match our records.', 'sc_events')));
-    }
-
-    // Get user's phone number from meta
-    $user_phone = get_user_meta($user->ID, 'phone', true);
-    if (empty($user_phone)) {
-        $user_phone = get_user_meta($user->ID, 'billing_phone', true);
-    }
-
-    if (empty($user_phone)) {
-        wp_send_json_error(array('message' => __('No phone number associated with this account. Please contact support.', 'sc_events')));
-    }
-
-    // Clean phone number - remove all non-digits
-    $clean_phone = preg_replace('/[^0-9]/', '', $user_phone);
-
-    // Get last 4 digits
-    $stored_last4 = substr($clean_phone, -4);
-
-    // Compare
-    if ($phone_last4 !== $stored_last4) {
-        wp_send_json_error(array('message' => __('The information you entered does not match our records.', 'sc_events')));
-    }
-
-    // Generate a secure token for password reset
-    $token = wp_generate_password(32, false);
-
-    // Store token with user info (valid for 15 minutes)
-    $transient_key = 'sc_pw_reset_' . md5($email . $token);
-    set_transient($transient_key, array(
-        'user_id' => $user->ID,
-        'email' => $email,
-        'token' => $token,
-        'created' => time()
-    ), 15 * MINUTE_IN_SECONDS);
-
-    wp_send_json_success(array(
-        'message' => __('Identity verified successfully.', 'sc_events'),
-        'token' => $token
-    ));
-}
-
-/**
- * Reset Password with Verification Token
- * Used after identity is verified via email + phone last 4 digits
- */
-add_action('wp_ajax_nopriv_sc_reset_password_verified', 'sc_reset_password_verified_handler');
-add_action('wp_ajax_sc_reset_password_verified', 'sc_reset_password_verified_handler');
-function sc_reset_password_verified_handler() {
-    sc_password_reset_paused();
-    sc_verify_public_nonce();
-
-    $email = sanitize_email($_POST['email'] ?? '');
-    $token = sanitize_text_field($_POST['token'] ?? '');
-    $new_password = $_POST['new_password'] ?? '';
-
-    if (empty($email) || empty($token) || empty($new_password)) {
-        wp_send_json_error(array('message' => __('Missing required information.', 'sc_events')));
-    }
-
-    if (strlen($new_password) < 6) {
-        wp_send_json_error(array('message' => __('Password must be at least 6 characters.', 'sc_events')));
-    }
-
-    // Verify token
-    $transient_key = 'sc_pw_reset_' . md5($email . $token);
-    $stored_data = get_transient($transient_key);
-
-    if (!$stored_data || $stored_data['token'] !== $token || $stored_data['email'] !== $email) {
-        wp_send_json_error(array('message' => __('Invalid or expired verification. Please try again.', 'sc_events')));
-    }
-
-    // Get user
-    $user = get_user_by('ID', $stored_data['user_id']);
-
-    if (!$user) {
-        wp_send_json_error(array('message' => __('User not found.', 'sc_events')));
-    }
-
-    // Reset password
-    wp_set_password($new_password, $user->ID);
-
-    // Delete the used token
-    delete_transient($transient_key);
-
-    wp_send_json_success(array(
-        'message' => __('Password reset successfully. Redirecting to login page...', 'sc_events')
-    ));
 }
 
 // ============================================================

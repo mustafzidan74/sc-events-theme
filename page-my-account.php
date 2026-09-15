@@ -23,6 +23,9 @@ if (!is_user_logged_in()) {
 $current_user = wp_get_current_user();
 $user_id = $current_user->ID;
 $user_phone = get_user_meta($user_id, 'phone', true);
+$must_change_password = (bool) get_user_meta($user_id, 'sc_must_change_password', true);
+$phone_confirmed = (bool) get_user_meta($user_id, 'sc_phone_verified_at', true)
+    && function_exists('sc_wabot_phone') && sc_wabot_phone($user_phone) === get_user_meta($user_id, 'sc_phone_e164', true);
 $assets_url = get_template_directory_uri() . '/assets/frontend/';
 
 // Get user's tickets/registrations from Custom Tables
@@ -414,6 +417,12 @@ get_template_part('template-parts/public/header', 'public');
 
     <!-- ============ profile ============ -->
     <section class="w-acc__panel sc-tab-content" id="profile-tab" data-tab-content="profile" style="display:none">
+        <?php if ($must_change_password): ?>
+        <style>.w-acc__alert { margin: 0 0 16px; padding: 12px 14px; border-radius: 8px; background: rgba(180, 35, 24, .08); color: #B42318; font-weight: 500; }</style>
+        <p class="w-acc__alert" role="alert">
+            <?php echo esc_html(sc_t('frontend.must_change_password', 'Your password is your phone number, which anyone who knows it could use. Choose a new password below.')); ?>
+        </p>
+        <?php endif; ?>
         <form class="w-acc__form" id="profile-form">
             <div class="w-field">
                 <label class="w-label" for="profile-name"><?php echo esc_html(sc_t('frontend.full_name', 'Name')); ?></label>
@@ -440,8 +449,11 @@ get_template_part('template-parts/public/header', 'public');
                         <?php endforeach; ?>
                     </select>
                     <input class="w-input" type="tel" id="profile-phone" name="phone"
-                           value="<?php echo esc_attr($phone_number); ?>" placeholder="100 000 0000">
+                           value="<?php echo esc_attr($phone_number); ?>" placeholder="100 000 0000" dir="ltr">
                 </span>
+                <span class="w-hint"><?php echo esc_html($phone_confirmed
+                    ? sc_t('frontend.phone_confirmed', 'Confirmed on WhatsApp. Tickets and sign-in codes go to this number.')
+                    : sc_t('frontend.phone_confirm_hint', 'Tickets and sign-in codes go to this WhatsApp number. A new number is confirmed with a code.')); ?></span>
             </div>
 
             <span class="w-acc__legend"><?php echo esc_html(sc_t('frontend.change_password', 'Change password')); ?></span>
@@ -453,7 +465,7 @@ get_template_part('template-parts/public/header', 'public');
 
             <div class="w-field">
                 <label class="w-label" for="new_password"><?php echo esc_html(sc_t('frontend.new_password', 'New password')); ?></label>
-                <input class="w-input" type="password" id="new_password" name="new_password" minlength="6" autocomplete="new-password">
+                <input class="w-input" type="password" id="new_password" name="new_password" minlength="8" autocomplete="new-password">
             </div>
 
             <div class="w-field">
@@ -489,6 +501,10 @@ jQuery(document).ready(function($) {
         $('.sc-tab-content').hide();
         $('[data-tab-content="' + tab + '"]').show();
     });
+    if (location.hash === '#profile' || <?php echo $must_change_password ? 'true' : 'false'; ?>) {
+        $('.sc-account-nav .sc-nav-item[data-tab="profile"]').trigger('click');
+        <?php if ($must_change_password): ?>$('#current_password').trigger('focus');<?php endif; ?>
+    }
 
     // Download QR Code directly
     $('.btn-download-qr').on('click', function() {
@@ -582,89 +598,88 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Profile Form
+    // Profile Form. public-scripts.js also listens on document; stop the event here so one request goes.
+    // A new number comes back with verify_phone: ask for the WhatsApp code and send the form again with it.
     $('#profile-form').on('submit', function(e) {
         e.preventDefault();
+        e.stopPropagation();
 
         var $form = $(this);
         var $button = $form.find('button[type="submit"]');
         var originalText = $button.html();
-        var primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--sc-primary').trim() || '#D4AF37';
+        var primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--w-primary').trim() || '#7C1314';
 
-        // Validate passwords
         var newPass = $form.find('[name="new_password"]').val();
         var confirmPass = $form.find('[name="confirm_password"]').val();
-
         if (newPass && newPass !== confirmPass) {
-            Swal.fire({
-                icon: 'error',
-                title: '<?php echo esc_js(__('Password Mismatch', 'sc_events')); ?>',
-                text: '<?php echo esc_js(__('New passwords do not match', 'sc_events')); ?>',
-                confirmButtonColor: primaryColor
-            });
+            Swal.fire({ icon: 'error', title: '<?php echo esc_js(__('Password Mismatch', 'sc_events')); ?>', text: '<?php echo esc_js(__('New passwords do not match', 'sc_events')); ?>', confirmButtonColor: primaryColor });
             return;
         }
 
-        $button.prop('disabled', true).html('<span class="sc-auth-spinner"></span> <?php echo esc_js(__('Saving...', 'sc_events')); ?>');
+        var data = {
+            action: 'sc_update_profile',
+            nonce: scPublic.nonce,
+            name: $form.find('[name="name"]').val(),
+            phone_code: $form.find('[name="phone_code"]').val() || '+20',
+            phone: $.trim($form.find('[name="phone"]').val()),
+            current_password: $form.find('[name="current_password"]').val(),
+            new_password: newPass
+        };
 
-        // Combine phone code and number
-        var phoneCode = $form.find('[name="phone_code"]').val() || '+20';
-        var phoneNumber = $form.find('[name="phone"]').val().trim();
-        var fullPhone = phoneNumber ? phoneCode + phoneNumber : '';
-
-        $.ajax({
-            url: scPublic.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'sc_update_profile',
-                nonce: scPublic.nonce,
-                name: $form.find('[name="name"]').val(),
-                phone: fullPhone,
-                current_password: $form.find('[name="current_password"]').val(),
-                new_password: newPass
-            },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '<?php echo esc_js(__('Saved!', 'sc_events')); ?>',
-                        text: response.data.message || '<?php echo esc_js(__('Profile updated successfully', 'sc_events')); ?>',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                    // Clear password fields
-                    $form.find('[name="current_password"], [name="new_password"], [name="confirm_password"]').val('');
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: '<?php echo esc_js(__('Error', 'sc_events')); ?>',
-                        text: response.data.message || '<?php echo esc_js(__('Could not update profile', 'sc_events')); ?>',
-                        confirmButtonColor: primaryColor
-                    });
-                }
-                $button.prop('disabled', false).html(originalText);
-            },
-            error: function(xhr, status) {
-                var errorMsg = '<?php echo esc_js(__('Failed to update profile. ', 'sc_events')); ?>';
-                if (status === 'timeout') {
-                    errorMsg += '<?php echo esc_js(__('The request timed out. Please try again.', 'sc_events')); ?>';
-                } else if (xhr.status === 0) {
-                    errorMsg += '<?php echo esc_js(__('Could not connect to server. Please check your internet connection.', 'sc_events')); ?>';
-                } else if (xhr.status === 403) {
-                    errorMsg += '<?php echo esc_js(__('Your session may have expired. Please refresh and try again.', 'sc_events')); ?>';
-                } else if (xhr.status === 500) {
-                    errorMsg += '<?php echo esc_js(__('Server error occurred. Please try again later.', 'sc_events')); ?>';
-                } else {
-                    errorMsg += '<?php echo esc_js(__('Please try again or contact support.', 'sc_events')); ?>';
-                }
-                Swal.fire({
-                    icon: 'error',
-                    title: '<?php echo esc_js(__('Error', 'sc_events')); ?>',
-                    text: errorMsg,
-                    confirmButtonColor: primaryColor
-                });
-                $button.prop('disabled', false).html(originalText);
+        function send(extra) {
+            return $.ajax({ url: scPublic.ajaxurl, type: 'POST', data: $.extend({}, data, extra || {}) });
+        }
+        function failText(xhr) {
+            return (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) || '<?php echo esc_js(__('Could not reach the site. Check your connection and try again.', 'sc_events')); ?>';
+        }
+        function saved(response) {
+            Swal.fire({ icon: 'success', title: '<?php echo esc_js(__('Saved!', 'sc_events')); ?>', text: response.data.message, timer: 1800, showConfirmButton: false });
+            $form.find('[name="current_password"], [name="new_password"], [name="confirm_password"]').val('');
+            $('.w-acc__alert').remove();
+            if (response.data.reload) {
+                setTimeout(function () { window.location.hash = 'profile'; window.location.reload(); }, 1600);
             }
+        }
+        function askCode(info) {
+            Swal.fire({
+                title: '<?php echo esc_js(__('Confirm the new number', 'sc_events')); ?>',
+                text: info.message + ' ' + (info.phone || ''),
+                input: 'text',
+                inputAttributes: { inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, dir: 'ltr', 'aria-label': '<?php echo esc_js(__('Code', 'sc_events')); ?>' },
+                inputPlaceholder: '••••••',
+                showCancelButton: true,
+                showDenyButton: true,
+                denyButtonText: '<?php echo esc_js(__('Send a new code', 'sc_events')); ?>',
+                confirmButtonText: '<?php echo esc_js(__('Save', 'sc_events')); ?>',
+                confirmButtonColor: primaryColor,
+                preDeny: function () {
+                    return send().then(function (r) {
+                        if (!r.success) { Swal.showValidationMessage(r.data.message); return false; }
+                        Swal.showValidationMessage('<?php echo esc_js(__('A new code is on its way.', 'sc_events')); ?>');
+                        return false;
+                    }, function (xhr) { Swal.showValidationMessage(failText(xhr)); return false; });
+                },
+                preConfirm: function (code) {
+                    return send({ otp_code: code }).then(function (r) {
+                        if (!r.success) { Swal.showValidationMessage(r.data.message); return false; }
+                        return r;
+                    }, function (xhr) { Swal.showValidationMessage(failText(xhr)); return false; });
+                }
+            }).then(function (res) { if (res.isConfirmed && res.value) { saved(res.value); } });
+        }
+
+        $button.prop('disabled', true).html('<span class="sc-auth-spinner"></span> <?php echo esc_js(__('Saving...', 'sc_events')); ?>');
+        send().then(function (response) {
+            $button.prop('disabled', false).html(originalText);
+            if (!response.success) {
+                Swal.fire({ icon: 'error', title: '<?php echo esc_js(__('Error', 'sc_events')); ?>', text: response.data.message, confirmButtonColor: primaryColor });
+                return;
+            }
+            if (response.data.verify_phone) { askCode(response.data); return; }
+            saved(response);
+        }, function (xhr) {
+            $button.prop('disabled', false).html(originalText);
+            Swal.fire({ icon: 'error', title: '<?php echo esc_js(__('Error', 'sc_events')); ?>', text: failText(xhr), confirmButtonColor: primaryColor });
         });
     });
 });

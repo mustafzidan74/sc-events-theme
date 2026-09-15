@@ -282,6 +282,8 @@ require get_template_directory() . '/inc/admin-dashboard/chat-dashboard.php';
 require get_template_directory() . '/inc/whatsapp/wabot.php';
 require get_template_directory() . '/inc/whatsapp/wabot-campaigns.php';
 require get_template_directory() . '/inc/whatsapp/wabot-notify.php';
+require get_template_directory() . '/inc/auth/sc-otp.php';
+require get_template_directory() . '/inc/auth/sc-otp-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/whatsapp-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/whatsapp-campaigns-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/whatsapp-notify-dashboard.php';

@@ -53,6 +53,17 @@ function sc_notify_types() {
             'subject'  => 'النهارده: {event}',
             'template' => "صباح الخير {first_name} ☀️\n{event} النهارده.\n\n🕘 {time}\n📍 {venue}\n🗺️ {map_link}\n\nجهّز الـ QR ده على الباب.\nالتذكرة: {ticket_link}",
         ),
+        'password_changed' => array(
+            'label'    => __('Password changed', 'sc_events'),
+            'when'     => __('Right after a password is changed, from “Forgot password” or My Account, so the owner of the account knows.', 'sc_events'),
+            'tags'     => array('{name}', '{first_name}', '{site}'),
+            'enabled'  => 1,
+            'subject'  => 'تم تغيير كلمة السر',
+            'template' => "أهلاً {first_name}،
+تم تغيير كلمة السر لحسابك في {site} ✅
+
+لو مش انت اللي غيرتها، كلمنا فوراً.",
+        ),
         'exhibitor_badge' => array(
             'label'    => __('Exhibitor badge', 'sc_events'),
             'when'     => __('When you register a company with “Send the badge” ticked, or press “Send the badge” (one company or several from the list). Nothing goes out by itself.', 'sc_events'),
@@ -373,6 +384,21 @@ function sc_notify_company_badge($company_id, $force = false, $args = array()) {
             global $wpdb;
             $wpdb->update($wpdb->prefix . 'sc_company_attendees', array('email_sent' => 1, 'email_sent_at' => current_time('mysql')), array('id' => (int) $c->id));
         },
+    ));
+}
+
+/** Tell the account owner their password was just changed. */
+function sc_notify_password_changed($user_id) {
+    $user = get_userdata((int) $user_id);
+    if (!$user) {
+        return array('whatsapp' => false, 'email' => null, 'reason' => 'not_found');
+    }
+    $phone = sc_wabot_phone(get_user_meta($user->ID, 'phone', true)) ?: sc_wabot_phone(get_user_meta($user->ID, 'billing_phone', true));
+    return sc_notify('password_changed', array(
+        'phone'  => $phone,
+        'email'  => $user->user_email,
+        'name'   => $user->display_name,
+        'fields' => array('{name}' => $user->display_name, '{first_name}' => sc_notify_first_name($user->display_name)),
     ));
 }
 
