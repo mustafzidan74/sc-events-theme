@@ -32,7 +32,7 @@ if (!get_transient('sc_auto_complete_check')) {
         "UPDATE {$p}sc_events SET status = 'completed'
          WHERE status = 'publish'
          AND (end_date < %s OR (end_date IS NULL AND start_date < %s))",
-        date('Y-m-d'), date('Y-m-d')
+        current_time('Y-m-d'), current_time('Y-m-d')
     ));
     set_transient('sc_auto_complete_check', 1, 300);
     if ($rows_updated > 0) {
@@ -127,13 +127,13 @@ $attention = array();
 // Emails the mail plugin could not send (WP Mail SMTP logs each failure).
 $mail_log = "{$p}wpmailsmtp_debug_events";
 if ($table_exists($mail_log)) {
-    $mail = $wpdb->get_row($wpdb->prepare("SELECT COUNT(*) AS n, MAX(created_at) AS last_at FROM {$mail_log} WHERE event_type = 0 AND created_at >= %s", date('Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS)));
+    $mail = $wpdb->get_row($wpdb->prepare("SELECT COUNT(*) AS n, MAX(created_at) AS last_at FROM {$mail_log} WHERE event_type = 0 AND created_at >= %s", date('Y-m-d H:i:s', current_time('timestamp') - 7 * DAY_IN_SECONDS)));
     if ($mail && (int) $mail->n > 0) {
         $attention[] = array(
             'tone'  => 'red',
             'icon'  => 'fa-envelope',
             'title' => sprintf(sc_t('dashboard_pages.attn_mail', '%s emails failed to send in the last 7 days'), number_format_i18n((int) $mail->n)),
-            'text'  => sprintf(sc_t('dashboard_pages.attn_mail_text', 'Latest failure %s ago. Registration confirmations and tickets may not be arriving.'), human_time_diff(strtotime($mail->last_at), time())),
+            'text'  => sprintf(sc_t('dashboard_pages.attn_mail_text', 'Latest failure %s ago. Registration confirmations and tickets may not be arriving.'), human_time_diff(strtotime($mail->last_at), current_time('timestamp'))),
             'href'  => admin_url('admin.php?page=wp-mail-smtp-tools&tab=debug-events'),
             'link'  => sc_t('dashboard_pages.attn_mail_link', 'Open the mail log'),
         );

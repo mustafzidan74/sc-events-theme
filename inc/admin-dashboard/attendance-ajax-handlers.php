@@ -63,7 +63,7 @@ function sc_process_attendance_scan() {
     }
 
     // Get today's date
-    $today = date('Y-m-d');
+    $today = current_time('Y-m-d');
     $current_time = current_time('timestamp');
 
     // Find today's entries
@@ -230,7 +230,7 @@ function sc_get_event_attendance_summary() {
     }
 
     $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
-    $date = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : date('Y-m-d');
+    $date = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : current_time('Y-m-d');
 
     if (!$event_id) {
         wp_send_json_error(array('message' => __('Invalid event ID.', 'sc_events')));
@@ -400,7 +400,7 @@ function sc_verify_ticket_for_scan() {
         $attendance_log = array();
     }
 
-    $today = date('Y-m-d');
+    $today = current_time('Y-m-d');
     $today_entries = array_filter($attendance_log, function($entry) use ($today) {
         return isset($entry['date']) && $entry['date'] === $today;
     });
@@ -470,7 +470,7 @@ function sc_manual_attendance() {
         $attendance_log = array();
     }
 
-    $today = date('Y-m-d');
+    $today = current_time('Y-m-d');
     $current_time = current_time('timestamp');
 
     // Find last entry for today
@@ -807,7 +807,7 @@ function sc_scan_and_checkin() {
     update_post_meta($attendee_id, 'scanner_update_time', current_time('mysql'));
 
     $current_time = current_time('timestamp');
-    $today = date('Y-m-d');
+    $today = current_time('Y-m-d');
     $action_type = 'check_in';
     $duration = '';
     $total_scans = 0;

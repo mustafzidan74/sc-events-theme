@@ -72,7 +72,7 @@ function sc_get_events_page_stats() {
     );
 
     // Get upcoming events count (published events with start_date >= today)
-    $today = date('Y-m-d');
+    $today = current_time('Y-m-d');
     $stats['upcoming'] = (int) $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->prefix}sc_events WHERE status = 'publish' AND start_date >= %s",
         $today
@@ -1572,7 +1572,7 @@ function sc_export_event_attendees() {
         $attendee_count++;
     }
 
-    $filename = 'attendees-' . sanitize_title($event->title) . '-' . date('Y-m-d') . '.csv';
+    $filename = 'attendees-' . sanitize_title($event->title) . '-' . current_time('Y-m-d') . '.csv';
 
     wp_send_json_success(array(
         'csv' => $csv_data,

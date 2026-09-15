@@ -276,7 +276,7 @@ add_action('sc_mark_completed_events', function() {
     $tables = sc_get_table_names();
 
     // Mark events that ended as completed (handles NULL end_date for single-day events)
-    $today = date('Y-m-d');
+    $today = current_time('Y-m-d');
     $wpdb->query($wpdb->prepare(
         "UPDATE {$tables['events']}
         SET status = 'completed'

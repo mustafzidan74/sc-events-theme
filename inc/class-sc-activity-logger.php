@@ -882,7 +882,7 @@ class SC_Activity_Logger {
         $logs = self::get_logs($args);
 
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=activity-logs-' . date('Y-m-d') . '.csv');
+        header('Content-Disposition: attachment; filename=activity-logs-' . current_time('Y-m-d') . '.csv');
 
         $output = fopen('php://output', 'w');
 

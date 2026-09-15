@@ -201,7 +201,7 @@ $event_end_datetime = $event_end_date;
 if ($end_time) {
     $event_end_datetime = $event_end_date . ' ' . $end_time;
 }
-$is_past = strtotime($event_end_datetime) < time();
+$is_past = strtotime($event_end_datetime) < current_time('timestamp');
 
 // Check if user is registered (active registration only)
 $is_registered = false;

@@ -89,7 +89,7 @@ $min_price   = $pricing['min_price'];
 
 $end_dt = $workshop->end_date ?: $workshop->start_date;
 if ($workshop->end_time) { $end_dt .= ' ' . $workshop->end_time; }
-$is_past = strtotime($end_dt) < time();
+$is_past = strtotime($end_dt) < current_time('timestamp');
 
 $is_registered = false;
 if (is_user_logged_in() && class_exists('SC_Attendee')) {

@@ -63,7 +63,7 @@ if (class_exists('SC_Attendee')) {
             $event = SC_Event::get($attendee->event_id);
             if ($event) {
                 $ev_end = ($event->end_date ?: $event->start_date) . ($event->end_time ? ' ' . $event->end_time : ' 23:59:59');
-                if (strtotime($ev_end) >= time()) {
+                if (strtotime($ev_end) >= current_time('timestamp')) {
                     $upcoming_tickets++;
                 } else {
                     $past_tickets++;
@@ -103,7 +103,7 @@ if (!empty($attendees) && class_exists('SC_Certificate') && class_exists('SC_Eve
         $cert          = SC_Certificate::get_by_attendee_event($att->id, $att->event_id);
         $checked_in    = !empty($att->checked_in);
         $event_end     = $event->end_date ?: $event->start_date;
-        $event_is_past = strtotime($event_end) < strtotime(date('Y-m-d'));
+        $event_is_past = strtotime($event_end) < strtotime(current_time('Y-m-d'));
 
         $cert_list[] = [
             'event'       => $event,
@@ -180,10 +180,10 @@ get_template_part('template-parts/public/header', 'public');
                 if (!$event) { continue; }
 
                 $end_dt  = ($event->end_date ?: $event->start_date) . ($event->end_time ? ' ' . $event->end_time : ' 23:59:59');
-                $is_past = strtotime($end_dt) < time();
+                $is_past = strtotime($end_dt) < current_time('timestamp');
                 $is_now  = !$is_past
-                    && date('Y-m-d', strtotime($event->start_date)) <= date('Y-m-d')
-                    && date('Y-m-d', strtotime($event->end_date ?: $event->start_date)) >= date('Y-m-d');
+                    && date('Y-m-d', strtotime($event->start_date)) <= current_time('Y-m-d')
+                    && date('Y-m-d', strtotime($event->end_date ?: $event->start_date)) >= current_time('Y-m-d');
 
                 $checked_in   = !empty($attendee->checked_in);
                 $checkin_time = $attendee->checked_in_at ?? null;
@@ -383,7 +383,7 @@ get_template_part('template-parts/public/header', 'public');
     <section class="w-acc__panel sc-tab-content" id="favorites-tab" data-tab-content="favorites" style="display:none">
         <?php if (!empty($favorite_events)): ?>
             <?php foreach ($favorite_events as $fav):
-                $fav_past = strtotime($fav->end_date ?: $fav->start_date) < strtotime(date('Y-m-d'));
+                $fav_past = strtotime($fav->end_date ?: $fav->start_date) < strtotime(current_time('Y-m-d'));
             ?>
             <div class="w-acc__row" data-event-id="<?php echo esc_attr($fav->id); ?>">
                 <span class="w-acc__row-text">

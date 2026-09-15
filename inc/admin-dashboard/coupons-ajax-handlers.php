@@ -182,7 +182,7 @@ function sc_events_export_coupons() {
 
     $coupons = get_posts($args);
 
-    $filename = 'coupons-export-' . date('Y-m-d-H-i-s') . '.csv';
+    $filename = 'coupons-export-' . current_time('Y-m-d-H-i-s') . '.csv';
 
     if (ob_get_length()) {
         ob_end_clean();
@@ -232,7 +232,7 @@ function sc_events_export_coupons() {
 
             $expiry_text = (!empty($expiry_date) && strtotime($expiry_date) > 0) ? date('Y-m-d', strtotime($expiry_date)) : 'No Expiry';
 
-            $is_expired = $expiry_date && strtotime($expiry_date) < time();
+            $is_expired = $expiry_date && strtotime($expiry_date) < current_time('timestamp');
             $is_limit_reached = $usage_limit && $usage_count >= $usage_limit;
 
             if ($is_expired) {
@@ -349,7 +349,7 @@ function sc_events_export_coupons_ajax() {
 
             $expiry_text = (!empty($expiry_date) && strtotime($expiry_date) > 0) ? date('Y-m-d', strtotime($expiry_date)) : 'No Expiry';
 
-            $is_expired = $expiry_date && strtotime($expiry_date) < time();
+            $is_expired = $expiry_date && strtotime($expiry_date) < current_time('timestamp');
             $is_limit_reached = $usage_limit && $usage_count >= $usage_limit;
 
             if ($is_expired) {
@@ -367,7 +367,7 @@ function sc_events_export_coupons_ajax() {
         }
     }
 
-    $filename = 'coupons-export-' . date('Y-m-d-H-i-s') . '.csv';
+    $filename = 'coupons-export-' . current_time('Y-m-d-H-i-s') . '.csv';
 
     wp_send_json_success(array(
         'csv' => $csv_data,

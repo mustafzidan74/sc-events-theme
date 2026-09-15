@@ -1692,7 +1692,7 @@ function sc_request_certificate_public_handler() {
     }
 
     $event_end = $event->end_date ?? $event->start_date;
-    if (!empty($event->certificate_require_event_ended) && strtotime($event_end) >= strtotime(date('Y-m-d'))) {
+    if (!empty($event->certificate_require_event_ended) && strtotime($event_end) >= strtotime(current_time('Y-m-d'))) {
         wp_send_json_error(array('message' => __('Certificate will be available after the event ends.', 'sc_events')));
     }
 

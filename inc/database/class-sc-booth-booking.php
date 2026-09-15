@@ -797,7 +797,7 @@ class SC_Booth_Booking {
 
         // Is overdue
         $booking->is_overdue = !empty($booking->balance_due_date) &&
-                               strtotime($booking->balance_due_date) < time() &&
+                               strtotime($booking->balance_due_date) < current_time('timestamp') &&
                                $booking->remaining_balance > 0 &&
                                $booking->status !== 'cancelled';
 

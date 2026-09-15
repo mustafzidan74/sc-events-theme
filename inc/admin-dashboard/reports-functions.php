@@ -281,7 +281,7 @@ function sc_get_reports_dashboard_stats() {
         WHERE status = 'publish'
         AND start_date >= %s
         AND start_date < %s",
-        date('Y-m-01'),
+        current_time('Y-m-01'),
         date('Y-m-01', strtotime('+1 month'))
     ));
 
@@ -292,7 +292,7 @@ function sc_get_reports_dashboard_stats() {
         WHERE status = 'active'
         AND payment_status IN ('success', 'completed')
         AND created_at >= %s",
-        date('Y-m-01 00:00:00')
+        current_time('Y-m-01 00:00:00')
     ));
 
     // Get top 5 events by ticket sales from Custom Tables

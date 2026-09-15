@@ -165,7 +165,7 @@ class SC_Module_Certificates extends SC_Base_Module {
         $preview_data = array(
             'attendee_name' => 'John Doe',
             'event_title' => 'Sample Event Title',
-            'event_date' => date('F j, Y'),
+            'event_date' => current_time('F j, Y'),
             'certificate_number' => 'CERT-SAMPLE-001',
         );
 

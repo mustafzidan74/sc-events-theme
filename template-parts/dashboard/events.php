@@ -25,7 +25,7 @@ if (!get_transient('sc_auto_complete_check')) {
         "UPDATE {$events_table} SET status = 'completed'
          WHERE status = 'publish'
          AND (end_date < %s OR (end_date IS NULL AND start_date < %s))",
-        date('Y-m-d'), date('Y-m-d')
+        current_time('Y-m-d'), current_time('Y-m-d')
     ));
     set_transient('sc_auto_complete_check', 1, 300);
     if ($rows_updated > 0) {

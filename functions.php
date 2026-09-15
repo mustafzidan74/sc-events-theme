@@ -1,4 +1,7 @@
 <?php
+
+// First: MySQL session time zone = site time zone, before any theme query runs.
+require_once get_template_directory() . '/inc/sc-db-timezone.php';
 /**
  * sc_events functions and definitions
  *

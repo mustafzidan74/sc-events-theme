@@ -66,7 +66,7 @@ class SC_Events_Endpoint extends SC_Base_Endpoint {
         }
 
         // Sort
-        $today = date('Y-m-d');
+        $today = current_time('Y-m-d');
         switch ($sort) {
             case 'past':
                 $where .= " AND e.end_date < %s";

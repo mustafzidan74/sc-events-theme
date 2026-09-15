@@ -141,7 +141,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
         // Check if event must end first
         if ($attendee->certificate_require_event_ended) {
             $event_end = strtotime($attendee->end_date);
-            if ($event_end > time()) {
+            if ($event_end > current_time('timestamp')) {
                 SC_API_Response::success([
                     'eligible' => false,
                     'reason' => 'الشهادة ستكون متاحة بعد انتهاء الفعالية'
@@ -224,7 +224,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
             SC_API_Response::error('يجب تسجيل الحضور أولاً', 400);
         }
 
-        if ($attendee->certificate_require_event_ended && strtotime($attendee->end_date) > time()) {
+        if ($attendee->certificate_require_event_ended && strtotime($attendee->end_date) > current_time('timestamp')) {
             SC_API_Response::error('الشهادة ستكون متاحة بعد انتهاء الفعالية', 400);
         }
 

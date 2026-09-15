@@ -48,7 +48,7 @@ function sc_get_customer_stats() {
         'role__in' => array('subscriber'),
         'fields' => 'ID',
         'date_query' => array(
-            array('after' => date('Y-m-01'), 'inclusive' => true)
+            array('after' => current_time('Y-m-01'), 'inclusive' => true)
         )
     )));
 

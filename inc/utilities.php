@@ -84,7 +84,7 @@ if (!function_exists('sc_is_past_date')) {
         if (empty($date)) {
             return false;
         }
-        return strtotime($date) < strtotime(date('Y-m-d'));
+        return strtotime($date) < strtotime(current_time('Y-m-d'));
     }
 }
 

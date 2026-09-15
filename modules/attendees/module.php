@@ -329,7 +329,7 @@ class SC_Module_Attendees extends SC_Base_Module {
         ));
 
         // Generate export file
-        $filename = 'attendees-' . $event_id . '-' . date('Y-m-d') . '.' . $format;
+        $filename = 'attendees-' . $event_id . '-' . current_time('Y-m-d') . '.' . $format;
 
         wp_send_json_success(array(
             'download_url' => $this->generate_export_file($attendees, $format, $filename),
