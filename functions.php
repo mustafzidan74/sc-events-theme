@@ -281,14 +281,12 @@ require get_template_directory() . '/inc/admin-dashboard/settings-dashboard.php'
 require get_template_directory() . '/inc/admin-dashboard/reports-dashboard.php';
 require get_template_directory() . '/inc/admin-dashboard/sponsors-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/partners-ajax-handlers.php';
-require get_template_directory() . '/inc/admin-dashboard/analytics-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/halls-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/schedules-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/notifications-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/reset-role.php';
 require get_template_directory() . '/inc/admin-dashboard/permissions.php';
 require get_template_directory() . '/inc/admin-dashboard/performance-optimizations.php';
-require get_template_directory() . '/inc/admin-dashboard/reports-ajax-handlers.php';
 
 /**
  * Public Frontend AJAX Handlers
