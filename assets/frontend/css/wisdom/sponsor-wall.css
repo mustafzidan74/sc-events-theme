@@ -17,7 +17,7 @@
 
 .w-tier { display: flex; flex-direction: column; gap: var(--w-space-4); }
 
-.w-tier__head { display: flex; align-items: baseline; gap: var(--w-space-3); }
+.w-tier__head { display: flex; align-items: baseline; justify-content: center; gap: var(--w-space-3); }
 
 .w-tier__badge {
   display: inline-flex;
@@ -37,13 +37,17 @@
 
 .w-tier__note { font-size: 0.9375rem; color: var(--w-ink-300); }
 
+/* Tracks have a ceiling rather than stretching, so a tier with three sponsors
+   is three tiles in the middle of the wall instead of three tiles with a
+   third of the wall empty beside them. */
 .w-tier__logos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 170px));
+  justify-content: center;
   gap: 12px;
 }
 
-.w-tier--top .w-tier__logos { grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); }
+.w-tier--top .w-tier__logos { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 230px)); }
 
 /* Sponsors send square artwork as often as a wide logo, and a 2:1 box shrank
    those to a stamp in the middle of an empty tile. A square tile with almost no
