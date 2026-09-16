@@ -256,7 +256,18 @@ if ($next_event):
     $w_start = strtotime($next_event->start_date);
     $w_end = !empty($next_event->end_date) ? strtotime($next_event->end_date) : $w_start;
     $w_url = home_url('/event/' . $next_event->slug);
-    $w_img = $next_event->featured_image ? wp_get_attachment_url($next_event->featured_image) : '';
+    // Most events fill in a banner rather than a featured image; either one carries the hero.
+    $w_img = '';
+    foreach (array($next_event->featured_image, $next_event->banner_image, $next_event->logo_image) as $w_img_id) {
+        $w_img = $w_img_id ? (wp_get_attachment_url($w_img_id) ?: '') : '';
+        if ($w_img) {
+            break;
+        }
+    }
+
+    // Somebody already registered is shown their ticket instead of a Register button.
+    $w_my_ticket = function_exists('sc_visitor_event_ticket') ? sc_visitor_event_ticket($next_event->id) : null;
+    $w_my_ticket_url = $w_my_ticket ? sc_ticket_view_url($w_my_ticket) : '';
     $w_starts_at = strtotime($next_event->start_date . ' ' . ($next_event->start_time ?: '00:00:00'));
     $w_is_upcoming = $w_starts_at > current_time('timestamp');
 
@@ -296,9 +307,14 @@ if ($next_event):
 <main class="w-main">
     <section class="w-hero">
         <div class="w-hero__copy">
-            <span class="w-hero__status">
-                <span class="w-hero__pulse" aria-hidden="true"></span>
-                <?php echo esc_html(sc_t('frontend.registration_open', 'Registration open')); ?>
+            <span class="w-hero__status<?php echo $w_my_ticket ? ' w-hero__status--mine' : ''; ?>">
+                <?php if ($w_my_ticket): ?>
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    <?php echo esc_html(sc_t('frontend.you_are_registered', 'You are registered')); ?>
+                <?php else: ?>
+                    <span class="w-hero__pulse" aria-hidden="true"></span>
+                    <?php echo esc_html(sc_t('frontend.registration_open', 'Registration open')); ?>
+                <?php endif; ?>
                 <?php if ($w_venue): ?>· <?php echo esc_html($w_venue); ?><?php endif; ?>
             </span>
 
@@ -310,11 +326,21 @@ if ($next_event):
             <p class="w-hero__title"><?php echo esc_html($next_event->title); ?></p>
 
             <div class="w-hero__actions">
-                <a class="w-hero__cta" href="<?php echo esc_url($w_url); ?>">
-                    <?php echo esc_html(sc_t('frontend.register', 'Register')); ?><?php
-                    if ($w_price_label) { echo ' · ' . esc_html($w_price_label); }
-                    ?>
-                </a>
+                <?php if ($w_my_ticket): ?>
+                    <a class="w-hero__cta" href="<?php echo esc_url($w_my_ticket_url); ?>">
+                        <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
+                        <?php echo esc_html(sc_t('frontend.open_my_ticket', 'Open my ticket')); ?>
+                    </a>
+                    <a class="w-hero__link" href="<?php echo esc_url($w_url); ?>">
+                        <?php echo esc_html(sc_t('frontend.event_details', 'Event details')); ?>
+                    </a>
+                <?php else: ?>
+                    <a class="w-hero__cta" href="<?php echo esc_url($w_url); ?>">
+                        <?php echo esc_html(sc_t('frontend.register', 'Register')); ?><?php
+                        if ($w_price_label) { echo ' · ' . esc_html($w_price_label); }
+                        ?>
+                    </a>
+                <?php endif; ?>
             </div>
 
             <?php if ($w_is_upcoming): ?>
@@ -410,9 +436,21 @@ if ($w_counts['workshops']) {
         'sub' => sprintf(sc_t('frontend.n_hands_on', '%s hands-on'), number_format_i18n($w_counts['workshops'])),
         'href' => home_url('/workshops/')];
 }
-$w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.my_ticket', 'My ticket'),
-    'sub' => sc_t('frontend.badge_certificate', 'E-badge & certificate'),
-    'href' => home_url(is_user_logged_in() ? '/my-account/' : '/login/'), 'accent' => true];
+// The fourth tile answers where the visitor actually stands: their QR, the way in, or the way to register.
+$w_home_ticket = $next_event && function_exists('sc_visitor_event_ticket') ? sc_visitor_event_ticket($next_event->id) : null;
+if ($w_home_ticket) {
+    $w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.my_ticket', 'My ticket'),
+        'sub' => $w_home_ticket->ticket_name ?: sc_t('frontend.show_qr_at_door', 'Show the QR at the door'),
+        'href' => sc_ticket_view_url($w_home_ticket), 'accent' => true];
+} elseif (is_user_logged_in()) {
+    $w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.my_ticket', 'My ticket'),
+        'sub' => sc_t('frontend.not_registered_yet', 'Not registered yet'),
+        'href' => $next_event ? $w_ev_url . '#tickets' : home_url('/events/'), 'accent' => true];
+} else {
+    $w_tiles[] = ['icon' => 'ticket', 'label' => sc_t('frontend.sign_in', 'Sign in'),
+        'sub' => sc_t('frontend.tickets_and_certificates', 'Your tickets and certificates'),
+        'href' => function_exists('sc_login_url') ? sc_login_url() : home_url('/login/'), 'accent' => true];
+}
 ?>
 <?php if ($total_attendees > 0 || count($w_tiles) > 1): ?>
 <section class="w-section">
@@ -651,17 +689,28 @@ if ($next_event) {
 <section class="w-section">
     <div class="w-tickets">
         <div class="w-tickets__copy">
-            <h2 class="w-tickets__title"><?php echo esc_html(sc_t('frontend.pick_your_ticket', "Pick your ticket. That's it.")); ?></h2>
-            <p class="w-tickets__lede"><?php echo esc_html($next_event->title); ?></p>
+            <?php $w_panel_ticket = function_exists('sc_visitor_event_ticket') ? sc_visitor_event_ticket($next_event->id) : null; ?>
+            <h2 class="w-tickets__title"><?php echo esc_html($w_panel_ticket
+                ? sc_t('frontend.you_are_in', 'You’re in.')
+                : sc_t('frontend.pick_your_ticket', "Pick your ticket. That's it.")); ?></h2>
+            <p class="w-tickets__lede"><?php echo esc_html($w_panel_ticket && $w_panel_ticket->ticket_name
+                ? $next_event->title . ' · ' . $w_panel_ticket->ticket_name
+                : $next_event->title); ?></p>
             <div class="w-tickets__facts">
                 <span><?php echo esc_html(date_i18n('j M Y', strtotime($next_event->start_date))); ?></span>
                 <?php if (!empty($next_event->venue_name)): ?>
                     <span>· <?php echo esc_html($next_event->venue_name); ?></span>
                 <?php endif; ?>
             </div>
+            <?php if ($w_panel_ticket): ?>
+            <a class="w-tickets__cta" href="<?php echo esc_url(sc_ticket_view_url($w_panel_ticket)); ?>">
+                <?php echo esc_html(sc_t('frontend.open_my_ticket', 'Open my ticket')); ?>
+            </a>
+            <?php else: ?>
             <a class="w-tickets__cta" href="<?php echo esc_url(home_url('/event/' . $next_event->slug)); ?>">
                 <?php echo esc_html(sc_t('frontend.register', 'Register')); ?>
             </a>
+            <?php endif; ?>
         </div>
 
         <div class="w-tickets__list">

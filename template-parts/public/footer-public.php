@@ -112,7 +112,8 @@ $w_social = array_filter([
  *
  * The design's fourth slot is Register. Here it is My ticket, because the
  * header keeps its Get tickets button visible on phones — a second one would
- * be the redundant thing, and nothing else surfaces the QR in one tap.
+ * be the redundant thing, and nothing else surfaces the QR in one tap. For a
+ * visitor who is not signed in it says Sign in: they have no ticket to open.
  */
 $sc_tabbar = [
     [
@@ -133,11 +134,16 @@ $sc_tabbar = [
         'label' => sc_t('frontend.speakers', 'Speakers'),
         'on'    => is_page('speakers') || (bool) get_query_var('sc_speaker_slug'),
     ],
-    [
-        'href'  => is_user_logged_in() ? home_url('/my-account/') : home_url('/login/'),
+    is_user_logged_in() ? [
+        'href'  => home_url('/my-account/'),
         'icon'  => 'fa-solid fa-ticket',
         'label' => sc_t('frontend.my_ticket', 'My ticket'),
-        'on'    => is_page(['my-account', 'login']),
+        'on'    => is_page('my-account'),
+    ] : [
+        'href'  => function_exists('sc_login_url') ? sc_login_url() : home_url('/login/'),
+        'icon'  => 'fa-solid fa-right-to-bracket',
+        'label' => sc_t('frontend.sign_in', 'Sign in'),
+        'on'    => is_page(['login', 'register', 'forgot-password']),
     ],
 ];
 ?>

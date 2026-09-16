@@ -238,7 +238,7 @@ $w_speakers_page = get_page_by_path('speakers');
 $w_speakers_url = $w_speakers_page ? get_permalink($w_speakers_page) : get_post_type_archive_link('sc_speaker');
 $w_partners_page = get_page_by_path('partners');
 $w_partners_url = $w_partners_page ? get_permalink($w_partners_page) : '';
-$w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
+$w_account_url = $is_logged_in ? home_url('/my-account/') : (function_exists('sc_login_url') ? sc_login_url() : home_url('/login/'));
 ?>
 <header class="w-header" id="sc-header">
     <a class="w-header__brand" href="<?php echo esc_url(home_url('/')); ?>">
@@ -286,8 +286,8 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
 
     <div class="w-header__actions">
         <a href="<?php echo esc_url($w_account_url); ?>" class="w-header__ticket">
-            <i class="fa-solid fa-ticket" aria-hidden="true"></i>
-            <?php echo esc_html(sc_t('frontend.my_ticket', 'My ticket')); ?>
+            <i class="fa-solid <?php echo $is_logged_in ? 'fa-ticket' : 'fa-right-to-bracket'; ?>" aria-hidden="true"></i>
+            <?php echo esc_html($is_logged_in ? sc_t('frontend.my_ticket', 'My ticket') : sc_t('frontend.sign_in', 'Sign in')); ?>
         </a>
 
         <?php if ($is_logged_in): ?>

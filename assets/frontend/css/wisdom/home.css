@@ -114,6 +114,30 @@
   outline-offset: 3px;
 }
 
+.w-hero__cta i { margin-inline-end: 10px; font-size: 1rem; }
+
+/* Someone who already holds a ticket: the door is open, so the tone is settled
+   rather than urgent — a teal check instead of the live pulse, and the second
+   action stays a quiet link. */
+.w-hero__status--mine { color: var(--w-teal-text, var(--w-teal, #1B7F70)); font-weight: 600; }
+
+.w-hero__link {
+  display: inline-flex;
+  align-items: center;
+  height: 56px;
+  padding-inline: var(--w-space-5);
+  border-radius: var(--w-radius-pill);
+  border: 1.5px solid var(--w-border);
+  color: var(--w-text);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color var(--w-duration) var(--w-ease), color var(--w-duration) var(--w-ease);
+}
+
+.w-hero__link:hover { border-color: var(--w-primary); color: var(--w-primary); }
+.w-hero__link:focus-visible { outline: 2px solid var(--w-focus); outline-offset: 3px; }
+
 /* --- countdown --------------------------------------------------------- */
 
 .w-countdown {
@@ -483,8 +507,11 @@
 
 .w-tickets__copy { position: relative; display: flex; flex-direction: column; gap: 18px; }
 
+/* A global h1–h6 rule paints headings with the page's text colour, which is
+   near-black on this dark panel — say it explicitly here. */
 .w-tickets__title {
   margin: 0;
+  color: var(--w-ink-50);
   font-size: clamp(2.125rem, 4vw, 3.5rem);
   font-weight: 600;
   letter-spacing: -0.035em;
