@@ -137,7 +137,8 @@ class SC_Chat_Module extends SC_Base_Module {
                 'nonce' => wp_create_nonce('sc_chat_nonce'),
                 'eventId' => $this->get_current_event_id(),
                 'isLoggedIn' => is_user_logged_in(),
-                'visitorToken' => isset($_COOKIE['sc_chat_visitor_token']) ? $_COOKIE['sc_chat_visitor_token'] : '',
+                // No visitor token here: pages are stored by the page cache and shared between
+                // visitors. The widget keeps its own copy (localStorage) and the cookie travels by itself.
                 'i18n' => array(
                     'title' => __('Chat with us', 'sc_events'),
                     'placeholder' => __('Type your message...', 'sc_events'),
