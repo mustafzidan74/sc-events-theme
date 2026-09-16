@@ -239,19 +239,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!--===== JS =======-->
 <script src="<?php echo esc_url($assets_url); ?>js/eventify/vendor/bootstrap.min.js"></script>
-<script src="<?php echo esc_url($assets_url); ?>js/eventify/vendor/fontawesome.js"></script>
+<?php /* fontawesome.js is not loaded: the icons are drawn by the stylesheet, and the
+         script replaced none of them. */ ?>
 
-<!-- AOS Animation -->
+<?php if (is_tax('sc_event_category')): ?>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<?php endif; ?>
 
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<!-- QR Code Library -->
+<?php if (is_page('my-account')): // Tickets are drawn there; the ticket pages load their own copy. ?>
 <script src="<?php echo esc_url(get_template_directory_uri() . '/assets/admin-dashboard/vendor/qrcode.min.js'); ?>"></script>
-
-<!-- Fancybox -->
-<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+<?php endif; ?>
 
 <!-- Shared Utilities -->
 <script src="<?php echo esc_url(get_template_directory_uri()); ?>/assets/js/shared-utilities.js?v=<?php echo defined('_S_VERSION') ? _S_VERSION : '1.0.0'; ?>"></script>

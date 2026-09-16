@@ -57,7 +57,6 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
 
     <!-- Preconnect to CDN domains for faster loading -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -69,7 +68,11 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <!-- Redesign: typefaces from the design system (Inter for Latin, IBM Plex
          Sans Arabic for Arabic). Tajawal above stays until the last legacy
          stylesheet is gone. -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <?php // Poppins (headings) and Cairo (Arabic text inside [dir=rtl] content) still come
+          // from the legacy variables. They used to arrive through an @import inside
+          // sc-theme.css, a second round trip before any text. A face is only downloaded
+          // when a page draws text in it. ?>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Poppins:wght@500;600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Redesign: design tokens. Custom properties only — declares no rules of
          its own, so loading it first is safe on pages not yet rebuilt. -->
@@ -132,7 +135,8 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
 
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/bootstrap.min.css">
-    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/eventify/vendor/fontawesome.css">
+    <?php // Solid, regular and brands only: the other families' fonts were never shipped. ?>
+    <link rel="stylesheet" href="<?php echo esc_url($assets_url); ?>css/fontawesome-lean.css">
 
     <?php if (sc_is_rtl()): ?>
     <!-- Bootstrap RTL Override -->
@@ -154,11 +158,9 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
     <!-- SweetAlert2 CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-    <!-- Fancybox CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css">
-
-    <!-- AOS Animation -->
+    <?php if (is_tax('sc_event_category')): // The only template still animated with AOS. ?>
     <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css">
+    <?php endif; ?>
 
     <!-- jQuery -->
     <script src="<?php echo esc_url($assets_url); ?>js/eventify/vendor/jquery-3.7.1.min.js"></script>

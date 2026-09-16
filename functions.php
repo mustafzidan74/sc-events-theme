@@ -821,6 +821,15 @@ function sc_events_suppress_rest_api_errors() {
 }
 add_action('wp_footer', 'sc_events_suppress_rest_api_errors', 999);
 
+/*
+ * WordPress's emoji script only swaps emoji for images on browsers that cannot
+ * draw them; every browser the site supports can. It cost a script on every page.
+ */
+remove_action('wp_head', 'print_emoji_detection_script', 7);
+remove_action('wp_print_styles', 'print_emoji_styles');
+remove_action('admin_print_scripts', 'print_emoji_detection_script');
+remove_action('admin_print_styles', 'print_emoji_styles');
+
 /**
  * Resized copies are saved as WebP.
  *

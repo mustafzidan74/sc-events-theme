@@ -305,8 +305,8 @@ foreach ($tickets as $t) {
 .sc-image-slider-wrapper .swiper-pagination-bullet-active { background: var(--sc-primary, #3b82f6); }
 </style>
 
-<!-- Fancybox JS -->
-<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+<?php /* Fancybox is gone: no page renders a [data-fancybox] link any more, and
+         single-event.js checks for it before binding. */ ?>
 
 <!-- Event Single Page JavaScript -->
 <script src="<?php echo esc_url($assets_url); ?>js/single-event.js"></script>
