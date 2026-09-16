@@ -42,7 +42,7 @@ function sc_notify_page_state() {
                 'event'   => $next->title,
                 'starts'  => date_i18n('l j F Y', strtotime($day)) . ' · ' . date_i18n('g A', strtotime('2000-01-01 ' . sprintf('%02d:00', (int) $settings['types'][$type]['hour']))),
                 'people'  => $people,
-                'minutes' => (int) ceil($people * $settings['interval'] / 60),
+                'minutes' => sc_wabot_campaign_minutes($people, $settings['interval']),
                 'created' => $flag && is_numeric($flag) ? (int) $flag : 0,
             );
         }

@@ -38,7 +38,7 @@ function sc_wabot_campaign_row($c) {
         'total'     => (int) $c->total,
         'counts'    => $counts,
         'done'      => $done,
-        'eta_min'   => $c->status === 'running' ? (int) ceil($left * $c->interval_seconds / 60) : null,
+        'eta_min'   => $c->status === 'running' ? sc_wabot_campaign_minutes($left, $c->interval_seconds) : null,
         'next_at'   => $c->next_send_at,
         'created'   => $c->created_at,
         'finished'  => $c->finished_at,
@@ -61,8 +61,9 @@ add_action('wp_ajax_sc_wabot_campaign_preview', function () {
         'duplicates' => $audience['duplicates'],
         'opted_out'  => $audience['opted_out'],
         'samples'    => $samples,
-        'minutes'    => (int) ceil(count($audience['rows']) * $interval / 60),
+        'minutes'    => sc_wabot_campaign_minutes(count($audience['rows']), $interval),
         'numbers'    => count(sc_wabot_candidates(null, 'campaign')),
+        'lanes'      => count(sc_wabot_bulk_numbers()),
         'attach'     => $in['attach'],
     ));
 });
@@ -77,7 +78,7 @@ add_action('wp_ajax_sc_wabot_campaign_create', function () {
     if (is_wp_error($id)) {
         wp_send_json_error(array('message' => $id->get_error_message(), 'field' => $id->get_error_code()));
     }
-    sc_wabot_campaign_tick();
+    sc_wabot_campaign_tick(0);
     wp_send_json_success(array('id' => $id));
 });
 
@@ -86,7 +87,7 @@ add_action('wp_ajax_sc_wabot_campaigns', function () {
     sc_wabot_verify();
     global $wpdb;
     if (!empty($_POST['tick'])) {
-        sc_wabot_campaign_tick();
+        sc_wabot_campaign_tick(0);
     }
     $rows = array();
     foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}sc_wa_campaigns ORDER BY FIELD(status, 'running', 'paused') DESC, id DESC LIMIT 30") as $c) {
@@ -113,7 +114,7 @@ add_action('wp_ajax_sc_wabot_campaign_action', function () {
         case 'resume':
             sc_wabot_refresh_all();
             $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'running', 'paused_reason' => null, 'finished_at' => null, 'next_send_at' => null), array('id' => $id));
-            sc_wabot_campaign_tick();
+            sc_wabot_campaign_tick(0);
             break;
         case 'cancel':
             $wpdb->query($wpdb->prepare("UPDATE {$p}sc_wa_outbox SET status = 'cancelled', updated_at = %s WHERE campaign_id = %d AND status IN ('queued', 'pending')", $now, $id));
@@ -127,7 +128,7 @@ add_action('wp_ajax_sc_wabot_campaign_action', function () {
             ));
             if ($n) {
                 $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'running', 'paused_reason' => null, 'finished_at' => null, 'next_send_at' => null), array('id' => $id));
-                sc_wabot_campaign_tick();
+                sc_wabot_campaign_tick(0);
             }
             break;
         default:
@@ -191,7 +192,7 @@ add_action('wp_ajax_sc_wabot_campaign_resend', function () {
     ));
     if ($n) {
         $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'running', 'paused_reason' => null, 'finished_at' => null, 'next_send_at' => null), array('id' => $id));
-        sc_wabot_campaign_tick();
+        sc_wabot_campaign_tick(0);
     }
     wp_send_json_success(array('queued' => (int) $n));
 });

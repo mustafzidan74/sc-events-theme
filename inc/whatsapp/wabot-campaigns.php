@@ -226,59 +226,165 @@ function sc_wabot_campaign_counts($campaign_id) {
 }
 
 /**
- * Send the next message of each running campaign whose gap has passed. Safe to call often:
- * a campaign's turn is claimed atomically, so two workers never send the same slot.
+ * Numbers that may send campaign messages right now. Status checks and webhooks change a
+ * number's state from other requests, so the stored settings are read fresh.
  */
-function sc_wabot_campaign_tick() {
+function sc_wabot_bulk_numbers() {
+    wp_cache_delete('sc_wabot_settings', 'options');
+    $settings = sc_wabot_settings();
+    return array_values(array_filter(sc_wabot_candidates(null, 'campaign'), function ($k) use ($settings) {
+        return ($settings['numbers'][$k]['status'] ?? '') === 'connected';
+    }));
+}
+
+/** Campaign messages one number may send in a day; a wall of messages from one number gets it banned. */
+function sc_wabot_bulk_daily_cap() {
+    return max(1, (int) apply_filters('sc_wabot_bulk_daily_cap', 1000));
+}
+
+/** Minutes a campaign of $people takes when every connected number sends at $gap seconds. */
+function sc_wabot_campaign_minutes($people, $gap) {
+    $lanes = max(1, count(sc_wabot_bulk_numbers()));
+    return (int) ceil($people * max(15, (int) $gap) / $lanes / 60);
+}
+
+/** Take a number's next turn; its following turn is one gap (±20%) later. */
+function sc_wabot_lane_claim($key, $gap) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'sc_wa_lanes';
+    $now = time();
+    $wpdb->query($wpdb->prepare("INSERT IGNORE INTO $table (number_key, next_at) VALUES (%s, 0)", $key));
+    $next = $now + (int) round(max(15, (int) $gap) * (mt_rand(80, 120) / 100));
+    return (bool) $wpdb->query($wpdb->prepare("UPDATE $table SET next_at = %d WHERE number_key = %s AND next_at <= %d", $next, $key, $now));
+}
+
+/** Give back a turn that sent nothing. */
+function sc_wabot_lane_release($key) {
+    global $wpdb;
+    $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}sc_wa_lanes SET next_at = %d WHERE number_key = %s", time(), $key));
+}
+
+/** Seconds until the first of these numbers may send again. */
+function sc_wabot_lane_wait($keys) {
+    global $wpdb;
+    if (!$keys) {
+        return 0;
+    }
+    $in = implode(',', array_fill(0, count($keys), '%s'));
+    $rows = $wpdb->get_results($wpdb->prepare("SELECT number_key, next_at FROM {$wpdb->prefix}sc_wa_lanes WHERE number_key IN ($in)", $keys), OBJECT_K);
+    $wait = PHP_INT_MAX;
+    foreach ($keys as $k) {
+        $wait = min($wait, isset($rows[$k]) ? (int) $rows[$k]->next_at - time() : 0);
+    }
+    return max(0, $wait);
+}
+
+/**
+ * Send campaign messages from every connected number at once, each number at its own pace.
+ *
+ * Cron runs this once a minute; it keeps going for most of that minute, so a 30-second gap really
+ * means two messages a minute per number, and four numbers send four times as fast as one.
+ * Turns are claimed in the database, so two overlapping runs never double a number's pace or send
+ * the same message twice. Running campaigns take turns, so a reminder is not stuck behind a long list.
+ *
+ * @param int|null $window Seconds to keep sending. Dashboard requests pass 0: one round, no waiting.
+ */
+function sc_wabot_campaign_tick($window = null) {
     global $wpdb;
     $p = $wpdb->prefix;
-    $campaigns = $wpdb->get_results("SELECT * FROM {$p}sc_wa_campaigns WHERE status = 'running' ORDER BY id LIMIT 10");
+    $campaigns = $wpdb->get_col("SELECT id FROM {$p}sc_wa_campaigns WHERE status = 'running' ORDER BY id LIMIT 20");
     if (!$campaigns) {
         return;
     }
     $now = current_time('mysql');
     $now_ts = current_time('timestamp');
+    $numbers = sc_wabot_bulk_numbers();
+    $live = array();
 
-    foreach ($campaigns as $c) {
+    foreach ($campaigns as $cid) {
         // Stuck "sending" rows (a request died mid-send) go back after 10 minutes.
-        $wpdb->query($wpdb->prepare("UPDATE {$p}sc_wa_outbox SET status = 'pending', next_attempt_at = %s WHERE campaign_id = %d AND status = 'sending' AND updated_at < %s", $now, $c->id, date('Y-m-d H:i:s', $now_ts - 600)));
+        $wpdb->query($wpdb->prepare("UPDATE {$p}sc_wa_outbox SET status = 'pending', next_attempt_at = %s WHERE campaign_id = %d AND status = 'sending' AND updated_at < %s", $now, $cid, date('Y-m-d H:i:s', $now_ts - 600)));
 
-        $open = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$p}sc_wa_outbox WHERE campaign_id = %d AND status IN ('queued', 'pending', 'sending')", $c->id));
+        $open = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$p}sc_wa_outbox WHERE campaign_id = %d AND status IN ('queued', 'pending', 'sending')", $cid));
         if ($open === 0) {
-            $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'done', 'finished_at' => $now, 'next_send_at' => null), array('id' => $c->id));
+            $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'done', 'finished_at' => $now, 'next_send_at' => null), array('id' => $cid));
             continue;
         }
-
-        $numbers = sc_wabot_candidates(null, 'campaign');
-        $connected = array_filter($numbers, function ($k) { return (sc_wabot_settings()['numbers'][$k]['status'] ?? '') === 'connected'; });
-        if (!$connected) {
-            $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'paused', 'paused_reason' => __('No WhatsApp number is connected. Resume after reconnecting.', 'sc_events')), array('id' => $c->id));
+        if (!$numbers) {
+            $wpdb->update("{$p}sc_wa_campaigns", array('status' => 'paused', 'paused_reason' => __('No WhatsApp number is connected. Resume after reconnecting.', 'sc_events')), array('id' => $cid));
             continue;
         }
+        $live[] = (int) $cid;
+    }
+    if (!$live) {
+        return;
+    }
 
-        // Claim this campaign's turn and set the next one, with ±20% jitter on the gap.
-        $gap = (int) round($c->interval_seconds * (mt_rand(80, 120) / 100));
-        $claimed = $wpdb->query($wpdb->prepare(
-            "UPDATE {$p}sc_wa_campaigns SET next_send_at = %s WHERE id = %d AND status = 'running' AND (next_send_at IS NULL OR next_send_at <= %s)",
-            date('Y-m-d H:i:s', $now_ts + $gap), $c->id, $now
-        ));
-        if (!$claimed) {
-            continue;
-        }
+    $stop = time() + max(0, (int) ($window === null ? apply_filters('sc_wabot_campaign_window', 50) : $window));
+    $cap = sc_wabot_bulk_daily_cap();
+    $day_start = current_time('Y-m-d') . ' 00:00:00';
+    $sent_today = array();
+    $turn = 0;
 
-        // A retry that is due goes first, otherwise the next person in line.
-        $id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$p}sc_wa_outbox WHERE campaign_id = %d AND status = 'pending' AND next_attempt_at <= %s ORDER BY next_attempt_at, id LIMIT 1", $c->id, $now));
-        if (!$id) {
-            $id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$p}sc_wa_outbox WHERE campaign_id = %d AND status = 'queued' ORDER BY id LIMIT 1", $c->id));
-            if ($id) {
-                $wpdb->query($wpdb->prepare("UPDATE {$p}sc_wa_outbox SET status = 'pending', next_attempt_at = %s WHERE id = %d AND status = 'queued'", $now, $id));
+    while (true) {
+        $numbers = sc_wabot_bulk_numbers();
+        $open = 0;
+        foreach ($numbers as $key) {
+            if (!isset($sent_today[$key])) {
+                $sent_today[$key] = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$p}sc_wa_outbox WHERE used_number = %s AND campaign_id IS NOT NULL AND status = 'sent' AND updated_at >= %s",
+                    $key, $day_start
+                ));
+            }
+            if ($sent_today[$key] >= $cap) {
+                continue;
+            }
+            $open++;
+
+            // The next campaign in turn that has a message ready: a due retry first, then the next person.
+            $row = null;
+            for ($i = 0; $i < count($live) && !$row; $i++) {
+                $cid = $live[($turn + $i) % count($live)];
+                $at = current_time('mysql');
+                $row = $wpdb->get_row($wpdb->prepare(
+                    "SELECT o.id, c.interval_seconds FROM {$p}sc_wa_outbox o
+                     JOIN {$p}sc_wa_campaigns c ON c.id = o.campaign_id AND c.status = 'running'
+                     WHERE o.campaign_id = %d AND (o.status = 'queued' OR (o.status = 'pending' AND o.next_attempt_at <= %s))
+                     ORDER BY o.status = 'pending' DESC, o.next_attempt_at, o.id LIMIT 1",
+                    $cid, $at
+                ));
+            }
+            if (!$row) {
+                break 2;
+            }
+            $turn++;
+            if (!sc_wabot_lane_claim($key, $row->interval_seconds)) {
+                continue;
+            }
+            // Reserve the message for this number. The reservation time is in the future, so a run
+            // looking at the same moment no longer sees it as ready; a run that dies leaves it for
+            // the stuck-row sweep.
+            $at = current_time('mysql');
+            $taken = $wpdb->query($wpdb->prepare(
+                "UPDATE {$p}sc_wa_outbox SET status = 'pending', number_key = %s, next_attempt_at = %s
+                 WHERE id = %d AND (status = 'queued' OR (status = 'pending' AND next_attempt_at <= %s))",
+                $key, date('Y-m-d H:i:s', current_time('timestamp') + 600), $row->id, $at
+            ));
+            if (!$taken || !sc_wabot_process_one((int) $row->id, $key)) {
+                sc_wabot_lane_release($key);
+                continue;
+            }
+            if ($wpdb->get_var($wpdb->prepare("SELECT status FROM {$p}sc_wa_outbox WHERE id = %d", $row->id)) === 'sent') {
+                $sent_today[$key]++;
             }
         }
-        if ($id) {
-            sc_wabot_process_one((int) $id);
-        } else {
-            // Only retries waiting for later: give the turn back.
-            $wpdb->update("{$p}sc_wa_campaigns", array('next_send_at' => null), array('id' => $c->id));
+        if (!$open) {
+            break;
         }
+        $wait = sc_wabot_lane_wait($numbers);
+        if (time() + max(1, $wait) >= $stop) {
+            break;
+        }
+        sleep(max(1, $wait));
     }
 }

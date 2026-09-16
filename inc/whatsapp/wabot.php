@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const SC_WABOT_DB_VERSION = '3';
+const SC_WABOT_DB_VERSION = '4';
 
 /** wa-bot accepts files up to 16 MB; stay under it so an oversize upload never looks like a dead number. */
 const SC_WABOT_MEDIA_MAX_BYTES = 15 * 1024 * 1024;
@@ -460,6 +460,12 @@ function sc_wabot_install() {
         PRIMARY KEY  (id),
         KEY status (status)
     ) $charset;");
+    // One row per number: when it may send its next campaign message.
+    dbDelta("CREATE TABLE {$wpdb->prefix}sc_wa_lanes (
+        number_key varchar(40) NOT NULL,
+        next_at bigint(20) unsigned NOT NULL DEFAULT 0,
+        PRIMARY KEY  (number_key)
+    ) $charset;");
     dbDelta("CREATE TABLE {$wpdb->prefix}sc_wa_inbound (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         number_key varchar(40) NOT NULL,
@@ -594,7 +600,15 @@ function sc_wabot_candidates($preferred, $context, $exclude = array()) {
     return array_keys($scored);
 }
 
-function sc_wabot_process_one($id) {
+/**
+ * Send one queued message.
+ *
+ * @param int         $id   Outbox row.
+ * @param string|null $only Send from this number only (a campaign lane); on failure the row waits
+ *                          for a retry instead of spilling onto numbers that keep their own pace.
+ * @return bool Whether this call took the row.
+ */
+function sc_wabot_process_one($id, $only = null) {
     global $wpdb;
     $table = $wpdb->prefix . 'sc_wa_outbox';
     // Claim the row so cron and a request never send it twice.
@@ -603,7 +617,7 @@ function sc_wabot_process_one($id) {
         current_time('mysql'), $id
     ));
     if (!$claimed) {
-        return;
+        return false;
     }
     $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
     $now = current_time('timestamp');
@@ -612,7 +626,7 @@ function sc_wabot_process_one($id) {
     if ($row->expires_at && strtotime($row->expires_at) < $now) {
         $masked = sc_wabot_is_secret_context($row->context) ? array('body' => sc_wabot_mask_codes($row->body)) : array();
         $wpdb->update($table, $update + $masked + array('status' => 'expired', 'error' => 'Not sent in time'), array('id' => $id));
-        return;
+        return true;
     }
 
     // The file is built once per attempt. If it cannot be built the text still goes, since it carries the link.
@@ -631,7 +645,11 @@ function sc_wabot_process_one($id) {
     $tried = array();
     $retry = false;
     $errors = array();
-    foreach (sc_wabot_candidates($row->number_key, $row->context) as $key) {
+    $keys = sc_wabot_candidates($row->number_key, $row->context);
+    if ($only !== null) {
+        $keys = in_array($only, $keys, true) ? array($only) : array();
+    }
+    foreach ($keys as $key) {
         $tried[] = $key;
         if ($file) {
             $result = sc_wabot_request_media($key, $row->to_phone, $caption_fits ? $row->body : '', $file);
@@ -700,6 +718,7 @@ function sc_wabot_process_one($id) {
     if (($update['status'] ?? '') === 'sent' && $row->context === 'chat_reply' && !empty($update['wa_jid'])) {
         $wpdb->update($wpdb->prefix . 'sc_conversations', array('wa_jid' => $update['wa_jid']), array('id' => (int) $row->context_id));
     }
+    return true;
 }
 
 function sc_wabot_process_due() {

@@ -120,7 +120,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                 </label>
 
                 <div class="w-field w-was__gap">
-                    <label class="w-field__label" for="was-interval"><?php echo esc_html(sc_t('whatsapp.gap', 'Gap between messages')); ?></label>
+                    <label class="w-field__label" for="was-interval"><?php echo esc_html(sc_t('whatsapp.gap_per_number', 'Gap between messages, on each number')); ?></label>
                     <select class="form-control" id="was-interval" name="interval_seconds">
                         <option value="30"><?php echo esc_html(sc_t('whatsapp.gap_30', '30 seconds — fast, only for numbers used daily')); ?></option>
                         <option value="45"><?php echo esc_html(sc_t('whatsapp.gap_45', '45 seconds')); ?></option>
@@ -128,6 +128,7 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
                         <option value="90"><?php echo esc_html(sc_t('whatsapp.gap_90', '1.5 minutes')); ?></option>
                         <option value="120"><?php echo esc_html(sc_t('whatsapp.gap_120', '2 minutes — safest for a new number')); ?></option>
                     </select>
+                    <p class="w-field__help"><?php echo esc_html(sc_t('whatsapp.gap_hint', 'Every connected number allowed for bulk sends at once, each with this gap — two numbers finish twice as fast. Each number sends at most 1,000 campaign messages a day.')); ?></p>
                 </div>
 
                 <div class="w-was__formactions">
@@ -275,7 +276,7 @@ jQuery(function ($) {
             if (p.duplicates) { $stats.append($('<span>').text(num(p.duplicates) + ' duplicate numbers sent once')); }
             if (p.opted_out) { $stats.append($('<span>').text(num(p.opted_out) + ' asked to stop')); }
             if (p.attach) { $stats.append($('<span>').text(p.attach === 'certificate_pdf' ? 'each with their certificate PDF' : 'each with their ticket QR')); }
-            $stats.append($('<span>').text('about ' + (p.minutes >= 120 ? (Math.round(p.minutes / 6) / 10) + ' hours' : p.minutes + ' minutes')));
+            $stats.append($('<span>').text('about ' + (p.minutes >= 120 ? (Math.round(p.minutes / 6) / 10) + ' hours' : p.minutes + ' minutes') + (p.lanes > 1 ? ' on ' + p.lanes + ' numbers' : '')));
             var $bub = $('<div class="w-was__bubbles">').appendTo($box);
             p.samples.forEach(function (s) { $bub.append($('<div class="w-was__bubble" dir="auto">').append($('<small class="w-ltr">').text((s.name ? s.name + ' · ' : '') + '+' + s.to)).append(document.createTextNode(s.text))); });
             if (!p.count) { $box.append($('<p class="w-was__warn">').text('Nobody in this list has a valid WhatsApp number.')); return; }
@@ -287,7 +288,7 @@ jQuery(function ($) {
     function start(p) {
         var d = formData();
         if (!d.title.trim()) { say('Give the campaign a name.'); $('#was-title').trigger('focus'); return; }
-        Swal.fire({ icon: 'question', title: 'Send to ' + num(p.count) + ' people?', text: 'One message every ' + $('#was-interval option:selected').text().split(' —')[0] + '. You can pause or stop at any time.', showCancelButton: true, confirmButtonText: 'Start', cancelButtonText: 'Cancel' })
+        Swal.fire({ icon: 'question', title: 'Send to ' + num(p.count) + ' people?', text: 'Each number sends one message every ' + $('#was-interval option:selected').text().split(' —')[0] + '. You can pause or stop at any time.', showCancelButton: true, confirmButtonText: 'Start', cancelButtonText: 'Cancel' })
             .then(function (res) {
                 if (!res.isConfirmed) { return; }
                 post('sc_wabot_campaign_create', d).done(function (r) {
