@@ -45,14 +45,45 @@ if ($gallery_images) {
         <h2 class="w-ev__h2"><?php echo esc_html($heading); ?></h2>
     <?php endif; ?>
 
-    <?php if ($content): ?>
-        <div class="w-prose"><?php echo wp_kses_post(wpautop($content)); ?></div>
-    <?php endif; ?>
-
-    <?php if ($hero): ?>
-        <div class="w-gallery__shot" style="aspect-ratio:16/9">
-            <img src="<?php echo esc_url($hero); ?>" alt="<?php echo esc_attr($heading); ?>" loading="lazy" decoding="async">
+    <?php
+    // Words and a single picture belong side by side; a long text folds up.
+    $single = $hero;
+    if (!$single && count($images) === 1) {
+        $single = sc_image_src(reset($images), 'large');
+        if ($single) {
+            $images = array();
+        }
+    }
+    $words = $content !== '' ? mb_strlen(wp_strip_all_tags($content)) : 0;
+    $long = $words > 900;
+    // One line of text next to a tall poster leaves a column of nothing; only a
+    // real paragraph earns the side-by-side layout.
+    $split = $single && $words > 240;
+    ?>
+    <?php if ($content || $single): ?>
+    <div class="w-evsec<?php echo $split ? ' w-evsec--split' : ''; ?>">
+        <?php if ($content): ?>
+        <div class="w-evsec__text">
+            <div class="w-prose<?php echo $long ? ' w-prose--clamped' : ''; ?>"<?php echo $long ? ' data-clamp' : ''; ?>>
+                <?php echo wp_kses_post(wpautop($content)); ?>
+            </div>
+            <?php if ($long): ?>
+            <button class="w-btn w-btn--outline w-btn--sm" type="button" data-clamp-toggle
+                    data-more="<?php echo esc_attr(sc_t('frontend.read_more', 'Read more')); ?>"
+                    data-less="<?php echo esc_attr(sc_t('frontend.read_less', 'Read less')); ?>"
+                    style="align-self:flex-start">
+                <?php echo esc_html(sc_t('frontend.read_more', 'Read more')); ?>
+            </button>
+            <?php endif; ?>
         </div>
+        <?php endif; ?>
+
+        <?php if ($single): ?>
+        <div class="w-evsec__media">
+            <img src="<?php echo esc_url($single); ?>" alt="<?php echo esc_attr($heading); ?>" loading="lazy" decoding="async">
+        </div>
+        <?php endif; ?>
+    </div>
     <?php endif; ?>
 
     <?php if ($images):

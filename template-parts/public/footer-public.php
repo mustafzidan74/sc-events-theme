@@ -158,39 +158,57 @@ $sc_tabbar = [
 </nav>
 
 <!--===== BACK TO TOP =======-->
-<div id="back-to-top" title="Back to top">
-    <a href="#" aria-label="Back to top"><i class="fa-solid fa-arrow-up"></i></a>
+<div id="back-to-top" title="<?php echo esc_attr(sc_t('frontend.back_to_top', 'Back to top')); ?>">
+    <a href="#" aria-label="<?php echo esc_attr(sc_t('frontend.back_to_top', 'Back to top')); ?>">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 19V5M5 12l7-7 7 7"/>
+        </svg>
+    </a>
 </div>
 <style>
+/* Drawn here rather than with an icon font: a missing glyph used to leave an
+   empty white disc with no arrow in it. */
 #back-to-top {
     position: fixed !important;
     bottom: 24px !important;
-    right: 24px !important;
+    right: auto !important;
+    left: auto !important;
+    inset-inline-end: 24px !important;
     z-index: 1000 !important;
     display: none;
-    width: 50px !important;
-    height: 50px !important;
+    width: 48px !important;
+    height: 48px !important;
 }
-@media (max-width: 768px) { #back-to-top { right: 16px !important; } }
+@media (max-width: 900px) {
+    /* The chat launcher owns this corner on a phone, so this sits above it —
+       the stack itself (tab bar, buy bar) is measured in header.css. */
+    #back-to-top {
+        inset-inline-end: 18px !important;
+        bottom: calc(var(--w-bottom-stack, var(--w-tabbar-total, 0px)) + 84px) !important;
+    }
+}
 #back-to-top a {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 50px !important;
-    height: 50px !important;
-    background: var(--sc-primary, #7c1314) !important;
-    color: #fff !important;
+    width: 48px !important;
+    height: 48px !important;
+    background: #7C1314 !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, .18) !important;
     border-radius: 50% !important;
     text-decoration: none !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 18px rgba(31, 29, 26, .28) !important;
     cursor: pointer;
-    position: relative !important;
-    overflow: hidden;
 }
-#back-to-top a:after,
-#back-to-top a:before { display: none !important; content: none !important; }
-#back-to-top a i { font-size: 18px !important; color: #fff !important; line-height: 1 !important; }
-#back-to-top a:hover { background: var(--sc-primary, #7c1314) !important; opacity: 0.9; }
+/* The old stylesheet paints a white disc over this button with ::before and
+   ::after; without these two lines the arrow disappears into it. */
+#back-to-top a::before,
+#back-to-top a::after { display: none !important; content: none !important; }
+#back-to-top a:hover { background: #64100F !important; color: #FFFFFF !important; }
+#back-to-top a:focus-visible { outline: 2px solid #C9A24A !important; outline-offset: 3px; }
+#back-to-top a svg { width: 20px; height: 20px; display: block; position: relative; z-index: 1; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

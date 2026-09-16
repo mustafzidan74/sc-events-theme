@@ -276,6 +276,9 @@
   .w-prose img { float: none !important; margin-inline: 0 !important; display: block; }
 }
 
+/* Long prose in a section folds the same way the event description does. */
+.w-evsec__text .w-prose { max-width: 68ch; }
+
 .w-prose--clamped {
   max-height: 22em;
   overflow: hidden;
@@ -679,6 +682,37 @@
   .w-shots--more .is-extra { display: block; }
   .w-ev__faculty.w-shots--more .is-extra { display: flex; }
   .w-shots__more { display: none; }
+}
+
+/* ---- a section of words and one picture ---- */
+
+.w-evsec { display: grid; gap: clamp(20px, 3vw, 40px); align-items: start; }
+
+.w-evsec--split { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+
+.w-evsec__text { display: flex; flex-direction: column; gap: var(--w-space-4); min-width: 0; }
+
+.w-evsec__media {
+  min-width: 0;
+  border-radius: var(--w-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--w-border);
+  background: var(--w-surface);
+  position: sticky;
+  top: 96px;
+}
+
+.w-evsec__media img { width: 100%; height: auto; display: block; }
+
+/* On its own, a picture is shown at a comfortable size rather than blown up
+   across the row — and the frame wraps the picture, so a tall one leaves no
+   white margins beside it. */
+.w-evsec:not(.w-evsec--split) .w-evsec__media { width: fit-content; max-width: min(520px, 100%); }
+.w-evsec:not(.w-evsec--split) .w-evsec__media img { width: auto; max-width: 100%; max-height: 440px; }
+
+@media (max-width: 767.98px) {
+  .w-evsec--split { grid-template-columns: minmax(0, 1fr); }
+  .w-evsec__media { position: static; }
 }
 
 /* ---- workshops ---- */
