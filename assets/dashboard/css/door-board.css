@@ -1,0 +1,165 @@
+/**
+ * Door board (template-parts/dashboard/door-board.php).
+ *
+ * Built on the overview pieces (w-kpi, w-panel, w-bars). Full-screen mode
+ * drops the menu and the top bar and scales the numbers up so they read
+ * from across an entrance hall.
+ *
+ * @package sc_events
+ */
+
+.w-board__head { align-items: flex-end; }
+
+.w-board__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.w-dash .w-board__controls .form-control { width: auto; min-width: 0; max-width: 260px; }
+
+.w-board__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--w-text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.w-board [hidden] { display: none !important; }
+
+.w-board__tvtitle { display: none; }
+
+.w-board__alert {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--w-radius-md);
+  background: var(--w-danger-soft);
+  color: var(--w-danger);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.w-board__kpi--lead { border-color: var(--w-primary); }
+.w-board__kpi { overflow: hidden; }
+.w-board__unit { margin-inline-start: 2px; font-size: .5em; font-weight: 500; color: var(--w-text-2); }
+.w-board__kpi--lead .w-kpi__value { color: var(--w-primary-text); }
+
+.w-board__meter {
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--w-surface-2);
+  overflow: hidden;
+}
+.w-board__meter span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--w-teal, #1B7F70); transition: width .4s ease; }
+
+.w-board__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.w-board__chart { grid-column: 1 / -1; }
+.w-board__chart .w-bars { height: 160px; gap: 2px; }
+/* The reports chart further down wd-overview.css gives every column 34px, which
+   pushed two hours of five-minute slots off a phone screen. */
+.w-board__chart .w-bars__col { flex: 1 1 0; min-width: 2px; }
+
+@media (max-width: 991.98px) {
+  .w-board__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- doors ---- */
+
+.w-board__doors,
+.w-board__feed,
+.w-board__ws { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.w-board__door {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--w-border);
+}
+.w-board__door:last-child { border-bottom: 0; }
+.w-board__doorname { font-weight: 600; overflow-wrap: anywhere; }
+.w-board__doorcount { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.w-board__doormeta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--w-text-3); font-size: 12.5px; }
+.w-board__door.is-quiet .w-board__doorname { color: var(--w-danger); }
+.w-board__warn { color: var(--w-danger); font-weight: 600; }
+
+/* ---- latest scans ---- */
+
+.w-board__item {
+  display: grid;
+  grid-template-columns: 3.2em minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--w-border);
+}
+.w-board__item:last-child { border-bottom: 0; }
+.w-board__time { color: var(--w-text-3); font-size: 13px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.w-board__who { display: flex; flex-direction: column; min-width: 0; }
+.w-board__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-board__sub { color: var(--w-text-3); font-size: 12.5px; overflow-wrap: anywhere; }
+.w-board__item.is-out .w-board__name { color: var(--w-text-2); font-weight: 500; }
+
+/* ---- workshops and exhibitors ---- */
+
+.w-board__wsrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--w-border);
+}
+.w-board__wsrow:last-child { border-bottom: 0; }
+.w-board__wsname { font-weight: 500; overflow-wrap: anywhere; }
+.w-board__wscount { font-variant-numeric: tabular-nums; font-weight: 600; }
+.w-board__wsrow .w-board__meter { grid-column: 1 / -1; margin-top: 2px; }
+.w-board__wstime { grid-column: 1 / -1; color: var(--w-text-3); font-size: 12px; }
+
+.w-board__updated { margin: 14px 0 0; color: var(--w-text-3); font-size: 12.5px; }
+.w-board__updated.is-stale { color: var(--w-danger); font-weight: 600; }
+
+/* ---- full screen ---- */
+
+.w-board-tv .w-side,
+.w-board-tv .w-top,
+.w-board-tv .w-scrim,
+.w-board-tv .w-page-head__sub,
+.w-board-tv #sc-admin-chat-widget { display: none !important; }
+
+.w-board-tv .w-dash-col { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: none !important; }
+.w-board-tv #main-content { padding: 20px 28px !important; margin: 0 !important; }
+.w-board-tv .w-page-head { margin-bottom: 8px; }
+.w-board-tv .w-page-head h1 { display: none; }
+.w-board-tv .w-board__controls { opacity: .35; transition: opacity .2s; }
+.w-board-tv .w-board__controls:hover,
+.w-board-tv .w-board__controls:focus-within { opacity: 1; }
+
+.w-board-tv .w-board__tvtitle {
+  display: block;
+  margin: 0 0 16px;
+  font-size: clamp(22px, 2.4vw, 36px);
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.w-board-tv .w-kpi__value { font-size: clamp(40px, 5.2vw, 88px); white-space: nowrap; }
+.w-board-tv .w-kpi__label { font-size: clamp(14px, 1.2vw, 20px); }
+.w-board-tv .w-kpi__sub { font-size: clamp(13px, 1vw, 17px); }
+.w-board-tv .w-board__alert { font-size: clamp(16px, 1.4vw, 24px); }
+.w-board-tv .w-board__chart .w-bars { height: 22vh; }
+.w-board-tv .w-board__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.w-board-tv .w-board__name,
+.w-board-tv .w-board__doorname { font-size: clamp(15px, 1.2vw, 20px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-board__meter span { transition: none; }
+}
