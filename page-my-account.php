@@ -478,7 +478,7 @@ get_template_part('template-parts/public/header', 'public');
             </button>
         </form>
 
-        <a class="w-btn w-btn--outline sc-nav-logout" href="<?php echo esc_url(wp_logout_url(home_url())); ?>"
+        <a class="w-btn w-btn--outline sc-nav-logout" href="<?php echo esc_url(sc_logout_url()); ?>"
            style="align-self:flex-start">
             <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
             <?php echo esc_html(sc_t('frontend.sign_out', 'Sign out')); ?>
@@ -593,7 +593,7 @@ jQuery(document).ready(function($) {
             cancelButtonText: '<?php echo esc_js(__('Cancel', 'sc_events')); ?>'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = '<?php echo esc_js(wp_logout_url(home_url('/'))); ?>';
+                window.location.href = '<?php echo esc_js(sc_logout_url()); ?>';
             }
         });
     });

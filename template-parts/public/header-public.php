@@ -409,7 +409,7 @@ $w_account_url = home_url($is_logged_in ? '/my-account/' : '/login/');
             <?php if ($is_logged_in): ?>
             <li><a href="<?php echo esc_url(home_url('/my-account/#favorites')); ?>"><i class="fa-solid fa-heart" style="margin-<?php echo sc_is_rtl() ? 'left' : 'right'; ?>:8px;color:#ef4444;"></i><?php echo esc_html(sc_t('frontend.my_favorites', 'My Favorites')); ?></a></li>
             <li><a href="<?php echo esc_url(home_url('/my-account/')); ?>"><?php echo esc_html(sc_t('frontend.my_account', 'My Account')); ?></a></li>
-            <li><a href="<?php echo esc_url(wp_logout_url(home_url('/'))); ?>"><?php echo esc_html(sc_t('frontend.logout', 'Logout')); ?></a></li>
+            <li><a href="<?php echo esc_url(sc_logout_url()); ?>"><?php echo esc_html(sc_t('frontend.logout', 'Logout')); ?></a></li>
             <?php else: ?>
             <li><a href="<?php echo esc_url(home_url('/login/')); ?>"><?php echo esc_html(sc_t('frontend.login', 'Login')); ?></a></li>
             <li><a href="<?php echo esc_url(home_url('/register/')); ?>"><?php echo esc_html(sc_t('frontend.register', 'Register')); ?></a></li>

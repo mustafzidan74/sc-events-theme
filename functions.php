@@ -303,6 +303,7 @@ require get_template_directory() . '/inc/admin-dashboard/performance-optimizatio
  * Public Frontend AJAX Handlers
  */
 require get_template_directory() . '/inc/public-frontend/public-ajax-handlers.php';
+require get_template_directory() . '/inc/public-frontend/logout.php';
 
 /**
  * Chat Widget Frontend Integration
