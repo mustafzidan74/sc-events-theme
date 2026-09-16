@@ -159,7 +159,8 @@ $sc_tabbar = [
 
 <!--===== BACK TO TOP =======-->
 <div id="back-to-top" title="<?php echo esc_attr(sc_t('frontend.back_to_top', 'Back to top')); ?>">
-    <a href="#" aria-label="<?php echo esc_attr(sc_t('frontend.back_to_top', 'Back to top')); ?>">
+    <?php // "#top" rather than "#": a legacy smooth-scroll handler feeds the fragment to jQuery, and "#" alone throws there. ?>
+    <a href="#top" aria-label="<?php echo esc_attr(sc_t('frontend.back_to_top', 'Back to top')); ?>">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 19V5M5 12l7-7 7 7"/>
@@ -167,6 +168,15 @@ $sc_tabbar = [
     </a>
 </div>
 <style>
+/* The old theme ships a second scroll-to-top ring at this very corner, above
+   this one, which is what a visitor was clicking on a wide screen. Its script
+   measures that SVG as the page loads, so the markup stays and only the sight
+   of it goes. */
+.paginacontainer {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
 /* Drawn here rather than with an icon font: a missing glyph used to leave an
    empty white disc with no arrow in it. */
 #back-to-top {
