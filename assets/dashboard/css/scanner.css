@@ -109,6 +109,71 @@
 
 .w-scan__mode { margin: 0; color: var(--w-text-2); font-size: 13px; }
 
+/* ---- Working without a connection --------------------------------------- */
+
+.w-scan__offline {
+  --off: var(--w-success, #067647);
+  --off-soft: var(--w-success-soft, #DCFAE6);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface-2);
+  font-size: 13px;
+}
+.w-scan__offline[data-state="offline"],
+.w-scan__offline[data-state="sending"] { --off: var(--w-warning, #B54708); --off-soft: var(--w-warning-soft, #FEF0C7); background: var(--off-soft); border-color: transparent; }
+.w-scan__offline[data-state="offline_nolist"],
+.w-scan__offline[data-state="signed_out"],
+.w-scan__offline[data-state="nolist"] { --off: var(--w-danger, #B42318); --off-soft: var(--w-danger-soft, #FEE4E2); background: var(--off-soft); border-color: transparent; }
+.w-scan__offline[data-state="loading"] { --off: var(--w-text-3); }
+
+.w-scan__offdot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--off); }
+.w-scan__offtext { flex: 1 1 200px; min-width: 0; color: var(--w-text); font-weight: 500; }
+.w-scan__offactions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.w-scan__offbtn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--w-border-strong);
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface);
+  color: var(--w-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.w-scan__offbtn:hover { background: var(--w-surface-2); }
+.w-scan__offbtn--warn { border-color: transparent; background: var(--w-danger, #B42318); color: #fff; }
+.w-scan__offbtn--warn:hover { background: var(--w-danger, #B42318); filter: brightness(.92); }
+
+.w-scan__offnote {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: var(--w-radius-md);
+  background: var(--w-surface-2);
+  border: 1px dashed var(--w-border-strong);
+  color: var(--w-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.w-scan__review { display: flex; flex-direction: column; gap: 8px; text-align: start; }
+.w-scan__reviewsub { margin: 0 0 4px; color: var(--w-text-2); font-size: 14px; }
+.w-scan__reviewitem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-md);
+}
+.w-scan__reviewmeta { color: var(--w-text-3); font-size: 12px; direction: ltr; text-align: start; }
+.w-scan__reviewmsg { color: var(--w-danger, #B42318); font-size: 13px; }
+
 /* ---- Camera ------------------------------------------------------------ */
 
 .w-scan__panel {

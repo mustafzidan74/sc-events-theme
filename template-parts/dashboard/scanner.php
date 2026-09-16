@@ -6,6 +6,11 @@
  * (sessions-ajax-handlers.php), sc_search_attendee_by_phone (attendees-ajax-handlers.php),
  * sc_venues_get_gates_by_event and sc_sessions_get_by_event.
  *
+ * Without a connection the page answers from the event's list saved on the
+ * phone and holds the scans until the server can be reached again
+ * (assets/dashboard/js/scanner-offline.js, inc/admin-dashboard/scanner-offline.php).
+ * Session check-in still needs the server.
+ *
  * @package sc_events
  */
 
@@ -125,6 +130,32 @@ $i18n = array(
     'in_tag'            => sc_t('scanner.in_tag', 'Checked in'),
     'mode_out'          => sc_t('scanner.mode_out', 'Scanning the same ticket again today checks the person out.'),
     'mode_warn'         => sc_t('scanner.mode_warn', 'Scanning the same ticket again today shows "Already checked in".'),
+    // Working without a connection
+    'off_loading'       => sc_t('scanner.off_loading', 'Saving the list on this phone… %s people'),
+    'off_ready'         => sc_t('scanner.off_ready', 'Works without internet · %1$s people · updated %2$s'),
+    'off_offline'       => sc_t('scanner.off_offline', 'No connection — checking from the list saved on this phone'),
+    'off_nolist'        => sc_t('scanner.off_nolist', 'No connection, and the list is not saved on this phone yet. Connect once to download it.'),
+    'off_nolist_online' => sc_t('scanner.off_nolist_online', 'The list could not be saved on this phone. Scanning needs a connection.'),
+    'off_waiting'       => sc_t('scanner.off_waiting', '%s scans waiting to be sent'),
+    'off_waiting_one'   => sc_t('scanner.off_waiting_one', '1 scan waiting to be sent'),
+    'off_sending'       => sc_t('scanner.off_sending', 'Sending %s saved scans…'),
+    'off_sending_one'   => sc_t('scanner.off_sending_one', 'Sending 1 saved scan…'),
+    'off_signed_out'    => sc_t('scanner.off_signed_out', 'Signed out. Sign in again to send %s saved scans.'),
+    'off_send'          => sc_t('scanner.off_send', 'Send now'),
+    'off_review'        => sc_t('scanner.off_review', '%s to check'),
+    'off_saved'         => sc_t('scanner.off_saved', 'No connection. Saved on this phone and sent when the connection is back.'),
+    'off_unknown'       => sc_t('scanner.off_unknown', 'Not in the saved list'),
+    'off_unknown_msg'   => sc_t('scanner.off_unknown_msg', 'This code is not in the list saved on this phone — the person may have registered in the last few minutes. Check the ticket on their phone before letting them in. The scan is checked when the connection is back.'),
+    'review_title'      => sc_t('scanner.review_title', 'Scans to check'),
+    'review_sub'        => sc_t('scanner.review_sub', 'These were let in while offline, and the server did not accept them.'),
+    'review_clear'      => sc_t('scanner.review_clear', 'Clear the list'),
+    'review_none'       => sc_t('scanner.review_none', 'Nothing to check.'),
+    'inactive'          => sc_t('scanner.inactive', 'This ticket has been cancelled or transferred.'),
+    'unpaid'            => sc_t('scanner.unpaid', 'Payment for this ticket has not been confirmed yet.'),
+    'wrong_workshop'    => sc_t('scanner.wrong_workshop', 'This ticket is not registered for this workshop. Expected: %s'),
+    'workshop_ticket'   => sc_t('scanner.workshop_ticket', 'This is a workshop ticket. Choose its workshop in "Scanning at" and scan again.'),
+    'company_inactive'  => sc_t('scanner.company_inactive', 'This company badge is not active.'),
+    'company_ticket'    => sc_t('scanner.company_ticket', 'Company / exhibitor'),
 );
 
 global $load_wd_form;
@@ -230,6 +261,14 @@ if (!$is_scanner_only) {
             </div>
             <p class="w-scan__hint" id="event-required-hint" hidden><?php echo esc_html($i18n['choose_event']); ?></p>
             <p class="w-scan__mode" id="scan-mode-note" hidden></p>
+            <div class="w-scan__offline" id="offline-bar" data-state="nolist" hidden>
+                <span class="w-scan__offdot" aria-hidden="true"></span>
+                <span class="w-scan__offtext" id="offline-text" role="status"></span>
+                <span class="w-scan__offactions">
+                    <button type="button" class="w-scan__offbtn" id="offline-send" hidden><?php echo esc_html($i18n['off_send']); ?></button>
+                    <button type="button" class="w-scan__offbtn w-scan__offbtn--warn" id="offline-review" hidden></button>
+                </span>
+            </div>
         </section>
 
         <!-- Scanning -->
@@ -275,6 +314,7 @@ if (!$is_scanner_only) {
                 </div>
             </div>
             <div class="w-scan__body">
+                <p class="w-scan__offnote" id="result-offline" hidden></p>
                 <p class="w-scan__warn" id="result-note" hidden></p>
                 <p class="w-scan__name" id="result-name" dir="auto"></p>
                 <p class="w-scan__ticket" id="result-ticket" dir="auto"></p>
@@ -317,6 +357,7 @@ if (!$is_scanner_only) {
 
 <?php if ($filtered_events): ?>
 <script src="<?php echo esc_url(sc_dashboard_asset('dashboard/js/lib/html5-qrcode/html5-qrcode.min.js')); ?>"></script>
+<script src="<?php echo esc_url(sc_dashboard_asset('dashboard/js/scanner-offline.js')); ?>"></script>
 <script>
 jQuery(function ($) {
     'use strict';
@@ -333,6 +374,24 @@ jQuery(function ($) {
         echo wp_json_encode($tracking_map ?: new stdClass());
     ?>;
     var restrictedSessions =<?php echo ($is_scanner_only && !$is_full_scanner_access) ? wp_json_encode(array_map('intval', $scanner_allowed_session_ids)) : 'null'; ?>;
+
+    // Answers from the list saved on this phone when the server cannot be reached.
+    var off = window.ScOffline || null;
+    if (off) {
+        off.init({
+            ajaxurl: scDashboard.ajaxurl,
+            userId: <?php echo (int) get_current_user_id(); ?>,
+            timeZone: <?php echo wp_json_encode(wp_timezone_string()); ?>,
+            text: T,
+            getNonce: function () { return scDashboard.nonce; },
+            setNonce: function (n) { scDashboard.nonce = n; }
+        });
+        if ('serviceWorker' in navigator && window.isSecureContext) {
+            navigator.serviceWorker.register(<?php echo wp_json_encode(esc_url_raw(sc_scanner_service_worker_url())); ?>, {
+                scope: <?php echo wp_json_encode(wp_make_link_relative(home_url('/event-manager-dashboard/scanner'))); ?>
+            }).catch(function () {});
+        }
+    }
 
     var scanner = null;
     var isScanning = false;
@@ -448,6 +507,7 @@ jQuery(function ($) {
 
     function selectEvent(eventId) {
         selectedEventId = eventId || null;
+        if (off) { off.useEvent(selectedEventId); }
         fillWorkshops(selectedEventId);
         if (selectedEventId) {
             loadGates(selectedEventId);
@@ -457,6 +517,59 @@ jQuery(function ($) {
             selectedGateId = selectedSessionId = null;
         }
         refreshReady();
+    }
+
+    function num(n) { return Number(n || 0).toLocaleString(); }
+
+    function renderOffline(s) {
+        var $bar = $('#offline-bar');
+        if (!selectedEventId) { $bar.prop('hidden', true); return; }
+        var text = '';
+        var tone = s.state;
+        switch (s.state) {
+            case 'loading': text = fmt(T.off_loading, num(s.loaded)); break;
+            case 'offline': text = T.off_offline + (s.waiting ? ' · ' + (s.waiting === 1 ? T.off_waiting_one : fmt(T.off_waiting, num(s.waiting))) : ''); break;
+            case 'offline_nolist': text = T.off_nolist; break;
+            case 'signed_out': text = fmt(T.off_signed_out, num(s.waiting)); break;
+            case 'sending': text = s.waiting === 1 ? T.off_sending_one : fmt(T.off_sending, num(s.waiting)); break;
+            case 'nolist': text = T.off_nolist_online; break;
+            default:
+                var at = s.checkedAt ? new Date(s.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+                text = T.off_ready.replace('%1$s', num(s.people + s.companies)).replace('%2$s', at);
+        }
+        $bar.attr('data-state', tone).prop('hidden', false);
+        $('#offline-text').text(text);
+        $('#offline-send').prop('hidden', !(s.waiting && s.state !== 'loading'));
+        $('#offline-review').prop('hidden', !s.review).text(fmt(T.off_review, num(s.review)));
+    }
+
+    if (off) {
+        off.onChange(renderOffline);
+        $('#offline-send').on('click', function () { off.sync(); });
+        $('#offline-review').on('click', function () {
+            off.reviewList().then(function (rows) {
+                var $box = $('<div class="w-scan__review">');
+                $('<p class="w-scan__reviewsub">').text(T.review_sub).appendTo($box);
+                if (!rows.length) { $('<p>').text(T.review_none).appendTo($box); }
+                rows.forEach(function (r) {
+                    var $item = $('<div class="w-scan__reviewitem">');
+                    $('<strong dir="auto">').text(r.name || r.code).appendTo($item);
+                    $('<span class="w-scan__reviewmeta">').text(r.code + ' · ' + new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })).appendTo($item);
+                    $('<span class="w-scan__reviewmsg">').text(r.message).appendTo($item);
+                    $box.append($item);
+                });
+                Swal.fire({
+                    title: T.review_title,
+                    html: $box[0],
+                    width: 560,
+                    showCloseButton: true,
+                    showConfirmButton: rows.length > 0,
+                    confirmButtonText: T.review_clear
+                }).then(function (res) {
+                    if (res.isConfirmed) { off.clearReview(); }
+                });
+            });
+        });
     }
 
     $('#scanner-event-select').on('change', function () { selectEvent($(this).val()); });
@@ -561,7 +674,18 @@ jQuery(function ($) {
     });
     $('#manual-ticket-id').on('input', function () { manualNote(''); });
 
+    function offlineReady() {
+        return !!(off && off.hasList() && !(selectedSessionId && !selectedWorkshopId));
+    }
+
+    function pickOrScan(people) {
+        if (!people.length) { showError(T.no_phone_match, T.not_found); return; }
+        if (people.length === 1) { processTicket(people[0].ticket_id); return; }
+        pickPerson(people);
+    }
+
     function searchByPhone(phone) {
+        if (offlineReady() && !off.isOnline()) { pickOrScan(off.searchPhone(phone)); return; }
         showBusy(true);
         $.post(scDashboard.ajaxurl, { action: 'sc_search_attendee_by_phone', nonce: scDashboard.nonce, phone: phone, event_id: selectedEventId }).done(function (res) {
             showBusy(false);
@@ -572,6 +696,7 @@ jQuery(function ($) {
             pickPerson(people);
         }).fail(function () {
             showBusy(false);
+            if (offlineReady()) { off.markOffline(); pickOrScan(off.searchPhone(phone)); return; }
             showError(T.network, T.network_title);
         });
     }
@@ -628,23 +753,77 @@ jQuery(function ($) {
         processTicket(code);
     }
 
-    function processTicket(code) {
+    function processTicket(code, retried) {
         if (busy) { return; }
-        showBusy(true);
         var sessionMode = !!selectedSessionId && !selectedWorkshopId;
+        var canOffline = offlineReady();
+        if (canOffline && !off.isOnline()) { scanOffline(code, ''); return; }
+
+        showBusy(true);
         var req = { action: sessionMode ? 'sc_session_checkin' : 'sc_scan_and_checkin', nonce: scDashboard.nonce, ticket_id: code, event_id: selectedEventId };
         if (selectedGateId) { req.gate_id = selectedGateId; }
         if (selectedWorkshopId) { req.workshop_id = selectedWorkshopId; }
         if (sessionMode) { req.session_id = selectedSessionId; }
+        // The same reference goes with the saved copy, so a scan that did reach
+        // the server before the line dropped is not recorded twice.
+        var ref = canOffline ? off.newRef() : '';
+        if (ref) { req.client_ref = ref; }
 
-        $.post(scDashboard.ajaxurl, req).done(function (res) {
+        $.ajax({ url: scDashboard.ajaxurl, type: 'POST', data: req, timeout: canOffline ? 7000 : 0 }).done(function (res) {
             showBusy(false);
+            if (off) { off.markOnline(); }
             if (res && res.success) {
+                if (canOffline) { off.noteOnline(code, res.data); }
                 showResult(sessionMode ? fromSession(res.data) : res.data);
+            } else if (res && res.data && res.data.code === 'nonce' && off && !retried) {
+                off.refreshNonce().then(function () { processTicket(code, true); }, function () { showError(T.network, T.network_title); });
             } else {
                 showError((res && res.data && res.data.message) || T.network, (res && res.data && res.data.title) || T.error_title);
             }
-        }).fail(function () {
+        }).fail(function (xhr, textStatus) {
+            showBusy(false);
+            var lost = textStatus === 'timeout' || !xhr.status || xhr.status >= 500 || xhr.status === 429;
+            if (canOffline && lost) {
+                off.markOffline();
+                scanOffline(code, ref);
+                return;
+            }
+            showError(T.network, T.network_title);
+        });
+    }
+
+    // Decided from the list on this phone; the scan waits there for the server.
+    function scanOffline(code, ref) {
+        var door = {
+            ref: ref,
+            workshop: selectedWorkshopId,
+            workshopTitle: selectedWorkshopId ? $('#scanner-workshop-select option:selected').text() : '',
+            gate: selectedGateId
+        };
+        var d = off.decide(code, door);
+        if (d.refused) {
+            showError(d.message, d.title);
+            if (d.name) { $('#error-message').text(d.name + ' — ' + d.message); }
+            return;
+        }
+        showBusy(true);
+        off.hold(d, door).then(function () {
+            showBusy(false);
+            if (d.kind === 'unknown') {
+                showResult({ action_type: 'check_in', unknown: true, attendee: { name: code }, offline: true });
+                return;
+            }
+            showResult({
+                action_type: d.action,
+                already_checked_in: d.already,
+                first_checked_in_at: d.firstAt,
+                is_company: d.kind === 'company',
+                tracking_enabled: false,
+                duration: d.duration,
+                attendee: { name: d.name, ticket_type: d.ticket },
+                offline: true
+            });
+        }, function () {
             showBusy(false);
             showError(T.network, T.network_title);
         });
@@ -672,8 +851,9 @@ jQuery(function ($) {
 
     function showResult(data) {
         var a = data.attendee || {};
-        var tone = data.already_checked_in ? 'warn' : (data.action_type === 'check_out' ? 'out' : 'ok');
-        var title = data.already_checked_in ? (data.is_company ? T.already_company : T.already) : (data.action_type === 'check_out' ? T.checked_out : T.checked_in);
+        var tone = data.already_checked_in || data.unknown ? 'warn' : (data.action_type === 'check_out' ? 'out' : 'ok');
+        var title = data.unknown ? T.off_unknown : data.already_checked_in ? (data.is_company ? T.already_company : T.already) : (data.action_type === 'check_out' ? T.checked_out : T.checked_in);
+        $('#result-offline').text(data.unknown ? T.off_unknown_msg : T.off_saved).prop('hidden', !data.offline);
 
         $('#result-mode').attr('data-tone', tone);
         $('#result-icon').html(ICONS[tone]);
@@ -689,6 +869,9 @@ jQuery(function ($) {
             ['<?php echo esc_js(sc_t('attendees.email', 'Email')); ?>', a.email],
             ['<?php echo esc_js(sc_t('attendees.phone', 'Phone')); ?>', a.phone]
         ];
+        if (data.offline && data.duration) {
+            facts.push(['<?php echo esc_js(sc_t('scanner.time_inside', 'Time inside')); ?>', data.duration]);
+        }
         if (data.tracking_enabled) {
             facts.push(['<?php echo esc_js(sc_t('scanner.today', 'Today')); ?>', fmt(T.scans_today, data.total_scans || 1)]);
             if (data.duration) { facts.push(['<?php echo esc_js(sc_t('scanner.time_inside', 'Time inside')); ?>', data.duration]); }

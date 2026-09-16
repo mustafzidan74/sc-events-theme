@@ -620,6 +620,12 @@ function sc_get_rate_limit_config() {
             'requests' => 120,
             'window' => 60,
         ),
+        // The door. Counted per account, and several gates often share one
+        // account: a busy entrance reaches 60 scans a minute on its own.
+        'scan' => array(
+            'requests' => 400,
+            'window' => 60,
+        ),
     ));
 }
 
@@ -840,6 +846,19 @@ function sc_get_action_rate_limit_type($action) {
         'sc_get_reports',
         'sc_export_attendees',
     );
+
+    $scan_actions = array(
+        'sc_scan_and_checkin',
+        'sc_session_checkin',
+        'sc_search_attendee_by_phone',
+        'sc_scanner_offline_list',
+        'sc_scanner_offline_sync',
+        'sc_scanner_nonce',
+    );
+
+    if (in_array($action, $scan_actions, true)) {
+        return 'scan';
+    }
 
     if (in_array($action, $sensitive_actions)) {
         return 'sensitive';

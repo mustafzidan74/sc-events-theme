@@ -181,5 +181,33 @@ $i18n = array(
     });
 })();
 </script>
+<script>
+(function () {
+    try {
+        if (window.caches) {
+            caches.keys().then(function (keys) {
+                keys.forEach(function (k) { if (k.indexOf('sc-scanner-') === 0) { caches.delete(k); } });
+            });
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) { if (r.scope.indexOf('/event-manager-dashboard/scanner') !== -1) { r.unregister(); } });
+            });
+        }
+        if (window.indexedDB) {
+            var req = indexedDB.open('sc-scanner');
+            // Never create the database from here.
+            req.onupgradeneeded = function () { req.transaction.abort(); };
+            req.onsuccess = function () {
+                var db = req.result;
+                if (db.objectStoreNames.contains('lists')) {
+                    db.transaction('lists', 'readwrite').objectStore('lists').clear();
+                }
+                db.close();
+            };
+        }
+    } catch (e) {}
+})();
+</script>
 </body>
 </html>

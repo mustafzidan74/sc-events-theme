@@ -527,7 +527,7 @@ add_action('wp_ajax_sc_scan_and_checkin', 'sc_scan_and_checkin');
 function sc_scan_and_checkin() {
     // Verify nonce
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'sc_dashboard_nonce')) {
-        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events'), 'title' => 'Security Error'));
+        wp_send_json_error(array('message' => __('Security check failed.', 'sc_events'), 'title' => 'Security Error', 'code' => 'nonce'));
     }
 
     // Check permissions - allow event_manager OR event_scanner
@@ -556,8 +556,6 @@ function sc_scan_and_checkin() {
     // ─────────────────────────────────────────────────────────────
     $attendees_table = $wpdb->prefix . 'sc_attendees';
     $events_table    = $wpdb->prefix . 'sc_events';
-    $checkins_table  = $wpdb->prefix . 'sc_checkins';
-
     $sc_attendee = $wpdb->get_row($wpdb->prepare(
         "SELECT a.*, e.title AS event_title, e.attendance_tracking
          FROM {$attendees_table} a
@@ -575,130 +573,17 @@ function sc_scan_and_checkin() {
             ));
         }
 
-        // Validate active status
-        if ($sc_attendee->status !== 'active') {
-            wp_send_json_error(array(
-                'message' => __('This ticket has been cancelled or transferred.', 'sc_events'),
-                'title'   => 'Ticket Inactive',
-            ));
-        }
-
-        // Validate payment confirmed
-        if ($sc_attendee->payment_status !== 'success' && (float) $sc_attendee->ticket_price > 0) {
-            wp_send_json_error(array(
-                'message' => __('Payment for this ticket has not been confirmed yet.', 'sc_events'),
-                'title'   => 'Payment Pending',
-            ));
-        }
-
-        // Filter by selected workshop if any (must come BEFORE event filter)
-        if ($filter_workshop_id) {
-            if ((int) $sc_attendee->workshop_id !== $filter_workshop_id) {
-                $workshops_table = $wpdb->prefix . 'sc_workshops';
-                $expected_workshop = $wpdb->get_var($wpdb->prepare(
-                    "SELECT title FROM {$workshops_table} WHERE id = %d",
-                    $filter_workshop_id
-                ));
-                wp_send_json_error(array(
-                    'message' => sprintf(__('This ticket is not registered for this workshop. Expected: %s', 'sc_events'), $expected_workshop ?: 'Unknown'),
-                    'title'   => 'Wrong Workshop',
-                ));
-            }
-        } elseif ($filter_event_id) {
-            // When scanning at event-level, only accept event-only attendees (workshop_id IS NULL)
-            // OR all attendees of that event including those of its workshops?
-            // Plan: event scanner accepts ONLY event-only attendees; workshop scanner accepts ONLY workshop attendees of that workshop.
-            if ((int) $sc_attendee->event_id !== $filter_event_id) {
-                $expected = $wpdb->get_var($wpdb->prepare(
-                    "SELECT title FROM {$events_table} WHERE id = %d",
-                    $filter_event_id
-                ));
-                wp_send_json_error(array(
-                    'message' => sprintf(__('This ticket belongs to a different event. Expected: %s', 'sc_events'), $expected ?: 'Unknown'),
-                    'title'   => 'Wrong Event',
-                ));
-            }
-            if (!empty($sc_attendee->workshop_id)) {
-                wp_send_json_error(array(
-                    'message' => __('This is a workshop ticket. Choose its workshop in "Scanning at" and scan again.', 'sc_events'),
-                    'title'   => 'Workshop Ticket',
-                ));
-            }
-        }
-
-        $now              = current_time('mysql');
-        $current_time     = current_time('timestamp');
-        $tracking_enabled = (int) $sc_attendee->attendance_tracking === 1;
-        $action_type      = 'check_in';
-        $duration         = '';
-        $gate_info        = null;
-        $today            = current_time('Y-m-d');
-
-        // Without in/out tracking a later scan the same day is not a new entry: tell the door, so a
-        // shared QR stands out. The first scan on a new day of a multi-day event is a normal check-in.
-        $first_in_today = null;
-        if (!$tracking_enabled) {
-            $first_in_today = $wpdb->get_var($wpdb->prepare(
-                "SELECT MIN(created_at) FROM {$checkins_table}
-                 WHERE attendee_id = %d AND action IN ('checkin', 'manual_checkin') AND DATE(created_at) = %s",
-                $sc_attendee->id, $today
-            ));
-            if (!$first_in_today && (int) $sc_attendee->checked_in === 1 && $sc_attendee->checked_in_at && substr($sc_attendee->checked_in_at, 0, 10) === $today) {
-                $first_in_today = $sc_attendee->checked_in_at;
-            }
-        }
-        $already_checked_in = (bool) $first_in_today;
-
-        // If tracking enabled, decide check_in vs check_out from the last log entry today
-        if ($tracking_enabled) {
-            $last = $wpdb->get_row($wpdb->prepare(
-                "SELECT action, created_at FROM {$checkins_table}
-                 WHERE attendee_id = %d AND DATE(created_at) = %s
-                 ORDER BY created_at DESC LIMIT 1",
-                $sc_attendee->id, $today
-            ));
-            if ($last && in_array($last->action, array('checkin', 'manual_checkin'), true)) {
-                $action_type = 'check_out';
-                $duration_seconds = $current_time - strtotime($last->created_at);
-                $hours   = floor($duration_seconds / 3600);
-                $minutes = floor(($duration_seconds % 3600) / 60);
-                $duration = sprintf('%02d:%02d', $hours, $minutes);
-            }
-        }
-
-        // Insert check-in log row
-        $wpdb->insert($checkins_table, array(
-            'attendee_id'  => (int) $sc_attendee->id,
-            'event_id'     => (int) $sc_attendee->event_id,
-            'workshop_id'  => !empty($sc_attendee->workshop_id) ? (int) $sc_attendee->workshop_id : null,
-            'action'       => $action_type === 'check_out' ? 'checkout' : 'checkin',
-            'scanned_by'   => get_current_user_id(),
-            'scan_method'  => 'qr',
-            'device_info'  => isset($_SERVER['HTTP_USER_AGENT']) ? substr($_SERVER['HTTP_USER_AGENT'], 0, 250) : null,
-            'created_at'   => $now,
+        $client_ref = isset($_POST['client_ref']) && function_exists('sc_scanner_clean_ref') ? sc_scanner_clean_ref(wp_unslash($_POST['client_ref'])) : '';
+        $scan = sc_scanner_record_attendee_scan($sc_attendee, array(
+            'workshop_id' => $filter_workshop_id,
+            'event_id'    => $filter_event_id,
+            'gate_id'     => $gate_id,
+            'client_ref'  => $client_ref,
         ));
-
-        // First-time check-in: flip the cached flag and bump event counter
-        if ($action_type === 'check_in' && !(int) $sc_attendee->checked_in) {
-            $wpdb->update($attendees_table, array(
-                'checked_in'    => 1,
-                'checked_in_at' => $now,
-                'checked_in_by' => get_current_user_id(),
-                'updated_at'    => $now,
-            ), array('id' => $sc_attendee->id));
-
-            $wpdb->query($wpdb->prepare(
-                "UPDATE {$events_table} SET total_checked_in = total_checked_in + 1 WHERE id = %d",
-                $sc_attendee->event_id
-            ));
+        if (!$scan['ok']) {
+            wp_send_json_error(array('message' => $scan['message'], 'title' => $scan['title'], 'code' => $scan['code']));
         }
-
-        // Count today's scans for this attendee
-        $today_scans = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$checkins_table}
-             WHERE attendee_id = %d AND DATE(created_at) = %s",
-            $sc_attendee->id, $today
-        ));
+        $current_time = current_time('timestamp');
 
         // Decode extra_fields JSON for display
         $extra_fields = array();
@@ -709,37 +594,17 @@ function sc_scan_and_checkin() {
             }
         }
 
-        // Optional gate logging (legacy compatibility)
-        if ($gate_id && class_exists('SC_Gate')) {
-            $gate = SC_Gate::get($gate_id);
-            if ($gate) {
-                $gate_info = array(
-                    'id'      => $gate->id,
-                    'name'    => $gate->name,
-                    'zone_id' => $gate->zone_id,
-                );
-                SC_Gate::log_entry($gate_id, 1, array(
-                    'attendee_id' => $sc_attendee->id,
-                    'ticket_code' => $ticket_id,
-                    'scan_method' => 'qr',
-                    'scanned_by'  => get_current_user_id(),
-                    'ip_address'  => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
-                    'is_valid'    => 1,
-                ));
-            }
-        }
-
         wp_send_json_success(array(
-            'action_type'      => $action_type,
-            'already_checked_in' => $already_checked_in,
+            'action_type'      => $scan['action_type'],
+            'already_checked_in' => !empty($scan['already_checked_in']),
             // UTC ISO time; the scanner shows it in the device's own time zone.
-            'first_checked_in_at' => $first_in_today ? get_gmt_from_date($first_in_today, 'Y-m-d\TH:i:s\Z') : '',
+            'first_checked_in_at' => isset($scan['first_checked_in_at']) ? $scan['first_checked_in_at'] : '',
             'scan_time'        => date('h:i A', $current_time),
             'scan_date'        => date('M d, Y', $current_time),
-            'tracking_enabled' => $tracking_enabled,
-            'total_scans'      => $today_scans,
-            'duration'         => $duration,
-            'gate'             => $gate_info,
+            'tracking_enabled' => (int) $sc_attendee->attendance_tracking === 1,
+            'total_scans'      => isset($scan['total_scans']) ? $scan['total_scans'] : 1,
+            'duration'         => isset($scan['duration']) ? $scan['duration'] : '',
+            'gate'             => isset($scan['gate']) ? $scan['gate'] : null,
             'attendee' => array(
                 'id'          => (int) $sc_attendee->id,
                 'name'        => $sc_attendee->name,
