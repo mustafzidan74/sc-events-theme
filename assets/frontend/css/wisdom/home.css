@@ -505,7 +505,68 @@
   pointer-events: none;
 }
 
-.w-tickets__copy { position: relative; display: flex; flex-direction: column; gap: 18px; }
+.w-tickets__copy { position: relative; display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+
+.w-tickets__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--w-gold);
+}
+
+/* What the pass is actually worth, in three lines — the half of the panel that
+   used to be empty under the button. */
+.w-tickets__perks {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9375rem;
+  color: var(--w-ink-200);
+}
+
+.w-tickets__perks li { display: flex; align-items: center; gap: 12px; }
+
+.w-tickets__perks i {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .07);
+  color: var(--w-ink-100);
+  font-size: 0.875rem;
+}
+
+.w-tickets__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--w-ink-300);
+}
+
+.w-tickets__label + .w-ticket { margin-top: -2px; }
+.w-tickets__list > .w-tickets__label:not(:first-child) { margin-top: 8px; }
+
+.w-tickets__all {
+  align-self: flex-start;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--w-ink-100);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, .25);
+  padding-bottom: 2px;
+}
+
+.w-tickets__all:hover { color: #fff; border-color: #fff; }
 
 /* A global h1–h6 rule paints headings with the page's text colour, which is
    near-black on this dark panel — say it explicitly here. */
@@ -538,10 +599,10 @@
 
 .w-ticket {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--w-space-3);
   align-items: center;
-  padding: 18px 22px;
+  padding: 14px 18px;
   border: 1.5px solid var(--w-ink-700);
   border-radius: 16px;
   background: rgba(255, 255, 255, .03);
@@ -556,8 +617,42 @@
 
 .w-ticket--soldout { opacity: .5; pointer-events: none; }
 
-.w-ticket__name { display: block; font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.01em; }
-.w-ticket__note { display: block; font-size: 0.9375rem; color: var(--w-ink-300); margin-top: 2px; }
+.w-ticket__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.w-ticket__name { display: block; font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; }
+.w-ticket__note { display: block; font-size: 0.875rem; color: var(--w-ink-300); }
+
+/* The pass is the decision the page is asking for; the workshops sit under it. */
+.w-ticket--lead {
+  border-color: rgba(201, 162, 74, .55);
+  background: rgba(201, 162, 74, .08);
+}
+
+.w-ticket--lead .w-ticket__name { font-size: 1.1875rem; }
+.w-ticket--lead:hover { border-color: var(--w-gold); }
+
+/* Shown only once a bench is half gone — otherwise it is just decoration. */
+.w-ticket__bar {
+  display: block;
+  height: 3px;
+  width: min(180px, 100%);
+  margin-top: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .14);
+  overflow: hidden;
+}
+
+.w-ticket__bar span { display: block; height: 100%; background: var(--w-gold); }
+
+.w-ticket__go {
+  flex: none;
+  color: var(--w-ink-300);
+  display: inline-flex;
+  transition: transform var(--w-duration) var(--w-ease), color var(--w-duration) var(--w-ease);
+}
+
+.w-ticket:hover .w-ticket__go { color: #fff; transform: translateX(3px); }
+[dir="rtl"] .w-ticket__go svg { transform: scaleX(-1); }
+[dir="rtl"] .w-ticket:hover .w-ticket__go { transform: translateX(-3px); }
 
 .w-ticket__price {
   font-size: 1.375rem;

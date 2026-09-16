@@ -684,24 +684,96 @@ if ($next_event) {
 </section>
 <?php endif; ?>
 
-<?php if ($w_tickets): ?>
+<?php if ($w_tickets):
+    /*
+     * The pass and the workshops are two different decisions — one seat at the
+     * congress, and a bench with twenty-five places. Listing them as seven
+     * identical rows hid which was which, and left the panel's other half empty.
+     */
+    $w_panel_ticket = function_exists('sc_visitor_event_ticket') ? sc_visitor_event_ticket($next_event->id) : null;
+    $w_pass = [];
+    $w_bench = [];
+    foreach ($w_tickets as $w_tk) {
+        if (empty($w_tk->is_active)) {
+            continue;
+        }
+        if (empty($w_tk->workshop_id)) {
+            $w_pass[] = $w_tk;
+        } else {
+            $w_bench[] = $w_tk;
+        }
+    }
+    $w_bench_cap = 4;
+    $w_bench_more = max(0, count($w_bench) - $w_bench_cap);
+
+    // One row: name, how many places are left, and how tight it is getting.
+    $w_ticket_row = static function ($tk, $href, $lead = false) {
+        $qty = (int) $tk->quantity;
+        $sold = (int) $tk->sold;
+        $left = $qty > 0 ? max(0, $qty - $sold) : null;
+        $out = $left === 0;
+        $price = (float) $tk->price;
+        $taken = $qty > 0 ? min(100, round($sold / $qty * 100)) : 0;
+        ?>
+        <a class="w-ticket<?php echo $out ? ' w-ticket--soldout' : ''; ?><?php echo $lead ? ' w-ticket--lead' : ''; ?>" href="<?php echo esc_url($href); ?>">
+            <span class="w-ticket__text">
+                <span class="w-ticket__name"><?php echo esc_html($tk->name); ?></span>
+                <?php if ($out): ?>
+                    <span class="w-ticket__note"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
+                <?php elseif ($left !== null): ?>
+                    <span class="w-ticket__note"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%s seats left'), number_format_i18n($left))); ?></span>
+                    <?php if ($taken >= 50): ?>
+                        <span class="w-ticket__bar" aria-hidden="true"><span style="width:<?php echo esc_attr($taken); ?>%"></span></span>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </span>
+            <?php if ($price > 0): ?>
+                <span class="w-ticket__price"><?php echo esc_html(sc_currency($price)); ?></span>
+            <?php else: ?>
+                <span class="w-ticket__go" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                </span>
+            <?php endif; ?>
+        </a>
+        <?php
+    };
+    $w_tickets_href = home_url('/event/' . $next_event->slug . '#tickets');
+?>
 <!--===== TICKET PICKER =======-->
 <section class="w-section">
     <div class="w-tickets">
         <div class="w-tickets__copy">
-            <?php $w_panel_ticket = function_exists('sc_visitor_event_ticket') ? sc_visitor_event_ticket($next_event->id) : null; ?>
+            <span class="w-tickets__kicker">
+                <?php if ($w_panel_ticket): ?>
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    <?php echo esc_html(sc_t('frontend.you_are_registered', 'You are registered')); ?>
+                <?php else: ?>
+                    <span class="w-hero__pulse" aria-hidden="true"></span>
+                    <?php echo esc_html(sc_t('frontend.registration_open', 'Registration open')); ?>
+                <?php endif; ?>
+            </span>
+
             <h2 class="w-tickets__title"><?php echo esc_html($w_panel_ticket
                 ? sc_t('frontend.you_are_in', 'You’re in.')
                 : sc_t('frontend.pick_your_ticket', "Pick your ticket. That's it.")); ?></h2>
+
             <p class="w-tickets__lede"><?php echo esc_html($w_panel_ticket && $w_panel_ticket->ticket_name
                 ? $next_event->title . ' · ' . $w_panel_ticket->ticket_name
                 : $next_event->title); ?></p>
+
             <div class="w-tickets__facts">
                 <span><?php echo esc_html(date_i18n('j M Y', strtotime($next_event->start_date))); ?></span>
                 <?php if (!empty($next_event->venue_name)): ?>
                     <span>· <?php echo esc_html($next_event->venue_name); ?></span>
                 <?php endif; ?>
             </div>
+
+            <ul class="w-tickets__perks">
+                <li><i class="fa-brands fa-whatsapp" aria-hidden="true"></i><?php echo esc_html(sc_t('frontend.perk_qr', 'Your QR ticket arrives on WhatsApp')); ?></li>
+                <li><i class="fa-solid fa-id-badge" aria-hidden="true"></i><?php echo esc_html(sc_t('frontend.perk_badge', 'E-badge and certificate in your account')); ?></li>
+                <li><i class="fa-solid fa-user-group" aria-hidden="true"></i><?php echo esc_html(sc_t('frontend.perk_bench', 'Workshops are booked seat by seat')); ?></li>
+            </ul>
+
             <?php if ($w_panel_ticket): ?>
             <a class="w-tickets__cta" href="<?php echo esc_url(sc_ticket_view_url($w_panel_ticket)); ?>">
                 <?php echo esc_html(sc_t('frontend.open_my_ticket', 'Open my ticket')); ?>
@@ -714,28 +786,23 @@ if ($next_event) {
         </div>
 
         <div class="w-tickets__list">
-            <?php foreach ($w_tickets as $w_tk):
-                $w_qty = (int) $w_tk->quantity;
-                $w_sold = (int) $w_tk->sold;
-                $w_left = $w_qty > 0 ? max(0, $w_qty - $w_sold) : null;
-                $w_out = $w_left === 0;
-                $w_price = (float) $w_tk->price;
-            ?>
-            <a class="w-ticket<?php echo $w_out ? ' w-ticket--soldout' : ''; ?>"
-               href="<?php echo esc_url(home_url('/event/' . $next_event->slug . '#tickets')); ?>">
-                <span>
-                    <span class="w-ticket__name"><?php echo esc_html($w_tk->name); ?></span>
-                    <?php if ($w_out): ?>
-                        <span class="w-ticket__note"><?php echo esc_html(sc_t('frontend.sold_out', 'Sold out')); ?></span>
-                    <?php elseif ($w_left !== null): ?>
-                        <span class="w-ticket__note"><?php echo esc_html(sprintf(sc_t('frontend.seats_left', '%s seats left'), number_format_i18n($w_left))); ?></span>
-                    <?php endif; ?>
-                </span>
-                <?php if ($w_price > 0): ?>
-                <span class="w-ticket__price"><?php echo esc_html(sc_currency($w_price)); ?></span>
+            <?php // Somebody who already holds the pass is not being sold it again — only the benches are left to pick. ?>
+            <?php if ($w_pass && !$w_panel_ticket): ?>
+                <span class="w-tickets__label"><?php echo esc_html(sc_t('frontend.congress_pass', 'Congress pass')); ?></span>
+                <?php foreach ($w_pass as $w_tk) { $w_ticket_row($w_tk, $w_tickets_href, true); } ?>
+            <?php endif; ?>
+
+            <?php if ($w_bench): ?>
+                <span class="w-tickets__label"><?php echo esc_html($w_panel_ticket
+                    ? sc_t('frontend.add_a_workshop', 'Add a workshop')
+                    : sc_t('frontend.workshops', 'Workshops')); ?></span>
+                <?php foreach (array_slice($w_bench, 0, $w_bench_cap) as $w_tk) { $w_ticket_row($w_tk, $w_tickets_href); } ?>
+                <?php if ($w_bench_more): ?>
+                <a class="w-tickets__all" href="<?php echo esc_url(home_url('/workshops/')); ?>">
+                    <?php printf(esc_html(sc_t('frontend.see_all_workshops', 'See all %s workshops')), esc_html(number_format_i18n(count($w_bench)))); ?>
+                </a>
                 <?php endif; ?>
-            </a>
-            <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 </section>
