@@ -2,6 +2,11 @@
 /**
  * The free-form sections an organiser adds to an event.
  *
+ * A section can hold sixty pictures — the 2025 congress has several — so the
+ * page shows the first row or two and offers the rest behind one button. On a
+ * phone the same pictures become a rail you swipe, because a wall of sixty
+ * made that page 46,000 pixels tall.
+ *
  * Every stored type — about, card, image_grid, image_slider — carries the same
  * fields, so one renderer covers all four: a heading, some prose, an optional
  * call to action, then whichever of images or cards was filled in. That is a
@@ -50,27 +55,45 @@ if ($gallery_images) {
         </div>
     <?php endif; ?>
 
-    <?php if ($images): ?>
-    <div class="w-gallery">
-        <?php foreach ($images as $img):
+    <?php if ($images):
+        $shots = array();
+        foreach ($images as $img) {
             $src = sc_image_src($img, 'large');
-            if (!$src) { continue; }
-        ?>
-        <div class="w-gallery__shot">
-            <img src="<?php echo esc_url($src); ?>" alt="" loading="lazy" decoding="async">
+            if ($src) {
+                $shots[] = $src;
+            }
+        }
+        $shown = 8;
+        $rest = max(0, count($shots) - $shown);
+    ?>
+    <?php // One or two pictures are the point of their section, not a thumbnail in a grid. ?>
+    <div class="w-shots<?php echo $rest ? ' w-shots--more' : ''; ?><?php echo count($shots) <= 2 ? ' w-shots--few' : ''; ?>" data-shots>
+        <?php foreach ($shots as $i => $src): ?>
+        <div class="w-shots__item<?php echo $i >= $shown ? ' is-extra' : ''; ?>">
+            <img src="<?php echo esc_url($src); ?>" alt="<?php echo esc_attr($heading); ?>" loading="lazy" decoding="async">
         </div>
         <?php endforeach; ?>
     </div>
+    <?php if ($rest): ?>
+    <button type="button" class="w-btn w-btn--outline w-btn--sm w-shots__more" data-shots-more
+            data-less="<?php echo esc_attr(sc_t('frontend.show_less', 'Show less')); ?>" style="align-self:flex-start">
+        <?php printf(esc_html(sc_t('frontend.show_all_photos', 'Show all %s photos')), esc_html(number_format_i18n(count($shots)))); ?>
+    </button>
+    <?php endif; ?>
     <?php endif; ?>
 
-    <?php if ($cards): ?>
-    <div class="w-ev__faculty">
+    <?php if ($cards):
+        $card_shown = 12;
+        $card_rest = max(0, count($cards) - $card_shown);
+        $card_i = 0;
+    ?>
+    <div class="w-ev__faculty<?php echo $card_rest ? ' w-shots--more' : ''; ?>" data-shots>
         <?php foreach ($cards as $card):
             $src = sc_image_src($card['image'] ?? '', 'medium_large');
             $title = $card['title'] ?? '';
             $text  = $card['content'] ?? ($card['description'] ?? '');
         ?>
-        <div class="w-face">
+        <div class="w-face<?php echo $card_i++ >= $card_shown ? ' is-extra' : ''; ?>">
             <?php if ($src): ?>
             <span class="w-face__pic" style="aspect-ratio:4/3">
                 <img src="<?php echo esc_url($src); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy" decoding="async">
@@ -81,6 +104,12 @@ if ($gallery_images) {
         </div>
         <?php endforeach; ?>
     </div>
+    <?php if ($card_rest): ?>
+    <button type="button" class="w-btn w-btn--outline w-btn--sm w-shots__more" data-shots-more
+            data-less="<?php echo esc_attr(sc_t('frontend.show_less', 'Show less')); ?>" style="align-self:flex-start">
+        <?php printf(esc_html(sc_t('frontend.show_all_n', 'Show all %s')), esc_html(number_format_i18n(count($cards)))); ?>
+    </button>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($cta_url && $cta_txt): ?>

@@ -39,7 +39,7 @@ $photo = !empty($event->venue_image) ? wp_get_attachment_image_url($event->venue
 <section class="w-ev__section" id="venue">
     <h2 class="w-ev__h2"><?php echo esc_html(sc_t('frontend.venue', 'Venue')); ?></h2>
 
-    <div class="w-venue">
+    <div class="w-venue<?php echo $photo ? '' : ' w-venue--bare'; ?>">
         <div class="w-venue__say">
             <?php if ($name): ?>
                 <h3 class="w-venue__name"><?php echo esc_html($name); ?></h3>

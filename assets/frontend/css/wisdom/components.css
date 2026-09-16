@@ -10,6 +10,11 @@
  * @package sc_events
  */
 
+/* The decorative blobs and the closed off-canvas menu sit outside the viewport
+   on a phone, which used to give every page a sideways scroll. `clip` contains
+   them without turning the page into a scroll container, so sticky still works. */
+html, body { overflow-x: clip; }
+
 /* ==========================================================================
    Button
    Sizes:    .w-btn (44px default) · .w-btn--lg (48) · .w-btn--sm (36)

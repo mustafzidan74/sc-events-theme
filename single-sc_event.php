@@ -271,6 +271,9 @@ get_template_part('template-parts/event/schedule', null, $template_args);
 // Load Speakers Section
 get_template_part('template-parts/event/speakers', null, $template_args);
 
+// Hands-on workshops that belong to this event
+get_template_part('template-parts/event/workshops', null, $template_args);
+
 // Load Sponsors Section
 get_template_part('template-parts/event/sponsors', null, $template_args);
 

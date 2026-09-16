@@ -25,6 +25,21 @@
 
     // Share: hand off to the OS sheet where there is one, otherwise put the
     // link on the clipboard and say so.
+    // "Show all 62 photos" — the extra items are in the page already, so opening
+    // them costs one class and no request. The button keeps its place, so the
+    // page does not jump under the thumb.
+    document.addEventListener('click', function (e) {
+        var more = e.target.closest('[data-shots-more]');
+        if (!more) { return; }
+        var box = more.previousElementSibling;
+        if (!box || !box.hasAttribute('data-shots')) { return; }
+        var open = box.classList.toggle('is-open');
+        var label = more.textContent.trim();
+        more.textContent = more.dataset.less;
+        more.dataset.less = label;
+        more.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
     document.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-share]');
         if (!btn) { return; }
