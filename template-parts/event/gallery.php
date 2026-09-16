@@ -36,7 +36,7 @@ if ($gallery_images) {
     $cards   = array_filter((array) ($section['cards'] ?? []));
     $cta_url = trim((string) ($section['button_url'] ?? ''));
     $cta_txt = trim((string) ($section['button_text'] ?? ''));
-    $hero    = sc_image_src($section['main_image'] ?? '', 'large');
+    $hero    = $section['main_image'] ?? '';
 
     if (!$heading && !$content && !$images && !$cards && !$hero) { continue; }
 ?>
@@ -47,9 +47,9 @@ if ($gallery_images) {
 
     <?php
     // Words and a single picture belong side by side; a long text folds up.
-    $single = $hero;
+    $single = $hero ? sc_img($hero, 'large', '(max-width: 767px) calc(100vw - 40px), 560px', array('alt' => $heading)) : '';
     if (!$single && count($images) === 1) {
-        $single = sc_image_src(reset($images), 'large');
+        $single = sc_img(reset($images), 'large', '(max-width: 767px) calc(100vw - 40px), 560px', array('alt' => $heading));
         if ($single) {
             $images = array();
         }
@@ -80,7 +80,7 @@ if ($gallery_images) {
 
         <?php if ($single): ?>
         <div class="w-evsec__media">
-            <img src="<?php echo esc_url($single); ?>" alt="<?php echo esc_attr($heading); ?>" loading="lazy" decoding="async">
+            <?php echo $single; // Built by wp_get_attachment_image(). ?>
         </div>
         <?php endif; ?>
     </div>
@@ -89,9 +89,13 @@ if ($gallery_images) {
     <?php if ($images):
         $shots = array();
         foreach ($images as $img) {
-            $src = sc_image_src($img, 'large');
-            if ($src) {
-                $shots[] = $src;
+            // A phone shows one picture at 78% of the screen, a desk a 260-pixel tile;
+            // one or two pictures on their own run wider.
+            $tag = sc_img($img, 'medium_large', count($images) <= 2
+                ? '(max-width: 767px) 78vw, 600px'
+                : '(max-width: 767px) 78vw, 260px', array('alt' => $heading), 1024);
+            if ($tag) {
+                $shots[] = $tag;
             }
         }
         $shown = 8;
@@ -99,9 +103,9 @@ if ($gallery_images) {
     ?>
     <?php // One or two pictures are the point of their section, not a thumbnail in a grid. ?>
     <div class="w-shots<?php echo $rest ? ' w-shots--more' : ''; ?><?php echo count($shots) <= 2 ? ' w-shots--few' : ''; ?>" data-shots>
-        <?php foreach ($shots as $i => $src): ?>
+        <?php foreach ($shots as $i => $tag): ?>
         <div class="w-shots__item<?php echo $i >= $shown ? ' is-extra' : ''; ?>">
-            <img src="<?php echo esc_url($src); ?>" alt="<?php echo esc_attr($heading); ?>" loading="lazy" decoding="async">
+            <?php echo $tag; // Built by wp_get_attachment_image(). ?>
         </div>
         <?php endforeach; ?>
     </div>
@@ -120,14 +124,14 @@ if ($gallery_images) {
     ?>
     <div class="w-ev__faculty<?php echo $card_rest ? ' w-shots--more' : ''; ?>" data-shots>
         <?php foreach ($cards as $card):
-            $src = sc_image_src($card['image'] ?? '', 'medium_large');
             $title = $card['title'] ?? '';
+            $src = sc_img($card['image'] ?? '', 'medium_large', '(max-width: 767px) 78vw, 260px', array('alt' => $title), 1024);
             $text  = $card['content'] ?? ($card['description'] ?? '');
         ?>
         <div class="w-face<?php echo $card_i++ >= $card_shown ? ' is-extra' : ''; ?>">
             <?php if ($src): ?>
             <span class="w-face__pic" style="aspect-ratio:4/3">
-                <img src="<?php echo esc_url($src); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy" decoding="async">
+                <?php echo $src; // Built by wp_get_attachment_image(). ?>
             </span>
             <?php endif; ?>
             <?php if ($title): ?><span class="w-face__name"><?php echo esc_html($title); ?></span><?php endif; ?>

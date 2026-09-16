@@ -88,13 +88,13 @@ get_template_part('template-parts/public/header', 'public');
         <?php foreach ($speakers as $sp):
             $photo = '';
             if (!empty($sp->photo)) {
-                $photo = sc_image_src($sp->photo);
+                $photo = sc_img($sp->photo, 'medium_large', '(max-width: 767px) calc(100vw - 40px), 220px', array('alt' => $sp->name), 800);
             }
             $initials = sc_initials($sp->name);
         ?>
         <a class="w-speaker" href="<?php echo esc_url(sc_speaker_permalink($sp)); ?>">
             <?php if ($photo): ?>
-                <img src="<?php echo esc_url($photo); ?>" alt="<?php echo esc_attr($sp->name); ?>" loading="lazy" decoding="async">
+                <?php echo $photo; // Built by wp_get_attachment_image(). ?>
             <?php else: ?>
                 <span class="w-speaker__initials" aria-hidden="true"><?php echo esc_html($initials); ?></span>
             <?php endif; ?>

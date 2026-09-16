@@ -259,7 +259,11 @@ if ($next_event):
     // Most events fill in a banner rather than a featured image; either one carries the hero.
     $w_img = '';
     foreach (array($next_event->featured_image, $next_event->banner_image, $next_event->logo_image) as $w_img_id) {
-        $w_img = $w_img_id ? (wp_get_attachment_url($w_img_id) ?: '') : '';
+        $w_img = $w_img_id ? sc_img($w_img_id, 'large', '(max-width: 767px) calc(100vw - 40px), 640px', array(
+            'alt'           => $next_event->title,
+            'loading'       => false,
+            'fetchpriority' => 'high',
+        )) : '';
         if ($w_img) {
             break;
         }
@@ -364,9 +368,7 @@ if ($next_event):
 
         <?php if ($w_img): ?>
         <div class="w-hero__media">
-            <img src="<?php echo esc_url($w_img); ?>"
-                 alt="<?php echo esc_attr($next_event->title); ?>"
-                 fetchpriority="high" decoding="async">
+            <?php echo $w_img; // Built by wp_get_attachment_image(). ?>
         </div>
         <?php endif; ?>
     </section>
@@ -513,12 +515,12 @@ $w_all_events = array_merge($upcoming_events ?: [], $past_events ?: []);
                 : ($w_ev_same ? date_i18n('j', $w_ev_start) . '–' . date_i18n('j', $w_ev_end)
                               : date_i18n('j M', $w_ev_start) . ' – ' . date_i18n('j M', $w_ev_end));
             $w_ev_small = $w_ev_same ? date_i18n('M Y', $w_ev_start) : date_i18n('Y', $w_ev_end);
-            $w_ev_img = $w_ev->featured_image ? wp_get_attachment_url($w_ev->featured_image) : '';
+            $w_ev_img = $w_ev->featured_image ? sc_img($w_ev->featured_image, 'large', '(max-width: 767px) calc(100vw - 40px), 640px', array('class' => 'w-event__cover')) : '';
             $w_ev_past = $w_ev_end < current_time('timestamp');
         ?>
         <a class="w-event<?php echo $w_ev_img ? '' : ' w-event--empty'; ?>" href="<?php echo esc_url(home_url('/event/' . $w_ev->slug)); ?>">
             <?php if ($w_ev_img): ?>
-                <img class="w-event__cover" src="<?php echo esc_url($w_ev_img); ?>" alt="" loading="lazy" decoding="async">
+                <?php echo $w_ev_img; // Built by wp_get_attachment_image(). ?>
             <?php endif; ?>
             <span class="w-event__body">
                 <span class="w-event__badges">
@@ -585,7 +587,7 @@ if (!$w_speakers) {
         <?php foreach ($w_speakers as $w_sp):
             $w_photo = '';
             if (!empty($w_sp->photo)) {
-                $w_photo = sc_image_src($w_sp->photo);
+                $w_photo = sc_img($w_sp->photo, 'medium_large', '(max-width: 767px) 180px, 240px', array('alt' => $w_sp->name), 800);
             }
             // Initials for the designed fallback: first letter of the first two
             // words, skipping honorifics so "Dr Mohamed Elzohairy" reads "ME".
@@ -594,7 +596,7 @@ if (!$w_speakers) {
         ?>
         <a class="w-speaker" href="<?php echo esc_url(home_url('/event/' . $next_event->slug . '#speakers')); ?>">
             <?php if ($w_photo): ?>
-                <img src="<?php echo esc_url($w_photo); ?>" alt="<?php echo esc_attr($w_sp->name); ?>" loading="lazy" decoding="async">
+                <?php echo $w_photo; // Built by wp_get_attachment_image(). ?>
             <?php else: ?>
                 <span class="w-speaker__initials" aria-hidden="true"><?php echo esc_html($w_initials); ?></span>
             <?php endif; ?>
@@ -655,14 +657,14 @@ if ($next_event) {
     <div class="w-rail">
         <?php foreach ($w_workshops as $w_ws):
             $w_ws_img = !empty($w_ws->featured_image)
-                ? sc_image_src($w_ws->featured_image)
+                ? sc_img($w_ws->featured_image, 'medium', '104px', array(), 400)
                 : '';
             $w_left = max(0, (int) $w_ws->total_capacity - (int) $w_ws->total_sold);
         ?>
         <a class="w-workshop" href="<?php echo esc_url(home_url('/workshop/' . $w_ws->slug)); ?>">
             <span class="w-workshop__thumb">
                 <?php if ($w_ws_img): ?>
-                    <img src="<?php echo esc_url($w_ws_img); ?>" alt="" loading="lazy" decoding="async">
+                    <?php echo $w_ws_img; // Built by wp_get_attachment_image(). ?>
                 <?php endif; ?>
             </span>
             <span class="w-workshop__body">
@@ -853,7 +855,7 @@ $w_is_top = true;
                 <?php foreach ($w_tier_sponsors as $w_sp):
                     $w_sp_logo = '';
                     if (!empty($w_sp->logo)) {
-                        $w_sp_logo = sc_image_src($w_sp->logo);
+                        $w_sp_logo = sc_img($w_sp->logo, 'medium', '220px', array('alt' => $w_sp->name), 800);
                     }
                     $w_sp_href = !empty($w_sp->website) ? $w_sp->website : '';
                     $w_sp_tag = $w_sp_href ? 'a' : 'span';
@@ -864,7 +866,7 @@ $w_is_top = true;
                     }
                 ?>>
                     <?php if ($w_sp_logo): ?>
-                        <img src="<?php echo esc_url($w_sp_logo); ?>" alt="<?php echo esc_attr($w_sp->name); ?>" loading="lazy" decoding="async">
+                        <?php echo $w_sp_logo; // Built by wp_get_attachment_image(). ?>
                     <?php else: ?>
                         <?php echo esc_html($w_sp->name); ?>
                     <?php endif; ?>

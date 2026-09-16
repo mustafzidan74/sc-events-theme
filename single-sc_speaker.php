@@ -20,7 +20,11 @@ $assets_url = get_template_directory_uri() . '/assets/frontend/';
 
 $photo = '';
 if (!empty($speaker->photo)) {
-    $photo = sc_image_src($speaker->photo);
+    $photo = sc_img($speaker->photo, 'large', '(max-width: 767px) calc(100vw - 40px), 420px', array(
+        'alt'           => $speaker->name,
+        'loading'       => false,
+        'fetchpriority' => 'high',
+    ), 1536);
 }
 $initials = sc_initials($speaker->name);
 
@@ -63,7 +67,7 @@ get_template_part('template-parts/public/header', 'public');
     <div class="w-profile">
         <div class="w-profile__portrait<?php echo $photo ? '' : ' w-profile__portrait--empty'; ?>">
             <?php if ($photo): ?>
-                <img src="<?php echo esc_url($photo); ?>" alt="<?php echo esc_attr($speaker->name); ?>" fetchpriority="high" decoding="async">
+                <?php echo $photo; // Built by wp_get_attachment_image(). ?>
             <?php else: ?>
                 <span aria-hidden="true"><?php echo esc_html($initials); ?></span>
             <?php endif; ?>
@@ -120,12 +124,12 @@ get_template_part('template-parts/public/header', 'public');
                 : ($same ? date_i18n('j', $s) . '–' . date_i18n('j', $e)
                          : date_i18n('j M', $s) . ' – ' . date_i18n('j M', $e));
             $small = $same ? date_i18n('M Y', $s) : date_i18n('Y', $e);
-            $cover = $ev->featured_image ? wp_get_attachment_url($ev->featured_image) : '';
+            $cover = $ev->featured_image ? sc_img($ev->featured_image, 'large', '(max-width: 767px) calc(100vw - 40px), 640px', array('class' => 'w-event__cover')) : '';
             $past = $e < current_time('timestamp');
         ?>
         <a class="w-event<?php echo $cover ? '' : ' w-event--empty'; ?>" href="<?php echo esc_url(home_url('/event/' . $ev->slug)); ?>">
             <?php if ($cover): ?>
-                <img class="w-event__cover" src="<?php echo esc_url($cover); ?>" alt="" loading="lazy" decoding="async">
+                <?php echo $cover; // Built by wp_get_attachment_image(). ?>
             <?php endif; ?>
             <span class="w-event__body">
                 <span class="w-event__badges">

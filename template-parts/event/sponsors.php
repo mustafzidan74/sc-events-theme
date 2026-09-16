@@ -47,7 +47,7 @@ $is_top = true;
                 <?php foreach ($tier_sponsors as $sp):
                     $logo = '';
                     if (!empty($sp->logo)) {
-                        $logo = sc_image_src($sp->logo);
+                        $logo = sc_img($sp->logo, 'medium', '220px', array('alt' => $sp->name), 800);
                     }
                     $href = $sp->website ?? '';
                     $tag  = $href ? 'a' : 'span';
@@ -56,7 +56,7 @@ $is_top = true;
                     if ($href) { echo ' href="' . esc_url($href) . '" target="_blank" rel="noopener noreferrer"'; }
                 ?>>
                     <?php if ($logo): ?>
-                        <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr($sp->name); ?>" loading="lazy" decoding="async">
+                        <?php echo $logo; // Built by wp_get_attachment_image(). ?>
                     <?php else: ?>
                         <?php echo esc_html($sp->name); ?>
                     <?php endif; ?>

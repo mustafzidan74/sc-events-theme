@@ -33,7 +33,7 @@ if ($address !== '' && $name !== '' && str_starts_with(mb_strtolower($address), 
     $address = trim(mb_substr($address, mb_strlen($name)), " ,");
 }
 
-$photo = !empty($event->venue_image) ? wp_get_attachment_image_url($event->venue_image, 'large') : '';
+$photo = !empty($event->venue_image) ? sc_img($event->venue_image, 'large', '(max-width: 767px) calc(100vw - 40px), 560px', array('alt' => $name)) : '';
 ?>
 
 <section class="w-ev__section" id="venue">
@@ -72,7 +72,7 @@ $photo = !empty($event->venue_image) ? wp_get_attachment_image_url($event->venue
 
         <?php if ($photo): ?>
         <div class="w-venue__pic">
-            <img src="<?php echo esc_url($photo); ?>" alt="<?php echo esc_attr($name); ?>" loading="lazy" decoding="async">
+            <?php echo $photo; // Built by wp_get_attachment_image(). ?>
         </div>
         <?php endif; ?>
     </div>

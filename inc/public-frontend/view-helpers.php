@@ -51,6 +51,60 @@ function sc_image_src($ref, $size = 'full') {
 }
 
 /**
+ * An <img> for a picture at the size it is shown.
+ *
+ * The templates used to print the original upload — a 2.3 MB speaker photo in
+ * a 180-pixel circle, sixteen megabytes on the home page. For an attachment
+ * this prints WordPress's srcset, so each screen takes the smallest copy that
+ * is still sharp on it. Width and height are left off: these layouts are sized
+ * in CSS, and the attributes would change them.
+ *
+ * @param int|string|array $ref   Attachment ID, a URL, or ['id' => …] / ['url' => …].
+ * @param string           $size  Copy used as src, for browsers that ignore srcset.
+ * @param string           $sizes How wide the picture is shown, as the CSS "sizes" list.
+ * @param array            $attr  alt, class, loading, fetchpriority…
+ * @param int              $max   Widest copy worth offering; 0 keeps WordPress's limit.
+ * @return string The tag, or '' when there is no picture.
+ */
+function sc_img($ref, $size, $sizes, array $attr = array(), $max = 0) {
+    if (is_array($ref)) {
+        $ref = $ref['id'] ?? ($ref['url'] ?? '');
+    }
+    if (empty($ref)) {
+        return '';
+    }
+    $attr = array_merge(array('alt' => '', 'loading' => 'lazy', 'decoding' => 'async'), $attr);
+
+    if (is_numeric($ref)) {
+        $cap = $max ? static function () use ($max) { return $max; } : null;
+        if ($cap) {
+            add_filter('max_srcset_image_width', $cap);
+        }
+        $html = wp_get_attachment_image((int) $ref, $size, false, $attr + array('sizes' => $sizes));
+        if ($cap) {
+            remove_filter('max_srcset_image_width', $cap);
+        }
+        if ($html) {
+            return preg_replace('/\s(?:width|height)="\d+"/', '', $html, 2);
+        }
+        // Not an image WordPress can size (an SVG logo, say): print the file itself.
+        $ref = wp_get_attachment_url((int) $ref);
+        if (!$ref) {
+            return '';
+        }
+    }
+
+    $html = '<img src="' . esc_url($ref) . '"';
+    foreach ($attr as $name => $value) {
+        if ($value === false || $value === null) {
+            continue;
+        }
+        $html .= ' ' . esc_attr($name) . '="' . esc_attr($value) . '"';
+    }
+    return $html . '>';
+}
+
+/**
  * Format a run of days the way the design states it.
  *
  * "7–9 Oct" while the run stays inside one month, "28 Sep – 2 Oct" when it

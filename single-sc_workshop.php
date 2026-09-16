@@ -78,9 +78,11 @@ $workshop_id = $workshop->id;
 $event       = SC_Event::get($workshop->event_id);
 $tickets     = SC_Ticket::get_by_workshop($workshop_id, ['is_active' => null]);
 
-$banner_url   = $workshop->banner_image ? wp_get_attachment_image_url($workshop->banner_image, 'full') : '';
-$featured_url = $workshop->featured_image ? wp_get_attachment_url($workshop->featured_image) : '';
-$hero_bg      = $banner_url ?: $featured_url;
+$hero_bg = sc_img($workshop->banner_image ?: $workshop->featured_image, 'full', '100vw', array(
+    'class'         => 'w-ev__bg',
+    'loading'       => false,
+    'fetchpriority' => 'high',
+));
 
 $pricing     = sc_ticket_pricing($tickets);
 $has_tickets = $pricing['has_tickets'];
@@ -140,7 +142,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
 
         <section class="w-ev__hero">
             <?php if ($hero_bg): ?>
-                <img class="w-ev__bg" src="<?php echo esc_url($hero_bg); ?>" alt="" fetchpriority="high" decoding="async">
+                <?php echo $hero_bg; // Built by wp_get_attachment_image(). ?>
             <?php endif; ?>
 
             <div class="w-ev__badges">

@@ -32,14 +32,14 @@ if (!$sc_workshops) return;
 
     <div class="w-evws" data-shots>
         <?php foreach ($sc_workshops as $sc_ws):
-            $sc_ws_img = !empty($sc_ws->featured_image) ? sc_image_src($sc_ws->featured_image) : '';
+            $sc_ws_img = !empty($sc_ws->featured_image) ? sc_img($sc_ws->featured_image, 'medium', '72px', array(), 400) : '';
             $sc_cap = (int) $sc_ws->total_capacity;
             $sc_left = $sc_cap > 0 ? max(0, $sc_cap - (int) $sc_ws->total_sold) : -1;
         ?>
         <a class="w-evws__card" href="<?php echo esc_url(home_url('/workshop/' . $sc_ws->slug)); ?>">
             <span class="w-evws__thumb">
                 <?php if ($sc_ws_img): ?>
-                    <img src="<?php echo esc_url($sc_ws_img); ?>" alt="" loading="lazy" decoding="async">
+                    <?php echo $sc_ws_img; // Built by wp_get_attachment_image(). ?>
                 <?php endif; ?>
             </span>
             <span class="w-evws__body">

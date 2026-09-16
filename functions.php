@@ -821,13 +821,31 @@ function sc_events_suppress_rest_api_errors() {
 add_action('wp_footer', 'sc_events_suppress_rest_api_errors', 999);
 
 /**
- * Preserve PNG transparency during image resize
- * Prevents GD library from replacing alpha channel with black background
+ * Resized copies are saved as WebP.
+ *
+ * A speaker photo uploaded as GIF or PNG made a 768-pixel copy of 370–860 KB;
+ * as WebP it is a fraction of that, and WebP keeps transparency, so logos stay
+ * clear. The uploaded file and its "-scaled"/"-rotated" stand-in keep their
+ * format: the certificate and badge PDFs read those, and TCPDF cannot read WebP.
+ * Resized copies of a GIF were never animated, so nothing is lost there.
  */
-add_filter('image_editor_output_format', function($formats) {
-    $formats['image/png'] = 'image/png';
+add_filter('image_editor_output_format', function ($formats, $filename = null, $mime_type = null) {
+    // WordPress asks about the upload itself (a file already on disk) before
+    // deciding to convert it, and names the stand-ins it makes for it.
+    if ($filename && (file_exists($filename) || preg_match('/-(?:scaled|rotated)\.[a-z0-9]+$/i', (string) $filename))) {
+        return $formats;
+    }
+    static $webp = null;
+    if ($webp === null) {
+        $webp = wp_image_editor_supports(array('mime_type' => 'image/webp'));
+    }
+    if ($webp) {
+        foreach (array('image/jpeg', 'image/png', 'image/gif') as $type) {
+            $formats[$type] = 'image/webp';
+        }
+    }
     return $formats;
-});
+}, 10, 3);
 
 add_filter('wp_editor_set_quality', function($quality, $mime_type) {
     if ($mime_type === 'image/png') {

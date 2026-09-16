@@ -112,7 +112,7 @@ get_template_part('template-parts/public/header', 'public');
                 <?php foreach ($tier_sponsors as $sp):
                     $logo = '';
                     if (!empty($sp->logo)) {
-                        $logo = sc_image_src($sp->logo);
+                        $logo = sc_img($sp->logo, 'medium', '220px', array('alt' => $sp->name), 800);
                     }
                     $href = !empty($sp->website) ? $sp->website : '';
                     $tag = $href ? 'a' : 'span';
@@ -121,7 +121,7 @@ get_template_part('template-parts/public/header', 'public');
                     if ($href) { echo ' href="' . esc_url($href) . '" target="_blank" rel="noopener noreferrer"'; }
                 ?>>
                     <?php if ($logo): ?>
-                        <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr($sp->name); ?>" loading="lazy" decoding="async">
+                        <?php echo $logo; // Built by wp_get_attachment_image(). ?>
                     <?php else: ?>
                         <?php echo esc_html($sp->name); ?>
                     <?php endif; ?>
@@ -144,7 +144,7 @@ get_template_part('template-parts/public/header', 'public');
         <?php foreach ($partners as $pt):
             $logo = '';
             if (!empty($pt->logo)) {
-                $logo = sc_image_src($pt->logo);
+                $logo = sc_img($pt->logo, 'medium', '220px', array('alt' => $pt->name), 800);
             }
             $href = !empty($pt->website) ? $pt->website : '';
             $tag = $href ? 'a' : 'span';
@@ -153,7 +153,7 @@ get_template_part('template-parts/public/header', 'public');
             if ($href) { echo ' href="' . esc_url($href) . '" target="_blank" rel="noopener noreferrer"'; }
         ?>>
             <?php if ($logo): ?>
-                <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr($pt->name); ?>" loading="lazy" decoding="async">
+                <?php echo $logo; // Built by wp_get_attachment_image(). ?>
             <?php else: ?>
                 <?php echo esc_html($pt->name); ?>
             <?php endif; ?>

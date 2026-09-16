@@ -35,10 +35,7 @@ $hidden = count($event_speakers) - count($shown);
 
     <div class="w-ev__faculty">
         <?php foreach ($shown as $speaker):
-            $photo = $speaker->photo_url ?? '';
-            if (!$photo && !empty($speaker->photo)) {
-                $photo = sc_image_src($speaker->photo);
-            }
+            $photo = sc_img(!empty($speaker->photo) ? $speaker->photo : ($speaker->photo_url ?? ''), 'medium_large', '(max-width: 767px) 45vw, 180px', array('alt' => $speaker->name), 800);
 
             $initials = sc_initials($speaker->name);
 
@@ -54,7 +51,7 @@ $hidden = count($event_speakers) - count($shown);
         <a class="w-face" href="<?php echo esc_url($href); ?>">
             <span class="w-face__pic">
                 <?php if ($photo): ?>
-                    <img src="<?php echo esc_url($photo); ?>" alt="<?php echo esc_attr($speaker->name); ?>" loading="lazy" decoding="async">
+                    <?php echo $photo; // Built by wp_get_attachment_image(). ?>
                 <?php else: ?>
                     <span class="w-face__initials" aria-hidden="true"><?php echo esc_html($initials); ?></span>
                 <?php endif; ?>

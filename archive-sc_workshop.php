@@ -101,14 +101,14 @@ $w_base = home_url('/workshops/');
     <div class="w-workshops">
         <?php foreach ($workshops as $w_ws):
             $w_img = !empty($w_ws->featured_image)
-                ? sc_image_src($w_ws->featured_image)
+                ? sc_img($w_ws->featured_image, 'medium', '104px', array(), 400)
                 : '';
             $w_left = max(0, (int) $w_ws->total_capacity - (int) $w_ws->total_sold);
         ?>
         <a class="w-workshop" href="<?php echo esc_url(home_url('/workshop/' . $w_ws->slug)); ?>">
             <span class="w-workshop__thumb">
                 <?php if ($w_img): ?>
-                    <img src="<?php echo esc_url($w_img); ?>" alt="" loading="lazy" decoding="async">
+                    <?php echo $w_img; // Built by wp_get_attachment_image(). ?>
                 <?php endif; ?>
             </span>
             <span class="w-workshop__body">

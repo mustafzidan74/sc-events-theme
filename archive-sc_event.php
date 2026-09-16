@@ -166,12 +166,12 @@ $w_filters = [
                 : ($w_same ? date_i18n('j', $w_s) . '–' . date_i18n('j', $w_e)
                            : date_i18n('j M', $w_s) . ' – ' . date_i18n('j M', $w_e));
             $w_small = $w_same ? date_i18n('M Y', $w_s) : date_i18n('Y', $w_e);
-            $w_img = $w_ev->featured_image ? wp_get_attachment_url($w_ev->featured_image) : '';
+            $w_img = $w_ev->featured_image ? sc_img($w_ev->featured_image, 'large', '(max-width: 767px) calc(100vw - 40px), 1280px', array('class' => 'w-event__cover')) : '';
             $w_past = $w_e < current_time('timestamp');
         ?>
         <a class="w-event<?php echo $w_img ? '' : ' w-event--empty'; ?>" href="<?php echo esc_url(home_url('/event/' . $w_ev->slug)); ?>">
             <?php if ($w_img): ?>
-                <img class="w-event__cover" src="<?php echo esc_url($w_img); ?>" alt="" loading="lazy" decoding="async">
+                <?php echo $w_img; // Built by wp_get_attachment_image(). ?>
             <?php endif; ?>
             <span class="w-event__body">
                 <span class="w-event__badges">

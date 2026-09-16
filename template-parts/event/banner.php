@@ -32,13 +32,13 @@ $cme_hours     = (int) ($args['cme_hours'] ?? 0);
 
 if (!$event) return;
 
-$banner_url = '';
-if ($event_banner) {
-    $banner_url = wp_get_attachment_image_url($event_banner, 'full');
-}
-if (!$banner_url && $event_logo) {
-    $banner_url = $event_logo;
-}
+// The hero is full width: WordPress's srcset lets a phone take a phone-sized copy.
+$banner_img = sc_img($event_banner ?: $event_logo, 'full', '100vw', array(
+    'class'         => 'w-ev__bg',
+    'loading'       => false,
+    'fetchpriority' => 'high',
+));
+$banner_url = $banner_img !== '';
 
 $big_date = sc_date_range($start_date, $end_date);
 
@@ -111,7 +111,7 @@ if ($has_tickets && !$is_past) {
 
     <section class="w-ev__hero">
         <?php if ($banner_url): ?>
-            <img class="w-ev__bg" src="<?php echo esc_url($banner_url); ?>" alt="" fetchpriority="high" decoding="async">
+            <?php echo $banner_img; // Built by wp_get_attachment_image(). ?>
         <?php endif; ?>
 
         <div class="w-ev__badges">
