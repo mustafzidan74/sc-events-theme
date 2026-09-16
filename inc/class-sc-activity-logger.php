@@ -318,7 +318,15 @@ class SC_Activity_Logger {
         ));
     }
 
-    public static function log_attendee_updated($attendee_id, $old_data, $new_data) {
+    /**
+     * SC_Attendee::update() fires this with (id, changed fields) — two arguments. Requiring a
+     * third made every attendee update end in a fatal error after the row was already saved.
+     */
+    public static function log_attendee_updated($attendee_id, $old_data = array(), $new_data = null) {
+        if ($new_data === null) {
+            $new_data = $old_data;
+            $old_data = array();
+        }
         $old_data = is_object($old_data) ? get_object_vars($old_data) : (array) $old_data;
         $new_data = is_object($new_data) ? get_object_vars($new_data) : (array) $new_data;
         self::log(self::TYPE_ATTENDEE, 'updated', array(
