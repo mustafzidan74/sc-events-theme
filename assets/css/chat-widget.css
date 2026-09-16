@@ -54,8 +54,22 @@
     box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5);
 }
 
+/* While the conversation is open the launcher has nothing left to do, and it
+   sat on top of the panel it had just opened. It comes back on close. */
 .sc-chat-toggle.active {
-    transform: scale(0.95);
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.8);
+    pointer-events: none;
+}
+
+/* On a phone the panel fills the screen, so the other floating buttons would
+   sit on top of the conversation too. */
+@media (max-width: 767.98px) {
+    body:has(.sc-chat-toggle.active) .whatsapp-float,
+    body:has(.sc-chat-toggle.active) #back-to-top {
+        display: none !important;
+    }
 }
 
 .sc-chat-toggle .sc-chat-icon {
