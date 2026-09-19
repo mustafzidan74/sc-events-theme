@@ -414,12 +414,15 @@
 .w-report__meter-col .w-meter__row { margin-bottom: 4px; }
 .w-meters { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .w-meters .w-meter { margin: 0; }
-.w-bars { display: flex; align-items: flex-end; gap: 1px; height: 160px; padding-top: 4px; border-bottom: 1px solid var(--w-border); }
-.w-bars__bar { flex: 1 1 0; min-width: 1px; border-radius: 2px 2px 0 0; background: var(--w-primary); opacity: .85; }
+/* The report's day chart (bars straight in .w-bars) and the analytics month chart (.w-bars--months).
+   Scoped: unscoped, these widened every column on the home, event and door-board charts to 34px
+   and stretched their bars to full height, so the bars ran out of their panel. */
+.w-report__grid .w-bars { gap: 1px; height: 160px; padding-top: 4px; }
+.w-bars > .w-bars__bar { flex: 1 1 0; min-width: 1px; border-radius: 2px 2px 0 0; }
 .w-bars__bar:hover { opacity: 1; }
 .w-bars__axis { display: flex; justify-content: space-between; margin-top: 6px; color: var(--w-text-3); font-size: 12px; }
-.w-bars--months { gap: 6px; height: 200px; overflow-x: auto; border-bottom: 0; }
-.w-bars__col { display: flex; flex: 1 0 34px; flex-direction: column; align-items: stretch; justify-content: flex-end; height: 100%; }
+.w-bars--months { gap: 6px; height: 200px; padding-top: 4px; overflow-x: auto; border-bottom: 0; }
+.w-bars--months .w-bars__col { display: flex; flex: 1 0 34px; flex-direction: column; align-items: stretch; justify-content: flex-end; height: 100%; }
 .w-bars__track { display: flex; flex: 1 1 auto; align-items: flex-end; min-height: 0; }
 .w-bars__track .w-bars__bar { flex: 1 1 auto; }
 .w-bars__value { margin-bottom: 3px; color: var(--w-text-2); font-size: 11px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -440,5 +443,5 @@
 @media (max-width: 767.98px) {
   .w-kpis.w-report__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .w-report__grid { grid-template-columns: minmax(0, 1fr); }
-  .w-bars { height: 120px; }
+  .w-report__grid .w-bars { height: 120px; }
 }
