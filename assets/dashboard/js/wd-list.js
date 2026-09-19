@@ -435,7 +435,7 @@
         var attrs = ' role="menuitem" data-w-item="' + i + '"' + (item.disabled ? ' aria-disabled="true" tabindex="-1"' : '');
         var inner = (item.icon ? icon(item.icon, 16) : '') + '<span>' + esc(item.label) + '</span>';
         return item.href && !item.disabled
-          ? '<a class="' + cls + '" href="' + esc(item.href) + '"' + attrs + '>' + inner + '</a>'
+          ? '<a class="' + cls + '" href="' + esc(item.href) + '"' + (item.target ? ' target="' + esc(item.target) + '" rel="noopener"' : '') + attrs + '>' + inner + '</a>'
           : '<button type="button" class="' + cls + '"' + attrs + '>' + inner + '</button>';
       }).join('');
 

@@ -480,10 +480,10 @@
 .w-rowmenu-btn {
   width: 32px;
   height: 32px;
-  border: 0;
+  border: 1px solid var(--w-border);
   border-radius: var(--w-radius-md);
-  background: none;
-  color: var(--w-text-3);
+  background: var(--w-surface);
+  color: var(--w-text-2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -915,3 +915,24 @@
 .w-dash .w-mod:not(.is-on) { background: var(--w-surface-2); }
 .w-mod:not(.is-on) .w-cat__name { color: var(--w-text-2); }
 .w-mod__switch { flex: none; margin-top: 2px; }
+
+/* ---- Attendee details: ticket and QR (template-parts/dashboard/attendees.php) ---- */
+
+.w-att-qr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  margin: 4px 0 18px;
+  padding: 16px;
+  border: 1px solid var(--w-border);
+  border-radius: var(--w-radius-lg);
+  background: var(--w-surface-2);
+}
+.w-att-qr__code { flex: none; min-width: 120px; }
+.w-att-qr__code canvas { display: block; width: 176px; height: 176px; border-radius: var(--w-radius-md); background: #fff; }
+.w-att-qr__warn { max-width: 200px; margin: 8px 0 0; color: var(--w-danger); font-size: 12.5px; font-weight: 600; }
+.w-att-qr__side { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; min-width: 0; }
+.w-att-qr__label { color: var(--w-text-2); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.w-att-qr__num { font-size: 18px; font-weight: 600; }
+.w-att-qr__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }

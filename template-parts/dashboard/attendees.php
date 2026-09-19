@@ -411,6 +411,7 @@ jQuery(function ($) {
     var esc = WDList.esc;
     var ajaxurl = scDashboard.ajaxurl;
     var dashboardUrl = <?php echo $js($dashboard_url); ?>;
+    var homeUrl = <?php echo $js(home_url('/')); ?>;
     var workshops = <?php echo $js(array_map(function ($w) {
         return array('id' => (int) $w->id, 'event_id' => (int) $w->event_id, 'title' => $w->title);
     }, $workshops)); ?>;
@@ -439,6 +440,14 @@ jQuery(function ($) {
         'paid'           => sc_t('general.paid', 'Paid'),
         'deleted'        => sc_t('dashboard_pages.deleted_event', 'Event deleted'),
         'view'           => sc_t('dashboard_pages.view', 'View details'),
+        'ticketQr'       => sc_t('dashboard_pages.ticket_and_qr', 'Ticket and QR code'),
+        'sendTicket'     => sc_t('dashboard_pages.send_ticket', 'Send the ticket'),
+        'sendTicketHelp' => sc_t('dashboard_pages.send_ticket_help', 'On WhatsApp with the QR code, and by email when email is on.'),
+        'openTicket'     => sc_t('dashboard_pages.open_ticket_page', 'Open ticket page'),
+        'downloadQr'     => sc_t('dashboard_pages.download_qr', 'Download QR'),
+        'qrCaption'      => sc_t('dashboard_pages.qr_caption', 'The code the door scanner reads'),
+        'sending'        => sc_t('dashboard_pages.sending', 'Sending…'),
+        'cancelledTicket'=> sc_t('dashboard_pages.cancelled_ticket_qr', 'This registration is cancelled; the door will refuse this code.'),
         'edit'           => sc_t('dashboard_pages.edit', 'Edit'),
         'doCheckin'      => sc_t('dashboard_pages.check_in', 'Check in'),
         'sendEmail'      => sc_t('dashboard_pages.send_email', 'Send email'),
@@ -518,6 +527,9 @@ jQuery(function ($) {
         mail: 'M3 5h18v14H3zM3 7l9 6 9-6',
         clock: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
         ticket: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z',
+        qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v3M14 20h3M20 20h1',
+        send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
+        external: 'M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5',
         trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14'
     };
 
@@ -596,6 +608,9 @@ jQuery(function ($) {
         rowMenu: function (a) {
             return [
                 { label: L.view, icon: ICON.eye, onSelect: function () { viewAttendee(a); } },
+                { label: L.ticketQr, icon: ICON.qr, onSelect: function () { viewAttendee(a, true); } },
+                { label: L.sendTicket, icon: ICON.send, onSelect: function () { sendTicket(a.id); } },
+                { label: L.openTicket, icon: ICON.external, href: ticketUrl(a), target: '_blank' },
                 { label: L.edit, icon: ICON.pencil, href: dashboardUrl + 'attendee-edit?id=' + a.id },
                 { label: L.doCheckin, icon: ICON.check, disabled: a.checked_in, onSelect: function () { checkIn(a); } },
                 { label: L.sendEmail, icon: ICON.mail, onSelect: function () { openSingleEmail(a); } },
@@ -664,7 +679,36 @@ jQuery(function ($) {
 
     /* --------------------------------------------------------------- actions */
 
-    function viewAttendee(a) {
+    // Same address the attendee's WhatsApp message links to.
+    function ticketUrl(a) {
+        return homeUrl + 'ticket-view/?attendee_id=' + encodeURIComponent(a.id) + '&ticket_code=' + encodeURIComponent(a.ticket_id || '');
+    }
+
+    function sendTicket(id) {
+        showConfirm(L.sendTicketHelp, L.sendTicket).then(function (r) {
+            if (!r.isConfirmed) { return; }
+            ajax({ action: 'sc_attendee_send_ticket', attendee_id: id }).done(function (res) {
+                if (res.success) { showSuccess(res.data && res.data.message ? res.data.message : L.sendTicket); }
+                else { showError(res.data && res.data.message ? res.data.message : L.failed); }
+            }).fail(function () { showError(L.failed); });
+        });
+    }
+
+    // The QR carries the bare ticket code — what the door scanner and the WhatsApp image use.
+    function drawQr(box, code, cancelled) {
+        box.innerHTML = '';
+        if (typeof QRCode === 'undefined' || !QRCode.toCanvas || !code) { return; }
+        var canvas = document.createElement('canvas');
+        QRCode.toCanvas(canvas, code, { width: 220, margin: 2 }, function (err) {
+            if (err) { return; }
+            box.appendChild(canvas);
+            var dl = document.getElementById('att-qr-download');
+            if (dl) { dl.href = canvas.toDataURL('image/png'); dl.download = 'ticket-' + code + '.png'; }
+        });
+        if (cancelled) { box.insertAdjacentHTML('beforeend', '<p class="w-att-qr__warn">' + esc(L.cancelledTicket) + '</p>'); }
+    }
+
+    function viewAttendee(a, focusTicket) {
         ajax({ action: 'sc_get_attendee', attendee_id: a.id }).done(function (res) {
             if (!res.success) { showError(res.data && res.data.message ? res.data.message : L.failed); return; }
             var d = res.data.attendee;
@@ -691,11 +735,28 @@ jQuery(function ($) {
                 row(L.payment, esc(d.payment_type) + (d.coupon_used ? ' · <span class="w-mono w-ltr">' + esc(d.coupon_used) + '</span>' : '')) +
                 row(L.status, esc(d.status || '')) +
                 '</tbody></table></div></div>' +
+                '<div class="w-att-qr" id="att-qr">' +
+                    '<div class="w-att-qr__code" id="att-qr-box" aria-label="' + esc(L.ticketQr) + '"></div>' +
+                    '<div class="w-att-qr__side">' +
+                        '<span class="w-att-qr__label">' + esc(L.ticketQr) + '</span>' +
+                        '<span class="w-mono w-ltr w-att-qr__num">' + esc(d.ticket_id) + '</span>' +
+                        '<span class="w-sub">' + esc(L.qrCaption) + '</span>' +
+                        '<div class="w-att-qr__actions">' +
+                            '<button type="button" class="btn btn-primary btn-sm" id="att-send-ticket">' + esc(L.sendTicket) + '</button>' +
+                            (d.ticket_url ? '<a class="btn btn-outline-secondary btn-sm" href="' + esc(d.ticket_url) + '" target="_blank" rel="noopener">' + esc(L.openTicket) + '</a>' : '') +
+                            '<a class="btn btn-outline-secondary btn-sm" id="att-qr-download" href="#">' + esc(L.downloadQr) + '</a>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
                 (extraRows ? '<h6 class="mb-2">' + esc(L.answers) + '</h6><table class="table table-sm mb-0"><tbody>' + extraRows + '</tbody></table>' : '') +
                 (d.notes ? '<h6 class="mt-3 mb-1">' + esc(L.notes) + '</h6><p class="mb-0">' + esc(d.notes) + '</p>' : '')
             );
+            drawQr(document.getElementById('att-qr-box'), d.ticket_id, d.active === false);
+            $('#att-send-ticket').on('click', function () { sendTicket(d.id); });
             $('#view-edit-link').attr('href', dashboardUrl + 'attendee-edit?id=' + d.id);
-            $('#viewAttendeeModal').modal('show');
+            $('#viewAttendeeModal').one('shown.bs.modal', function () {
+                if (focusTicket) { document.getElementById('att-qr').scrollIntoView({ block: 'nearest' }); }
+            }).modal('show');
         }).fail(function () { showError(L.failed); });
     }
 

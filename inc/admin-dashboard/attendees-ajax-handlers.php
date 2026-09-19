@@ -220,7 +220,10 @@ function sc_get_single_attendee() {
         'notes' => $sc_attendee->notes ?? '',
         'extra_fields' => $sc_attendee->extra_fields ?: array(),
         'created_at' => date('Y-m-d H:i', strtotime($sc_attendee->created_at)),
-        'token' => ''
+        'token' => '',
+        // The page the attendee opens from their WhatsApp message, with the same QR.
+        'ticket_url' => function_exists('sc_ticket_view_url') ? sc_ticket_view_url($sc_attendee) : '',
+        'active' => $sc_attendee->status === 'active',
     );
 
     wp_send_json_success(array('attendee' => $attendee));
