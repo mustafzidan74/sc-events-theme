@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>دليل لوحة التحكم · Wisdom Egy</title>
+<link rel="icon" href="https://wisdomegy.com/wp-content/uploads/2025/11/isdom-removebg-preview.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap">
+<style>
+/* Wisdom design tokens (assets/frontend/css/wisdom/tokens.css), light. */
+:root {
+  --bg: #FAF9F7;
+  --surface: #FFFFFF;
+  --surface-2: #F3F1ED;
+  --border: #E7E4DE;
+  --border-strong: #D5D1C9;
+  --text: #1F1D1A;
+  --text-2: #6B665E;
+  --text-3: #8C877E;
+  --primary: #7C1314;
+  --primary-hover: #5E0F10;
+  --primary-soft: #F5E1E1;
+  --burgundy-50: #FBF3F3;
+  --ink: #141826;
+  --ink-200: #C9CEDB;
+  --ink-300: #A9AFC0;
+  --gold: #C9A24A;
+  --gold-soft: #FBF6E8;
+  --gold-text: #7A5C25;
+  --teal: #1F8A7E;
+  --teal-soft: #EEF8F6;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(31, 29, 26, .04), 0 10px 30px -18px rgba(31, 29, 26, .25);
+  --font: "IBM Plex Sans Arabic", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: Poppins, "IBM Plex Sans Arabic", Inter, sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The soft colour wash the site sits on. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40vw 40vw at 88% 6%, rgba(124, 19, 20, .10), transparent 70%),
+    radial-gradient(38vw 38vw at 8% 38%, rgba(201, 162, 74, .10), transparent 70%),
+    radial-gradient(44vw 44vw at 60% 96%, rgba(58, 104, 210, .08), transparent 70%);
+}
+
+a { color: inherit; }
+.en { font-family: Inter, sans-serif; direction: ltr; unicode-bidi: isolate; }
+
+/* ---- header ---- */
+.hdr {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 72px;
+  padding-inline: clamp(16px, 3vw, 40px);
+  background: rgba(250, 249, 247, .88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.hdr__brand { display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 0; }
+.hdr__brand img { height: 26px; width: auto; }
+.hdr__tag {
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--border-strong);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.hdr__cta { margin-inline-start: auto; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: background .2s ease;
+}
+.btn:hover { background: var(--primary-hover); }
+.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.btn--ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); }
+.btn--ghost:hover { background: var(--surface-2); }
+
+@media (max-width: 560px) {
+  .hdr__tag { display: none; }
+  .btn { padding: 0 16px; font-size: 14px; }
+}
+
+/* ---- page frame ---- */
+.page { max-width: 1200px; margin: 0 auto; padding-inline: clamp(16px, 3vw, 40px); padding-bottom: 80px; }
+
+/* ---- hero ---- */
+.hero {
+  margin-top: clamp(20px, 4vw, 40px);
+  padding: clamp(28px, 5vw, 64px);
+  border-radius: 28px;
+  background: linear-gradient(135deg, #fff 0%, #fff 55%, var(--burgundy-50) 100%);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  color: var(--gold-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+.hero h1 {
+  margin: 0 0 14px;
+  font-family: var(--display);
+  font-size: clamp(32px, 5vw, 54px);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.hero p { margin: 0; color: var(--text-2); font-size: 17px; max-width: 52ch; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fact {
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.fact b { display: block; font-family: var(--display); font-size: 30px; line-height: 1.1; color: var(--primary); }
+.fact span { color: var(--text-2); font-size: 14px; }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- section pills ---- */
+.pills {
+  position: sticky;
+  top: 72px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 28px 0 0;
+  padding: 12px 0;
+  background: rgba(250, 249, 247, .92);
+  backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to left, #000 calc(100% - 24px), transparent);
+  scrollbar-width: none;
+}
+.pills::-webkit-scrollbar { display: none; }
+.pills a {
+  flex: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color .2s, color .2s;
+}
+.pills a:hover, .pills a:focus-visible { border-color: var(--primary); color: var(--primary); outline: none; }
+
+/* ---- sections ---- */
+.sec { margin-top: clamp(40px, 6vw, 64px); scroll-margin-top: 140px; }
+.sec__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; }
+.sec h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--display);
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.sec h2::before { content: ""; width: 26px; height: 2px; border-radius: 2px; background: var(--gold); flex: none; }
+.sec__menu { color: var(--text-3); font-size: 13px; }
+.sec__lede { margin: 0 0 20px; color: var(--text-2); max-width: 70ch; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 16px; }
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: transform .2s ease, border-color .2s ease;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+@media (prefers-reduced-motion: reduce) { .card, .card:hover { transition: none; transform: none; } }
+
+.card--key { border-color: #E3C3C3; background: linear-gradient(180deg, #fff 0%, #fff 70%, var(--burgundy-50) 100%); }
+.card--wide { grid-column: 1 / -1; }
+
+.card__top { display: flex; align-items: center; gap: 12px; }
+.ico {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.ico svg { width: 22px; height: 22px; }
+.card h3 { margin: 0; font-family: Inter, var(--font); font-size: 18px; font-weight: 700; line-height: 1.3; direction: ltr; text-align: start; unicode-bidi: plaintext; }
+.card__ar { display: block; color: var(--text-3); font-size: 13px; font-weight: 500; font-family: var(--font); }
+.card p { margin: 0; color: var(--text-2); font-size: 15px; }
+.card b { color: var(--text); font-weight: 600; }
+
+.how {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.how__label { display: block; margin-bottom: 6px; color: var(--gold-text); font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+.how ol, .how ul { margin: 0; padding-inline-start: 20px; color: var(--text-2); font-size: 14.5px; }
+.how li + li { margin-top: 4px; }
+
+.tip {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+  font-size: 14px;
+}
+.tip::before { content: "💡"; flex: none; }
+
+.chip {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+.chip--wait { background: var(--primary-soft); color: var(--primary); }
+.card__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---- event day (dark, like the home tickets panel) ---- */
+.day {
+  margin-top: clamp(48px, 7vw, 80px);
+  padding: clamp(28px, 5vw, 56px);
+  border-radius: 28px;
+  background:
+    radial-gradient(60% 80% at 100% 0%, rgba(124, 19, 20, .45), transparent 70%),
+    radial-gradient(50% 70% at 0% 100%, rgba(201, 162, 74, .18), transparent 70%),
+    var(--ink);
+  color: #fff;
+  scroll-margin-top: 140px;
+}
+.day h2 { margin: 0 0 6px; font-family: var(--display); font-size: clamp(26px, 3.4vw, 36px); font-weight: 600; color: #fff; }
+.day > p { margin: 0 0 26px; color: var(--ink-200); max-width: 60ch; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; counter-reset: s; }
+.step {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .12);
+  counter-increment: s;
+}
+.step::before {
+  content: counter(s);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 700;
+}
+.step b { display: block; margin-bottom: 4px; font-size: 16px; }
+.step p { margin: 0; color: var(--ink-200); font-size: 14.5px; }
+.step .en { color: #fff; }
+
+/* ---- footer ---- */
+.foot {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  color: var(--text-3);
+  font-size: 13.5px;
+}
+.foot a { color: var(--primary); font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- Icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v16H4zM4 10h16M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-3-3-6.3 1.3L5 13l-1-3 8-8z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-door" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 21h16M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M14 12h.01"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2 12l5-5 4 2 4-4 7 7-8 8-4-4-3 1z"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M2 21h20M8 7h4M8 11h4M8 15h4"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15v2M11 11v6M15 7v10M19 12v5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/></symbol>
+    <symbol id="i-badge" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 3h12v18l-6-3-6 3zM9 8h6M9 12h6"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></symbol>
+    <symbol id="i-cert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM9 14l-2 7 5-3 5 3-2-7"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="i-coupon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4zM9 9l6 6M9.5 14.5h.01M14.5 9.5h.01"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-11.8 7L3 21l2-6.2A8 8 0 1 1 21 12z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 5h18v14H3zM3 7l9 6 9-6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+    <symbol id="i-auto" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM11 18h2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+  </defs>
+</svg>
+
+<header class="hdr">
+  <a class="hdr__brand" href="https://wisdomegy.com/">
+    <img src="https://wisdomegy.com/wp-content/uploads/2025/11/isdom-removebg-preview.png" alt="Wisdom Egy">
+    <span class="hdr__tag">دليل لوحة التحكم</span>
+  </a>
+  <a class="btn hdr__cta" href="https://wisdomegy.com/event-manager-dashboard/">افتح اللوحة</a>
+</header>
+
+<main class="page">
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow">دليل الاستخدام</p>
+      <h1>كل اللي تقدر تعمله من لوحة التحكم</h1>
+      <p>كل صفحة في اللوحة بتعمل إيه، وإزاي تستخدمها في سطرين. الترتيب نفس ترتيب القايمة الجانبية، والأسماء بالإنجليزي زي ما هي ظاهرة في اللوحة.</p>
+      <div class="hero__actions">
+        <a class="btn" href="https://wisdomegy.com/event-manager-dashboard/">افتح اللوحة</a>
+        <a class="btn btn--ghost" href="#dayof">خطوات يوم المؤتمر</a>
+      </div>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>11</b><span>قسم في القايمة</span></div>
+      <div class="fact"><b>30+</b><span>صفحة وأداة</span></div>
+      <div class="fact"><b>QR</b><span>تذاكر وبادجات وشهادات</span></div>
+      <div class="fact"><b>5s</b><span>تحديث شاشة الباب الحية</span></div>
+    </div>
+  </section>
+
+  <nav class="pills" aria-label="الأقسام">
+    <a href="#bar">الشريط العلوي</a>
+    <a href="#home" class="en">Dashboard</a>
+    <a href="#events" class="en">Events</a>
+    <a href="#people" class="en">People</a>
+    <a href="#partners" class="en">Sponsors &amp; partners</a>
+    <a href="#onsite" class="en">On-site</a>
+    <a href="#booths" class="en">Booths</a>
+    <a href="#certs" class="en">Certificates</a>
+    <a href="#sales" class="en">Sales &amp; reports</a>
+    <a href="#messages" class="en">Messages</a>
+    <a href="#system" class="en">System</a>
+    <a href="#dayof">يوم المؤتمر</a>
+  </nav>
+
+  <!-- ============================================ top bar -->
+  <section class="sec" id="bar">
+    <div class="sec__head"><h2>الشريط العلوي</h2></div>
+    <p class="sec__lede">موجود فوق في كل صفحات اللوحة.</p>
+    <div class="grid">
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-plus"/></svg></span><h3>Create<span class="card__ar">إضافة سريعة</span></h3></div>
+        <p>اختصار لإضافة أي حاجة جديدة من أي صفحة: إيفنت، أو ورشة، أو حاضر، أو متحدث، أو كوبون، وغيرهم.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-phone"/></svg></span><h3>WhatsApp · Event<span class="card__ar">حالة الواتساب والإيفنت الجاي</span></h3></div>
+        <p>أيقونة الواتساب لونها بيوضح لو فيه رقم متصل ولا لأ، ولو ضغطت عليها بتفتح صفحة الأرقام. وجنبها اسم الإيفنت الجاي وعدد الأيام الباقية عليه.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-gear"/></svg></span><h3>Theme · Log out<span class="card__ar">المظهر وتسجيل الخروج</span></h3></div>
+        <p>تحت القايمة الجانبية: فاتح، أو غامق، أو حسب الجهاز. وتحتهم تسجيل الخروج.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ dashboard -->
+  <section class="sec" id="home">
+    <div class="sec__head"><h2 class="en">Dashboard</h2></div>
+    <div class="grid">
+      <article class="card card--key card--wide">
+        <div class="card__top"><span class="ico"><svg><use href="#i-home"/></svg></span><h3>Dashboard<span class="card__ar">الصفحة الرئيسية للوحة</span></h3></div>
+        <p>أول حاجة بتشوفها لما تدخل: أرقام التسجيل، ورسم بياني لآخر 30 يوم، وآخر المسجلين، وقايمة <b>محتاج انتباه</b> فيها مشاكل حقيقية في الموقع، زي تذاكر من غير إيفنت أو إعدادات ناقصة.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><p style="margin:0;color:var(--text-2);font-size:14.5px">ابدأ يومك منها، واتعامل مع أي حاجة ظاهرة في «محتاج انتباه».</p></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ events -->
+  <section class="sec" id="events">
+    <div class="sec__head"><h2 class="en">Events</h2><span class="sec__menu en">Events · Workshops · Sessions · Schedules · Halls · Categories</span></div>
+    <p class="sec__lede">كل حاجة ليها علاقة بالمؤتمر نفسه: الإيفنت، والورش، والبرنامج، والقاعات.</p>
+    <div class="grid">
+      <article class="card card--key">
+        <div class="card__top"><span class="ico"><svg><use href="#i-cal"/></svg></span><h3>Events<span class="card__ar">الإيفنتات</span></h3></div>
+        <p>قايمة كل الإيفنتات. لكل إيفنت صفحة نظرة عامة فيها التسجيل والحضور والإيراد.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><ol>
+          <li><b>Create → Event:</b> اكتب البيانات والتواريخ والمكان، والتذاكر وأسعارها، والصور، والأقسام اللي بتظهر في صفحة الإيفنت، والأسئلة الشائعة.</li>
+          <li>من قايمة «···»: تعديل، أو نظرة عامة، أو الحضور، أو الورش، أو معاينة على الموقع، أو نسخة من الإيفنت.</li>
+        </ol></div>
+        <p class="tip">الإيفنت اللي بيظهر في الرئيسية بتختاره من Settings.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-tool"/></svg></span><h3>Workshops<span class="card__ar">الورش</span></h3></div>
+        <p>ورش المؤتمر. كل ورشة مربوطة بإيفنت، وليها عدد أماكن وتذكرة.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><p style="margin:0;color:var(--text-2);font-size:14.5px">أنشئ الورشة واربطها بالإيفنت، وحدّد العدد والمعاد. ومن «···» تقدر تشوف حضورها أو تفتح سكانر الورشة.</p></div>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-mic"/></svg></span><h3>Sessions<span class="card__ar">الجلسات</span></h3></div>
+        <p>جلسات البرنامج في القاعات بمواعيدها، وتقدر تسجّل الحضور لكل جلسة لوحدها.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><p style="margin:0;color:var(--text-2);font-size:14.5px">أضف الجلسة بالقاعة والمعاد والمتحدث. والحضور في كل جلسة من «···» ← Attendees.</p></div>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-list"/></svg></span><h3>Schedules<span class="card__ar">البرنامج اليومي</span></h3></div>
+        <p>البرنامج اليومي اللي بيظهر في صفحة المؤتمر على الموقع.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-door"/></svg></span><h3>Halls<span class="card__ar">القاعات</span></h3></div>
+        <p>قاعات المكان وسعة كل قاعة، وبتستخدمها الجلسات والبرنامج.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-tag"/></svg></span><h3>Categories<span class="card__ar">التصنيفات</span></h3></div>
+        <p>تصنيفات الإيفنتات (مؤتمر، كورس، إلخ) للتنظيم والفلترة.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ people -->
+  <section class="sec" id="people">
+    <div class="sec__head"><h2 class="en">People</h2><span class="sec__menu en">Attendees · Customers · Speakers · Organizers</span></div>
+    <div class="grid">
+      <article class="card card--key card--wide">
+        <div class="card__top"><span class="ico"><svg><use href="#i-users"/></svg></span><h3>Attendees<span class="card__ar">الحضور</span></h3></div>
+        <p>كل المسجلين في أي إيفنت أو ورشة، مع بحث بالاسم أو الإيميل أو الموبايل أو كود التذكرة، وفلاتر بالإيفنت والورشة والدفع والكوبون. وفيه تابات: الكل، واللي دخلوا، واللي لسه، واللي دخلوا ومالهمش شهادة.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><ul>
+          <li><b>قايمة «···» لكل حاضر:</b> عرض التفاصيل، والتذكرة والـ QR، وإرسال التذكرة على الواتساب، وفتح صفحة التذكرة، والتعديل، وتسجيل الحضور، والإيميل، وسجل الحضور اليومي، والحذف.</li>
+          <li><b>اختيار كذا حاضر مرة واحدة:</b> تسجيل حضور، أو حذف.</li>
+          <li><b>فوق:</b> Add attendee لإضافة حاضر، وImport من ملف CSV، وExport للتصدير، وSend email لإيميل جماعي.</li>
+        </ul></div>
+        <p class="tip">الفلاتر بتفضل في رابط الصفحة، فتقدر تبعت الرابط لحد وهو هيشوف نفس القايمة.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-user"/></svg></span><h3>Customers<span class="card__ar">حسابات العملاء</span></h3></div>
+        <p>حسابات الناس على الموقع. تقدر تشوف تسجيلات كل حساب، وتعدّل بياناته، وتبعتله إيميل.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-star"/></svg></span><h3>Speakers<span class="card__ar">المتحدثين</span></h3></div>
+        <p>المتحدثين بصورهم ونبذة عنهم، وربطهم بالإيفنتات، ودول اللي بيظهروا في الموقع. ارفع الصورة بأي مقاس، والموقع بيصغّرها لوحده. وتقدر تخفي أي متحدث من غير ما تمسحه.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-building"/></svg></span><h3>Organizers<span class="card__ar">المنظمين</span></h3></div>
+        <p>الجهات المنظمة للإيفنتات بلوجوهاتها ومواقعها.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ partners -->
+  <section class="sec" id="partners">
+    <div class="sec__head"><h2 class="en">Sponsors &amp; partners</h2><span class="sec__menu en">Sponsors · Partners · Company / B2B</span></div>
+    <div class="grid">
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-star"/></svg></span><h3>Sponsors<span class="card__ar">الرعاة</span></h3></div>
+        <p>الرعاة بمستوياتهم (بلاتينيوم، ذهبي، إلخ). بيظهروا في حائط الرعاة في الرئيسية وفي صفحة المؤتمر.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-hand"/></svg></span><h3>Partners<span class="card__ar">الشركاء</span></h3></div>
+        <p>الشركاء، وبيظهروا في صفحة الرعاة على الموقع.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-badge"/></svg></span><h3>Company / B2B<span class="card__ar">الشركات العارضة</span></h3></div>
+        <p>كل شركة ليها بادج عليه QR (كود بيبدأ بـ COMP-)، ورقم البوث، ومستوى الرعاية. من «···» ابعت البادج أو سجّل دخولها، والسكانر العادي بيقرا بادجات الشركات كمان.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ on-site -->
+  <section class="sec" id="onsite">
+    <div class="sec__head"><h2 class="en">On-site</h2><span class="sec__menu en">Scanner · Door board · Scanner team · Badges</span></div>
+    <p class="sec__lede">كل حاجة بتحتاجها على الباب يوم المؤتمر.</p>
+    <div class="grid">
+      <article class="card card--key">
+        <div class="card__top"><span class="ico"><svg><use href="#i-scan"/></svg></span><h3>Scanner<span class="card__ar">سكانر الباب</span></h3></div>
+        <div class="card__chips"><span class="chip">بيشتغل من غير نت</span></div>
+        <p>تسجيل دخول الحضور بمسح الـ QR بكاميرا الموبايل، أو بكتابة كود التذكرة، أو بالبحث برقم الموبايل.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><ol>
+          <li>اختار الإيفنت، والباب (المدخل الرئيسي أو ورشة معينة)، والجلسة لو فيه.</li>
+          <li>اضغط Start camera وامسح.</li>
+          <li><b>أخضر:</b> دخل. <b>أصفر:</b> دخل قبل كده. <b>أزرق:</b> خروج. <b>أحمر:</b> مرفوض، وجنبه السبب.</li>
+        </ol></div>
+        <p class="tip">افتحه مرة وانت على النت قبل ما الأبواب تفتح، عشان القائمة تتحفظ على الموبايل. وبعدها لو النت وقع، هيكمل عادي.</p>
+      </article>
+      <article class="card card--key">
+        <div class="card__top"><span class="ico"><svg><use href="#i-chart"/></svg></span><h3>Door board<span class="card__ar">شاشة الباب الحية</span></h3></div>
+        <p>متابعة حية للأبواب، بتتحدث كل 5 ثواني. فيها مين جوه دلوقتي، ومين دخل، ومين لسه جاي، وسرعة الدخول، وكل بوابة عاملة كام، وتنبيه لو بوابة وقفت.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><p style="margin:0;color:var(--text-2);font-size:14.5px">افتحها على لابتوب أو تلفزيون. زرار Full screen بيكبّر الأرقام، وHide names بيخفي الأسماء لو الشاشة قدام الناس.</p></div>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-shield"/></svg></span><h3>Scanner team<span class="card__ar">فريق البوابات</span></h3></div>
+        <p>حسابات فريق البوابات. كل حساب بيشوف السكانر بس، وممكن تحدّده على إيفنت أو جلسة معينة.</p>
+        <p class="tip">حساب لكل بوابة = شاشة الباب بتوضح كل بوابة عاملة إيه.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-badge"/></svg></span><h3>Badges<span class="card__ar">البادجات</span></h3></div>
+        <p>طباعة بادجات الحضور بأسمائهم والـ QR، لحضور إيفنت معين.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ booths -->
+  <section class="sec" id="booths">
+    <div class="sec__head"><h2 class="en">Booths</h2><span class="sec__menu en">All booths · Booth types · Bookings · Floor plan</span></div>
+    <div class="grid">
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-grid"/></svg></span><h3>All booths · Types<span class="card__ar">البوثات وأنواعها</span></h3></div>
+        <p>البوثات وأرقامها ومقاساتها، وأنواعها بأسعارها.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-list"/></svg></span><h3>Bookings<span class="card__ar">الحجوزات</span></h3></div>
+        <p>حجوزات الشركات للبوثات. من «···» تأكيد الحجز، أو تسجيل الدفع، أو تسجيل دخول وخروج الشركة، أو إلغاء الحجز.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-map"/></svg></span><h3>Floor plan<span class="card__ar">خريطة المعرض</span></h3></div>
+        <p>خريطة المعرض بمقاس حقيقي، وبتوضح حالة كل بوث: متاح، أو محجوز، أو مدفوع.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ certificates -->
+  <section class="sec" id="certs">
+    <div class="sec__head"><h2 class="en">Certificates</h2><span class="sec__menu en">Issued · Templates · Visual builder</span></div>
+    <div class="grid">
+      <article class="card card--key">
+        <div class="card__top"><span class="ico"><svg><use href="#i-cert"/></svg></span><h3>Issued<span class="card__ar">الشهادات المُصدرة</span></h3></div>
+        <p>الشهادات اللي اتصدرت، وفيها إصدار شهادات جديدة للحضور.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><ol>
+          <li>من صفحة الإصدار اختار الإيفنت. اللي دخلوا فعلاً بيظهروا إنهم مستحقين.</li>
+          <li>أصدر الشهادات لكل الناس مرة واحدة أو لكل شخص لوحده.</li>
+          <li>من «···»: تنزيل، أو نسخ رابط التحقق، أو إرسال بالإيميل، أو إلغاء واسترجاع.</li>
+        </ol></div>
+        <p class="tip">تقدر تبعت الشهادة PDF على الواتساب من الإرسال الجماعي، وكل شخص بتوصله شهادته هو.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-pen"/></svg></span><h3>Templates · Visual builder<span class="card__ar">القوالب والمصمم</span></h3></div>
+        <p>قوالب الشهادات. في المصمم بتحط خلفية التصميم، وبتسحب الاسم والتاريخ والـ QR وتحطهم في مكانهم.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ sales -->
+  <section class="sec" id="sales">
+    <div class="sec__head"><h2 class="en">Sales &amp; reports</h2><span class="sec__menu en">Coupons · Coupon categories · Reports · Analytics</span></div>
+    <div class="grid">
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-coupon"/></svg></span><h3>Coupons<span class="card__ar">الكوبونات</span></h3></div>
+        <p>كوبونات خصم أو تسجيل مجاني، بحد لعدد مرات الاستخدام وتاريخ انتهاء. وتقدر تولّد كوبونات كتير مرة واحدة.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><p style="margin:0;color:var(--text-2);font-size:14.5px">أنشئ الكوبون واربطه بإيفنت أو تذكرة. من «···» تنسخ الكود، أو تشوف مين استخدمه، أو توقفه.</p></div>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-tag"/></svg></span><h3>Coupon categories<span class="card__ar">مجموعات الكوبونات</span></h3></div>
+        <p>مجموعات الكوبونات (جامعات، شركات، إلخ) عشان تعرف التسجيل جاي منين.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-chart"/></svg></span><h3>Reports · Analytics<span class="card__ar">التقارير والتحليلات</span></h3></div>
+        <p>أرقام التسجيل والحضور والإيراد لكل إيفنت، على داتا حقيقية، مع إمكانية التصدير.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ messages -->
+  <section class="sec" id="messages">
+    <div class="sec__head"><h2 class="en">Messages</h2><span class="sec__menu en">Chat · Support · Push · Send on WhatsApp · Automatic messages · WhatsApp</span></div>
+    <div class="grid">
+      <article class="card card--key">
+        <div class="card__top"><span class="ico"><svg><use href="#i-send"/></svg></span><h3>Send on WhatsApp<span class="card__ar">الإرسال الجماعي</span></h3></div>
+        <p>إرسال جماعي لحضور إيفنت، أو لأصحاب الشهادات، أو لقايمة أرقام تلصقها. الرسالة بتتخصص لكل شخص باسمه وتفاصيله، وممكن تبعت مع كل واحد الـ QR بتاعه أو شهادته PDF.</p>
+        <div class="how"><span class="how__label">الاستخدام</span><ol>
+          <li>اختار الجمهور واكتب الرسالة، واضغط Preview عشان تشوف عدد الناس والوقت المتوقع.</li>
+          <li>اختار الفاصل بين الرسايل، وبعدين Start.</li>
+          <li>تابع التقدم، وتقدر توقف أو تكمل، وتشوف مين وصلته، وتعيد الإرسال للي ما وصلتلوش.</li>
+        </ol></div>
+        <p class="tip">كل الأرقام المتصلة بتبعت في نفس الوقت، بحد أقصى 1,000 رسالة في اليوم لكل رقم. كل ما الأرقام تزيد، الإرسال بيخلص أسرع.</p>
+      </article>
+      <article class="card card--key">
+        <div class="card__top"><span class="ico"><svg><use href="#i-auto"/></svg></span><h3>Automatic messages<span class="card__ar">الرسائل التلقائية</span></h3></div>
+        <p>الرسايل اللي الموقع بيبعتها لوحده:</p>
+        <ul style="margin:0;padding-inline-start:20px;color:var(--text-2);font-size:14.5px">
+          <li>التذكرة بالـ QR بعد التسجيل.</li>
+          <li>تذكير قبل الإيفنت بيوم، وتذكير صباح اليوم.</li>
+          <li>الشهادة، وبادج العارضين.</li>
+          <li>تأكيد رسائل الدعم، والملخص اليومي.</li>
+        </ul>
+        <div class="how"><span class="how__label">الاستخدام</span><p style="margin:0;color:var(--text-2);font-size:14.5px">كل رسالة ليها زرار تشغيل وإيقاف، ونص تقدر تعدّله ومعاينة، وزرار تبعت بيه تجربة على رقمك.</p></div>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-phone"/></svg></span><h3>WhatsApp<span class="card__ar">أرقام الواتساب</span></h3></div>
+        <div class="card__chips"><span class="chip chip--wait">محتاج أرقام</span></div>
+        <p>أرقام الواتساب اللي الموقع بيبعت منها. بتضيف الرقم، وتمسح الـ QR من الموبايل، وتحدد استخدامه: شات، أو إرسال جماعي، أو تذاكر وأكواد. وفيها كمان الفريق اللي بتوصله تنبيهات الشات.</p>
+        <p class="tip">طول ما مفيش رقم متصل، التذاكر وأكواد الدخول والتذكيرات مش بتتبعت.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-chat"/></svg></span><h3>Chat<span class="card__ar">الشات المباشر</span></h3></div>
+        <p>الشات مع زوار الموقع. أول ما حد يكتب، التنبيه بيوصل للفريق على الواتساب، وتقدر ترد على الزائر على الواتساب كمان.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-mail"/></svg></span><h3>Support<span class="card__ar">الدعم الفني</span></h3></div>
+        <p>رسائل صفحة «تواصل معنا». اللي بعت بيوصله تأكيد إن رسالته وصلت، وانت بترد من هنا على الواتساب من رقم الموقع.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-bell"/></svg></span><h3>Push notifications<span class="card__ar">إشعارات التطبيق</span></h3></div>
+        <p>إشعارات لتطبيق الموبايل، بتتبعت للي نازلين التطبيق.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ system -->
+  <section class="sec" id="system">
+    <div class="sec__head"><h2 class="en">System</h2><span class="sec__menu en">Settings · Module manager</span></div>
+    <div class="grid">
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-gear"/></svg></span><h3>Settings<span class="card__ar">الإعدادات</span></h3></div>
+        <div class="card__chips"><span class="chip chip--wait">الدفع لسه مش متوصل</span></div>
+        <p>اسم المنصة واللوجو والألوان، والإيفنت اللي بيظهر في الرئيسية، ولغة الموقع، وبيانات بوابات الدفع.</p>
+      </article>
+      <article class="card">
+        <div class="card__top"><span class="ico"><svg><use href="#i-grid"/></svg></span><h3>Module manager<span class="card__ar">مدير الأجزاء</span></h3></div>
+        <p>تشغيل وإيقاف أجزاء النظام، زي الشات والبوثات والجلسات والشهادات. لو قفلت جزء، صفحاته بتختفي من القايمة. متاح للمدير الرئيسي بس.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ event day -->
+  <section class="day" id="dayof">
+    <h2>يوم المؤتمر في 5 خطوات</h2>
+    <p>من قبل المؤتمر بيوم لحد إصدار الشهادات.</p>
+    <div class="steps">
+      <div class="step"><b>قبلها بيوم</b><p>اتأكد إن أرقام الواتساب متصلة، وإن التذكير اتبعت من <span class="en">Automatic messages</span>.</p></div>
+      <div class="step"><b>الصبح بدري</b><p>كل بوابة تدخل بحسابها وتفتح <span class="en">Scanner</span> وهي على النت، عشان القائمة تتحفظ.</p></div>
+      <div class="step"><b>وقت الدخول</b><p>افتح <span class="en">Door board</span> على شاشة، وراقب البوابات اللي واقفة والزحمة.</p></div>
+      <div class="step"><b>مشكلة في تذكرة</b><p>ابحث عن الشخص في <span class="en">Attendees</span>، ومن «···» ابعتله التذكرة تاني، أو اعرضله الـ QR.</p></div>
+      <div class="step"><b>بعد المؤتمر</b><p>أصدر الشهادات من <span class="en">Certificates</span>، وابعتها PDF على الواتساب من <span class="en">Send on WhatsApp</span>.</p></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Wisdom Egy · دليل لوحة التحكم · سبتمبر 2026</span>
+    <a href="https://wisdomegy.com/event-manager-dashboard/">افتح اللوحة ←</a>
+  </footer>
+</main>
+</body>
+</html>
