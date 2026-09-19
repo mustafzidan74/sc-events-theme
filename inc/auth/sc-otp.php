@@ -129,7 +129,7 @@ function sc_otp_send($purpose, $phone, $args = array()) {
         ), SC_OTP_TTL + 60);
         $site = wp_specialchars_decode(get_option('sc_platform_name', get_bloginfo('name')), ENT_QUOTES);
         $text = sprintf("كود %s في %s:\n*%s*\n\nصالح 5 دقايق. متديش الكود لأي حد، حتى لو قال إنه من %s.", $purposes[$purpose], $site, $code, $site);
-        $number = sc_wabot_candidates(null, 'otp_' . $purpose)[0] ?? null;
+        $number = sc_wabot_turn_number('otp_' . $purpose);
         if (!$number || !sc_wabot_enqueue($number, $phone, $text, 'otp_' . $purpose, $args['user_id'] ?? null, 10)) {
             delete_transient($key);
             return new WP_Error('sc_otp_unavailable', __('The code could not be sent. Please try again.', 'sc_events'));

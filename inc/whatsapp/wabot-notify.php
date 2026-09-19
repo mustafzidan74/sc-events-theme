@@ -301,7 +301,7 @@ function sc_notify($type, $args) {
     if ($phone === '') {
         $result['reason'] = 'no_phone';
     } else {
-        $number = sc_wabot_candidates(null, $type)[0] ?? null;
+        $number = sc_wabot_turn_number($type);
         if (!$number) {
             $result['reason'] = 'no_number';
         } else {

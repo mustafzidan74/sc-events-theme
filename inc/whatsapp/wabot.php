@@ -601,6 +601,27 @@ function sc_wabot_candidates($preferred, $context, $exclude = array()) {
 }
 
 /**
+ * The number a code or an automatic message goes out from: the connected numbers take turns, so no
+ * single line carries every ticket and code (a line that sends too much gets banned). When only
+ * one is connected, or none, it is the usual first choice. If the chosen line fails, the outbox
+ * still moves the message to the next one (sc_wabot_process_one).
+ */
+function sc_wabot_turn_number($context) {
+    $candidates = sc_wabot_candidates(null, $context);
+    $numbers = sc_wabot_settings()['numbers'];
+    $connected = array_values(array_filter($candidates, function ($key) use ($numbers) {
+        return ($numbers[$key]['status'] ?? '') === 'connected';
+    }));
+    if (count($connected) < 2) {
+        return $candidates[0] ?? null;
+    }
+    sort($connected); // a stable order, so the turns go round every line
+    $turn = (int) get_option('sc_wabot_turn', 0);
+    update_option('sc_wabot_turn', ($turn + 1) % 1000000, false);
+    return $connected[$turn % count($connected)];
+}
+
+/**
  * Send one queued message.
  *
  * @param int         $id   Outbox row.
