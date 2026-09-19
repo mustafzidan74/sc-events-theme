@@ -15,6 +15,11 @@
    them without turning the page into a scroll container, so sticky still works. */
 html, body { overflow-x: clip; }
 
+/* A legacy stylesheet loaded later sets body { overflow-x: hidden }, which makes
+   the body a scroll container of its own and the sticky header scrolled away
+   with the page. Open Bootstrap and SweetAlert dialogs keep their scroll lock. */
+html body:not(.modal-open):not(.swal2-shown) { overflow-x: clip !important; overflow-y: visible !important; }
+
 /* ==========================================================================
    Button
    Sizes:    .w-btn (44px default) · .w-btn--lg (48) · .w-btn--sm (36)

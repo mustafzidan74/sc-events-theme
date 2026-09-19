@@ -87,6 +87,7 @@ $categories = function_exists('sc_get_cached_event_categories') ? sc_get_cached_
 
     <?php // Card rails behave as sliders: arrows, drag, end states. ?>
     <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-rail.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
+    <script defer src="<?php echo esc_url($assets_url); ?>js/wisdom-header.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
 
     <?php
     /*

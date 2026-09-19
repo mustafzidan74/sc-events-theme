@@ -20,7 +20,15 @@ $filter = isset($_GET['filter']) ? sanitize_text_field($_GET['filter']) : 'all';
 $search = isset($_GET['workshop_s'])
     ? sanitize_text_field($_GET['workshop_s'])
     : (isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '');
-$event_filter = isset($_GET['event']) ? intval($_GET['event']) : 0;
+// Opens on the event whose turn it is when it has workshops; "All" is ?event=all.
+$event_param = sc_listing_event_param();
+$event_filter = ctype_digit($event_param) ? (int) $event_param : 0;
+if ($event_param === '') {
+    $turn = sc_turn_event_id();
+    if ($turn && SC_Workshop::count(array('status' => array('publish', 'completed'), 'event_id' => $turn)) > 0) {
+        $event_filter = $turn;
+    }
+}
 $page = get_query_var('paged') ? get_query_var('paged') : 1;
 $per_page = 9;
 $offset = ($page - 1) * $per_page;
@@ -67,7 +75,7 @@ $w_base = home_url('/workshops/');
     <div class="w-toolbar">
         <?php if ($all_events): ?>
         <div class="w-filters">
-            <a href="<?php echo esc_url($w_base); ?>" style="text-decoration:none">
+            <a href="<?php echo esc_url(add_query_arg('event', 'all', $w_base)); ?>" style="text-decoration:none">
                 <button type="button" aria-pressed="<?php echo $event_filter ? 'false' : 'true'; ?>">
                     <?php echo esc_html(sc_t('frontend.all', 'All')); ?>
                 </button>
@@ -83,9 +91,7 @@ $w_base = home_url('/workshops/');
         <?php endif; ?>
 
         <form class="w-search" method="get" action="<?php echo esc_url($w_base); ?>" role="search">
-            <?php if ($event_filter): ?>
-                <input type="hidden" name="event" value="<?php echo esc_attr($event_filter); ?>">
-            <?php endif; ?>
+            <input type="hidden" name="event" value="<?php echo esc_attr($event_filter ?: 'all'); ?>">
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true" style="color:var(--w-text-3)"></i>
             <input type="search" name="workshop_s" value="<?php echo esc_attr($search); ?>"
                    placeholder="<?php echo esc_attr(sc_t('frontend.search_workshops', 'Search workshops…')); ?>"

@@ -16,8 +16,10 @@ if (!class_exists('SC_Event')) {
 
 $assets_url = get_template_directory_uri() . '/assets/frontend/';
 
-// Get filter parameters
-$filter = isset($_GET['filter']) ? sanitize_text_field($_GET['filter']) : 'all';
+// Get filter parameters. With no choice in the address the page opens on what is
+// coming up; "All" is its own address (?filter=all).
+$filter_param = isset($_GET['filter']) ? sanitize_key(wp_unslash($_GET['filter'])) : '';
+$filter = in_array($filter_param, array('all', 'upcoming', 'past'), true) ? $filter_param : 'upcoming';
 // `s` is WordPress's own search variable: sending it here hands the request to
 // the search template and the page 404s. The form submits `event_s` instead;
 // `s` is still read so any link already shared with it keeps working.
@@ -36,6 +38,11 @@ $event_categories = function_exists('sc_get_cached_event_categories') ? sc_get_c
 ));
 if (is_wp_error($event_categories)) {
     $event_categories = array();
+}
+
+// Nothing coming up and nothing chosen: show everything rather than an empty page.
+if ($filter_param === '' && $filter === 'upcoming' && !SC_Event::count(array('status' => array('publish', 'completed'), 'upcoming_only' => true))) {
+    $filter = 'all';
 }
 
 // Build query args for SC_Event::get_all()
@@ -129,7 +136,7 @@ $w_filters = [
     <div class="w-toolbar">
         <div class="w-filters">
             <?php foreach ($w_filters as $w_key => $w_label):
-                $w_href = $w_key === 'all' ? $w_base : add_query_arg('filter', $w_key, $w_base);
+                $w_href = add_query_arg('filter', $w_key, $w_base);
                 if (!empty($search)) { $w_href = add_query_arg("event_s", $search, $w_href); }
             ?>
             <a href="<?php echo esc_url($w_href); ?>" style="text-decoration:none">
@@ -141,9 +148,7 @@ $w_filters = [
         </div>
 
         <form class="w-search" method="get" action="<?php echo esc_url($w_base); ?>" role="search">
-            <?php if ($filter !== 'all'): ?>
-                <input type="hidden" name="filter" value="<?php echo esc_attr($filter); ?>">
-            <?php endif; ?>
+            <input type="hidden" name="filter" value="<?php echo esc_attr($filter); ?>">
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true" style="color:var(--w-text-3)"></i>
             <input type="search" name="event_s" value="<?php echo esc_attr($search); ?>"
                    placeholder="<?php echo esc_attr(sc_t('frontend.search_events', 'Search events…')); ?>"
@@ -219,7 +224,7 @@ $w_filters = [
     <div class="w-empty">
         <span class="w-empty__title"><?php echo esc_html(sc_t('frontend.no_events_found', 'No events found')); ?></span>
         <p><?php echo esc_html(sc_t('frontend.try_another_filter', 'Try another filter or clear your search.')); ?></p>
-        <a class="w-btn w-btn--outline" href="<?php echo esc_url($w_base); ?>"><?php echo esc_html(sc_t('frontend.all', 'All')); ?></a>
+        <a class="w-btn w-btn--outline" href="<?php echo esc_url(add_query_arg('filter', 'all', $w_base)); ?>"><?php echo esc_html(sc_t('frontend.all', 'All')); ?></a>
     </div>
     <?php endif; ?>
 </section>

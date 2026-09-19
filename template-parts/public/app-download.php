@@ -60,6 +60,34 @@ $sc_app_ios_url     = 'https://apps.apple.com/app/id6762920225';
 </section>
 
 <style>
+/* The section carries its own frame: w-section's rules live in home.css, which only the
+   home page and the listings load, so on the 404, event and account pages the panel ran
+   edge to edge. Same width, padding and heading as w-section. */
+.w-app {
+    max-width: 1360px;
+    margin-inline: auto;
+    padding: clamp(28px, 4vw, 56px) clamp(20px, 3vw, 40px);
+    font-family: var(--w-font, Inter, system-ui, sans-serif);
+    color: var(--w-text);
+}
+/* On the 404 the card above is 1200px wide; line the panel up with it. */
+body.error404 .w-app { max-width: 1280px; }
+.w-app .w-section__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--w-space-4, 16px);
+    flex-wrap: wrap;
+    margin-bottom: clamp(20px, 2.5vw, 32px);
+}
+.w-app .w-section__title {
+    margin: 0;
+    font-size: var(--w-h2-size);
+    line-height: var(--w-h2-lh);
+    font-weight: var(--w-h2-weight);
+    letter-spacing: var(--w-h2-ls);
+}
+
 /* لوحة غامقة بنفس مقاسات حائط الرعاة (w-sponsors) */
 .w-app__panel {
     display: flex;

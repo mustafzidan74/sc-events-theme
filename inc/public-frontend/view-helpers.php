@@ -105,6 +105,36 @@ function sc_img($ref, $size, $sizes, array $attr = array(), $max = 0) {
 }
 
 /**
+ * The event whose turn it is: the one running today, else the next one to start.
+ * The workshop and speaker listings open on it when it has something to show.
+ */
+function sc_turn_event_id() {
+    static $id = null;
+    if ($id === null) {
+        global $wpdb;
+        $id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}sc_events
+             WHERE status = 'publish' AND COALESCE(end_date, start_date) >= %s
+             ORDER BY start_date ASC, id ASC LIMIT 1",
+            current_time('Y-m-d')
+        ));
+    }
+    return $id;
+}
+
+/**
+ * The listing's ?event= choice: 'all', an event id, or '' when nothing was chosen
+ * (the page then picks the event whose turn it is).
+ */
+function sc_listing_event_param() {
+    $raw = isset($_GET['event']) ? sanitize_key(wp_unslash($_GET['event'])) : '';
+    if ($raw === 'all' || ctype_digit($raw)) {
+        return $raw;
+    }
+    return '';
+}
+
+/**
  * Format a run of days the way the design states it.
  *
  * "7–9 Oct" while the run stays inside one month, "28 Sep – 2 Oct" when it

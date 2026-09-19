@@ -17,6 +17,7 @@
   position: sticky;
   top: 0;
   z-index: 60;
+  transition: transform .25s ease;
   height: 64px;
   display: flex;
   align-items: center;
@@ -25,6 +26,14 @@
   background: var(--w-bg);
   border-bottom: 1px solid var(--w-border);
   font-family: var(--w-font);
+}
+
+/* Out of the way while reading down the page; back as soon as the reader
+   scrolls up (wisdom-header.js). */
+.w-header--hidden { transform: translateY(-100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-header { transition: none; }
 }
 
 @supports (backdrop-filter: blur(1px)) {
