@@ -221,12 +221,23 @@ class SC_API_Auth {
         // Sanitize input
         $username = sanitize_user($username);
 
+        // Wrong passwords lock the account being tried for 30 minutes (5 in 15 minutes), the same
+        // counter as the website's sign-in, so guesses can't be split between the two.
+        $found = get_user_by(is_email($username) ? 'email' : 'login', $username);
+        $lock_id = $found ? $found->user_email : strtolower($username);
+        $lock = sc_check_auth_rate_limit($lock_id, 'login');
+        if (is_array($lock) && $lock['blocked']) {
+            return new WP_Error('too_many_attempts', $lock['message']);
+        }
+
         // Try to authenticate
         $user = wp_authenticate($username, $password);
 
         if (is_wp_error($user)) {
+            sc_increment_auth_rate_limit($lock_id, 'login');
             return $user;
         }
+        sc_clear_auth_rate_limit($lock_id, 'login');
 
         // Check if user can access API
         if (!$this->canAccessApi($user)) {
@@ -339,7 +350,9 @@ class SC_API_Auth {
             return true;
         }
 
-        return false;
+        // Members: their token has role "user", which only reaches their own tickets,
+        // certificates and profile (routes with a role option refuse it).
+        return !empty($user->roles);
     }
 
     /**

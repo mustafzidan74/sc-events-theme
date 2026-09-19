@@ -220,7 +220,6 @@ function sc_register_verify() {
     if (is_wp_error($user_id)) {
         wp_send_json_error(array('message' => $user_id->get_error_message(), 'restart' => true));
     }
-    sc_increment_auth_rate_limit(sc_get_client_ip(), 'register');
     wp_send_json_success(array('message' => __('Your account is ready.', 'sc_events'), 'redirect' => home_url('/my-account/')));
 }
 

@@ -875,6 +875,15 @@ function sc_get_action_rate_limit_type($action) {
     return 'default';
 }
 
+function sc_ip_unlimited_actions() {
+    return array(
+        'sc_public_login', 'sc_public_register',
+        'sc_otp_login_send', 'sc_otp_login_verify', 'sc_otp_login_choose',
+        'sc_register_verify', 'sc_register_resend',
+        'sc_reset_send', 'sc_reset_verify', 'sc_reset_set_password',
+    );
+}
+
 /**
  * Global rate limiting for all dashboard AJAX actions
  * Hook into admin-ajax.php early to check rate limits
@@ -891,6 +900,13 @@ function sc_global_ajax_rate_limit() {
 
     // Only apply to our dashboard actions (sc_ prefix)
     if (empty($action) || strpos($action, 'sc_') !== 0) {
+        return;
+    }
+
+    // Signing in, creating an account and resetting a password are not limited per IP: a venue's
+    // Wi-Fi puts hundreds of people behind one address. Their own limits are per account and per
+    // number (sc_check_auth_rate_limit by email, inc/auth/sc-otp.php).
+    if (!is_user_logged_in() && in_array($action, sc_ip_unlimited_actions(), true)) {
         return;
     }
 

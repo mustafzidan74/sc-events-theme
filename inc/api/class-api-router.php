@@ -212,19 +212,19 @@ class SC_API_Router {
         $route_info = $matched['route'];
         $params = $matched['params'];
 
-        // Check rate limiting
-        if (isset($route_info['options']['rate_limit'])) {
-            $this->checkRateLimit($route_info['options']['rate_limit']);
-        } else {
-            $this->checkRateLimit('default');
-        }
-
         // Check authentication
         if (isset($route_info['options']['auth']) && $route_info['options']['auth']) {
             $this->authenticate();
         } else {
             // Try to authenticate but don't require it (for optional auth)
             $this->tryAuthenticate();
+        }
+
+        // Rate limits count per signed-in account. Nothing is counted per IP: at the venue the
+        // whole audience shares one Wi-Fi address. Password guesses are limited per account
+        // (SC_API_Auth::authenticate) and WhatsApp codes per number (inc/auth/sc-otp.php).
+        if ($this->user) {
+            $this->checkRateLimit($route_info['options']['rate_limit'] ?? 'default');
         }
 
         // Check role
@@ -377,12 +377,7 @@ class SC_API_Router {
      */
     private function checkRateLimit($type) {
         $limiter = SC_API_Rate_Limiter::create($type);
-        $identifier = $this->request['ip'];
-
-        // Add user ID to identifier if authenticated
-        if ($this->user) {
-            $identifier .= '_' . $this->user['sub'];
-        }
+        $identifier = 'user_' . $this->user['sub'];
 
         if (!$limiter->check($identifier)) {
             $retry_after = $limiter->getRetryAfter($identifier);

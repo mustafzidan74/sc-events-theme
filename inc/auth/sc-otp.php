@@ -3,8 +3,10 @@
  * One-time codes sent on WhatsApp: sign in, create an account, reset a password, change the phone.
  *
  * - 6 digits, stored only as an HMAC, valid 5 minutes, 5 wrong tries per code.
- * - Sending: 60 s between codes to the same number, 3 per 15 minutes per number, 10 per hour per IP.
- * - Checking: 20 wrong codes per hour from one IP locks that IP out for an hour.
+ * - Sending: 60 s between codes to the same number, 3 per 15 minutes per number.
+ * - No limit per IP: at the venue hundreds of phones share one Wi-Fi address. Guessing stays out
+ *   of reach: 3 codes × 5 tries per 15 minutes against a million combinations.
+ * - Codes go out from the connected numbers in turn (sc_wabot_turn_number()).
  * - A code is bound to its purpose and number; a correct code is used up at once.
  * - The outbox keeps the text masked (wabot.php, sc_wabot_is_secret_context()).
  *
@@ -84,10 +86,6 @@ function sc_otp_count($key) {
     return is_array($data) && ($data['until'] ?? 0) >= time() ? (int) $data['n'] : 0;
 }
 
-function sc_otp_ip_key($what) {
-    return 'sc_otp_ip_' . $what . '_' . substr(md5((string) sc_get_client_ip()), 0, 20);
-}
-
 /**
  * Send a code. $phone must already be normalised (sc_wabot_phone()).
  *
@@ -112,11 +110,7 @@ function sc_otp_send($purpose, $phone, $args = array()) {
     if (sc_otp_count('sc_otp_ph_' . md5($phone)) >= 3) {
         return new WP_Error('sc_otp_limit', __('Too many codes for this number. Try again in 15 minutes.', 'sc_events'));
     }
-    if (sc_otp_count(sc_otp_ip_key('send')) >= 10) {
-        return new WP_Error('sc_otp_limit', __('Too many codes requested. Try again in an hour.', 'sc_events'));
-    }
     sc_otp_bump('sc_otp_ph_' . md5($phone), 15 * MINUTE_IN_SECONDS);
-    sc_otp_bump(sc_otp_ip_key('send'), HOUR_IN_SECONDS);
 
     if (empty($args['silent'])) {
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -147,10 +141,6 @@ function sc_otp_send($purpose, $phone, $args = array()) {
  * @return array|WP_Error user_id stored with the code.
  */
 function sc_otp_verify($purpose, $phone, $code) {
-    $ip_key = sc_otp_ip_key('fail');
-    if (sc_otp_count($ip_key) >= 20) {
-        return new WP_Error('sc_otp_locked', __('Too many wrong codes. Try again in an hour.', 'sc_events'));
-    }
     $code = preg_replace('/\D/', '', (string) $code);
     $key = sc_otp_key($purpose, $phone);
     $data = $phone !== '' ? get_transient($key) : false;
@@ -158,13 +148,11 @@ function sc_otp_verify($purpose, $phone, $code) {
         return new WP_Error('sc_otp_expired', __('This code has expired. Ask for a new one.', 'sc_events'));
     }
     if ($data['tries'] >= SC_OTP_MAX_TRIES || $data['hash'] === '') {
-        sc_otp_bump($ip_key, HOUR_IN_SECONDS);
         return new WP_Error('sc_otp_expired', __('This code can no longer be used. Ask for a new one.', 'sc_events'));
     }
     if (strlen($code) !== 6 || !hash_equals($data['hash'], sc_otp_hash($code, $purpose, $phone))) {
         $data['tries']++;
         set_transient($key, $data, max(1, $data['expires'] - time() + 60));
-        sc_otp_bump($ip_key, HOUR_IN_SECONDS);
         $left = SC_OTP_MAX_TRIES - $data['tries'];
         return new WP_Error('sc_otp_wrong', $left > 0
             ? sprintf(_n('Wrong code. %d try left.', 'Wrong code. %d tries left.', $left, 'sc_events'), $left)

@@ -146,7 +146,9 @@ function sc_get_brute_force_config() {
         'max_attempts' => 5,           // Maximum login attempts
         'lockout_duration' => 900,     // Lockout duration in seconds (15 minutes)
         'attempt_window' => 300,       // Time window to count attempts (5 minutes)
-        'progressive_lockout' => true, // Increase lockout with each subsequent lockout
+        // Off: the lock is per account now, so a stranger typing a scanner's email wrong must not
+        // keep that scanner out for hours on the event day.
+        'progressive_lockout' => false, // Increase lockout with each subsequent lockout
         'notify_admin' => true,        // Notify admin of lockouts
         'whitelist_ips' => array(),    // IPs that bypass lockout
     ));
@@ -346,6 +348,18 @@ function sc_clear_ip_lockout($ip) {
 }
 
 /**
+ * What wrong passwords are counted against: the account being tried (its email, however it was
+ * typed), not the IP. At the venue the whole audience and the scanner team share one Wi-Fi
+ * address, and a few typos must not lock everybody out. The sc_*_ip_* helpers take this key in
+ * place of an IP.
+ */
+function sc_login_lock_key($username) {
+    $username = trim((string) $username);
+    $user = is_email($username) ? get_user_by('email', $username) : get_user_by('login', $username);
+    return 'account:' . strtolower($user ? $user->user_email : $username);
+}
+
+/**
  * Hook into WordPress login to apply brute force protection
  */
 add_filter('authenticate', 'sc_check_brute_force_on_login', 30, 3);
@@ -355,8 +369,8 @@ function sc_check_brute_force_on_login($user, $username, $password) {
         return $user;
     }
 
-    // Check if IP is locked out
-    $lockout = sc_is_ip_locked_out();
+    // Check if this account is locked out
+    $lockout = sc_is_ip_locked_out(sc_login_lock_key($username));
     if ($lockout) {
         return new WP_Error(
             'sc_locked_out',
@@ -375,7 +389,7 @@ function sc_check_brute_force_on_login($user, $username, $password) {
  */
 add_action('wp_login_failed', 'sc_handle_failed_login');
 function sc_handle_failed_login($username) {
-    sc_record_failed_login(null, $username);
+    sc_record_failed_login(sc_login_lock_key($username), $username);
 }
 
 /**
@@ -383,7 +397,7 @@ function sc_handle_failed_login($username) {
  */
 add_action('wp_login', 'sc_handle_successful_login', 10, 2);
 function sc_handle_successful_login($user_login, $user) {
-    sc_record_successful_login();
+    sc_record_successful_login(sc_login_lock_key($user->user_email));
 }
 
 /**

@@ -16,32 +16,46 @@ The API uses JWT (JSON Web Token) authentication for protected routes.
 
 ### Login
 
+Members (attendees) and staff both sign in here with a password. Members can also sign in with a
+WhatsApp code instead (see "WhatsApp codes" below).
+
 ```http
 POST /auth/login
 Content-Type: application/json
 
 {
-    "email": "user@example.com",
+    "username": "user@example.com",
     "password": "your-password"
 }
 ```
+`username` takes the email or the username.
 
 **Response:**
 ```json
 {
     "success": true,
     "data": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "refresh_token": "abc123...",
-        "expires_in": 3600,
         "user": {
             "id": 1,
+            "username": "user@example.com",
             "email": "user@example.com",
-            "name": "John Doe"
-        }
+            "display_name": "John Doe",
+            "role": "user"
+        },
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "refresh_token": "abc123...",
+        "expires_in": 86400,
+        "token_type": "Bearer"
     }
 }
 ```
+
+`role` is `user` (member), `scanner`, `manager` or `admin`. A `user` token reaches the member's own
+routes (`/auth/*`, `/attendees/my-tickets`, `/certificates/my`, `/coupons/apply`); routes for staff
+answer `403`.
+
+Five wrong passwords in 5 minutes lock **that account** for 15 minutes (`429 TOO_MANY_ATTEMPTS`),
+on the app and the website alike. Other people are not affected, even on the same Wi-Fi.
 
 ### Using the Token
 
@@ -85,12 +99,13 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```json
 {
     "success": false,
-    "error": {
-        "code": "ERROR_CODE",
-        "message": "Error description"
-    }
+    "message": "Error description",
+    "error_code": "ERROR_CODE",
+    "errors": { "field": ["What is wrong with it"] },
+    "timestamp": "2026-09-19T07:22:53+00:00"
 }
 ```
+`errors` is `null` unless there is more to say (validation messages, `resend_in`).
 
 ---
 
@@ -126,8 +141,10 @@ are refused (401), and the refresh token stops working.
 
 The same codes as the website. They are for member accounts; staff (managers, scanners, admins)
 keep signing in with `/auth/login`. A code is 6 digits, valid 5 minutes, allows 5 wrong tries, and
-a new one can be asked for after 60 seconds (at most 3 per 15 minutes per number). "Send" answers
-look the same whether or not an account uses the number.
+a new one can be asked for after 60 seconds (at most 3 per 15 minutes per number). There is no
+limit per IP. "Send" answers look the same whether or not an account uses the number, and a code
+is only sent to a number that has an account. When several WhatsApp lines are connected, codes go
+out from them in turn.
 
 Phone numbers are sent as typed: `phone` (`"01012345678"`, `"1012345678"` or `"+20 10 1234 5678"`)
 and optional `country_code` (default `"+20"`).
@@ -207,8 +224,7 @@ like `/auth/login`, and every other device is signed out.
 | 400 | OTP_EXPIRED | Code or proof expired or used up; ask for a new code |
 | 404 | NO_ACCOUNT | The code was right but no member account uses the number |
 | 429 | OTP_WAIT | Too soon for a new code; `errors.resend_in` = seconds to wait |
-| 429 | OTP_LIMIT / OTP_LOCKED | Too many codes or wrong tries; try later |
-| 429 | RATE_LIMIT_EXCEEDED | More than 10 auth requests a minute from one IP |
+| 429 | OTP_LIMIT | 3 codes already sent to this number in the last 15 minutes |
 | 503 | OTP_UNAVAILABLE | No WhatsApp line connected |
 
 ---
@@ -475,19 +491,27 @@ GET /certificates/check?email=user@example.com&event_id=1
 | UNAUTHORIZED | 401 | Authentication required |
 | FORBIDDEN | 403 | Insufficient permissions |
 | NOT_FOUND | 404 | Resource not found |
-| RATE_LIMIT_EXCEEDED | 429 | Too many requests |
+| RATE_LIMIT_EXCEEDED | 429 | Too many requests from one signed-in account |
+| TOO_MANY_ATTEMPTS | 429 | Too many wrong passwords for this account; try in 15 minutes |
 | SERVER_ERROR | 500 | Internal server error |
 
 ---
 
 ## Rate Limiting
 
-| Type | Limit | Window |
-|------|-------|--------|
-| Default | 100 requests | 1 minute |
-| Auth | 10 requests | 1 minute |
+There are **no limits per IP address**: at the venue the whole audience shares one Wi-Fi address.
+Limits are per account and per phone number instead:
 
-Rate limit headers are included in responses:
+| What | Limit |
+|------|-------|
+| Signed-in requests | 100 a minute per account (auth routes 10 a minute per account) |
+| Wrong passwords | 5 in 5 minutes lock that account for 15 minutes |
+| WhatsApp codes | 1 a minute and 3 per 15 minutes per phone number |
+| Wrong codes | 5 per code, then ask for a new one |
+
+Requests without a token (browsing events, speakers, sending a code) are not counted.
+
+Rate limit headers are included in signed-in responses:
 - `X-RateLimit-Limit`
 - `X-RateLimit-Remaining`
 - `X-RateLimit-Reset`

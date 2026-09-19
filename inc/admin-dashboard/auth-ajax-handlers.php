@@ -34,10 +34,12 @@ function sc_event_manager_login_handler() {
         wp_send_json_error(array('message' => __('Enter your email or username and your password.', 'sc_events')));
     }
 
-    // Lockout is per IP and the same for every account, so the reply never
-    // reveals which usernames belong to staff. Failed attempts are counted
-    // once, by the wp_login_failed hook in security-utilities.php.
-    $lockout = sc_is_ip_locked_out();
+    // Lockout is per account (sc_login_lock_key), so staff sharing the venue's Wi-Fi don't lock
+    // each other out. Unknown usernames are counted the same way, so the reply doesn't reveal
+    // which ones exist. Failed attempts are counted once, by the wp_login_failed hook in
+    // security-utilities.php.
+    $lock_key = sc_login_lock_key($user_login);
+    $lockout = sc_is_ip_locked_out($lock_key);
     if ($lockout) {
         wp_send_json_error(array('message' => $locked_message($lockout['remaining']), 'locked_out' => true, 'retry_after' => $lockout['remaining']));
     }
@@ -49,12 +51,12 @@ function sc_event_manager_login_handler() {
     ), is_ssl());
 
     if (is_wp_error($user)) {
-        $lockout = sc_is_ip_locked_out();
+        $lockout = sc_is_ip_locked_out($lock_key);
         if ($lockout) {
             wp_send_json_error(array('message' => $locked_message($lockout['remaining']), 'locked_out' => true, 'retry_after' => $lockout['remaining']));
         }
         $config = sc_get_brute_force_config();
-        $attempts = get_transient('sc_attempts_' . md5(sc_get_client_ip()));
+        $attempts = get_transient('sc_attempts_' . md5($lock_key));
         $left = $config['max_attempts'] - (is_array($attempts) ? (int) $attempts['count'] : 0);
         $message = __('Wrong email, username or password.', 'sc_events');
         if ($left > 0 && $left <= 2) {
@@ -70,8 +72,6 @@ function sc_event_manager_login_handler() {
         wp_logout();
         wp_send_json_error(array('message' => __('This account has no dashboard access. The dashboard is for event managers and scanner staff.', 'sc_events')));
     }
-
-    sc_record_successful_login();
 
     wp_send_json_success(array(
         'redirect' => home_url($is_event_manager ? '/event-manager-dashboard/home' : '/event-manager-dashboard/scanner'),

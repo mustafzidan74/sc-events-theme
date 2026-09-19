@@ -57,6 +57,9 @@ class SC_Auth_Endpoint extends SC_Base_Endpoint {
                 case 'access_denied':
                     SC_API_Response::forbidden('You do not have permission to access the API');
                     break;
+                case 'too_many_attempts':
+                    SC_API_Response::error($result->get_error_message(), 429, null, 'TOO_MANY_ATTEMPTS');
+                    break;
                 default:
                     SC_API_Response::error($result->get_error_message(), 401, null, 'AUTH_FAILED');
             }

@@ -137,16 +137,12 @@ function sc_public_login_handler() {
         wp_send_json_error(array('message' => __('Please enter email and password.', 'sc_events')));
     }
 
-    // Security: Check rate limit (by email and IP)
-    $client_ip = sc_get_client_ip();
+    // Security: wrong passwords lock the account being tried, not the IP. At the venue everyone
+    // shares one Wi-Fi address, and a few typos must not lock everybody out.
     $rate_check_email = sc_check_auth_rate_limit($email, 'login');
-    $rate_check_ip = sc_check_auth_rate_limit($client_ip, 'login');
 
     if (is_array($rate_check_email) && $rate_check_email['blocked']) {
         wp_send_json_error(array('message' => $rate_check_email['message']));
-    }
-    if (is_array($rate_check_ip) && $rate_check_ip['blocked']) {
-        wp_send_json_error(array('message' => $rate_check_ip['message']));
     }
 
     // Get user by email
@@ -155,7 +151,6 @@ function sc_public_login_handler() {
     if (!$user) {
         // Increment rate limit on failed attempt
         sc_increment_auth_rate_limit($email, 'login');
-        sc_increment_auth_rate_limit($client_ip, 'login');
         wp_send_json_error(array('message' => __('Invalid email or password.', 'sc_events')));
     }
 
@@ -163,13 +158,11 @@ function sc_public_login_handler() {
     if (!wp_check_password($password, $user->user_pass, $user->ID)) {
         // Increment rate limit on failed attempt
         sc_increment_auth_rate_limit($email, 'login');
-        sc_increment_auth_rate_limit($client_ip, 'login');
         wp_send_json_error(array('message' => __('Invalid email or password.', 'sc_events')));
     }
 
     // Clear rate limit on successful login
     sc_clear_auth_rate_limit($email, 'login');
-    sc_clear_auth_rate_limit($client_ip, 'login');
 
     // Login user
     wp_set_current_user($user->ID);
@@ -204,13 +197,8 @@ function sc_public_register_handler() {
 
     $password = (string) wp_unslash($_POST['password'] ?? '');
 
-    // Security: Check rate limit (by IP for registration)
-    $client_ip = sc_get_client_ip();
-    $rate_check = sc_check_auth_rate_limit($client_ip, 'register');
-
-    if (is_array($rate_check) && $rate_check['blocked']) {
-        wp_send_json_error(array('message' => $rate_check['message']));
-    }
+    // No per-IP limit: at the venue many people sign up on the same Wi-Fi. When WhatsApp is
+    // connected every new account has to confirm its number with a code.
 
     // Validation
     if (empty($name) || empty($email) || empty($password)) {
@@ -251,8 +239,6 @@ function sc_public_register_handler() {
     if (is_wp_error($user_id)) {
         wp_send_json_error(array('message' => $user_id->get_error_message()));
     }
-    sc_increment_auth_rate_limit($client_ip, 'register');
-
     wp_send_json_success(array(
         'message' => __('Registration successful! Redirecting...', 'sc_events'),
         'redirect' => home_url('/')
