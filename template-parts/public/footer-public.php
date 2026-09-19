@@ -30,6 +30,9 @@ $platform_linkedin = get_option('sc_platform_linkedin', '');
 $assets_url = get_template_directory_uri() . '/assets/frontend/';
 ?>
 
+<?php // قسم تحميل التطبيق (Google Play / App Store) قبل الفوتر
+get_template_part('template-parts/public/app-download'); ?>
+
 <!--===== FOOTER =======-->
 <?php
 /*
