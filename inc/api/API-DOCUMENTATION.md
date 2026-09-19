@@ -109,6 +109,107 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | GET | /auth/me | Yes | Get current user |
 | PUT | /auth/profile | Yes | Update profile |
 | PUT | /auth/password | Yes | Change password |
+| GET | /auth/otp/status | No | Can WhatsApp codes be sent right now? |
+| POST | /auth/otp/send | No | Send a sign-in code on WhatsApp |
+| POST | /auth/otp/verify | No | Check the code → tokens |
+| POST | /auth/otp/choose | No | Pick the account when a number has several |
+| POST | /auth/password/otp/send | No | Forgot password: send a code on WhatsApp |
+| POST | /auth/password/otp/verify | No | Forgot password: check the code → proof |
+| POST | /auth/password/otp/reset | No | Forgot password: set the new password → tokens |
+
+Changing or resetting a password signs the account out on every device: tokens issued before it
+are refused (401), and the refresh token stops working.
+
+---
+
+### WhatsApp codes (sign in, forgot password)
+
+The same codes as the website. They are for member accounts; staff (managers, scanners, admins)
+keep signing in with `/auth/login`. A code is 6 digits, valid 5 minutes, allows 5 wrong tries, and
+a new one can be asked for after 60 seconds (at most 3 per 15 minutes per number). "Send" answers
+look the same whether or not an account uses the number.
+
+Phone numbers are sent as typed: `phone` (`"01012345678"`, `"1012345678"` or `"+20 10 1234 5678"`)
+and optional `country_code` (default `"+20"`).
+
+**0. Show the option only when it works**
+
+```http
+GET /auth/otp/status
+```
+```json
+{ "success": true, "data": { "available": true, "resend_after": 60, "expires_in": 300, "code_length": 6 } }
+```
+When `available` is false (no WhatsApp line connected), hide "Sign in with WhatsApp" and
+"Forgot password"; the send routes answer `503 OTP_UNAVAILABLE`.
+
+**Sign in**
+
+```http
+POST /auth/otp/send
+{ "phone": "01012345678", "country_code": "+20" }
+```
+```json
+{ "success": true, "message": "If an account uses this number, a 6-digit code is on its way on WhatsApp.",
+  "data": { "resend_in": 60, "expires_in": 300, "phone": "+20 10••••••78" } }
+```
+
+```http
+POST /auth/otp/verify
+{ "phone": "01012345678", "country_code": "+20", "code": "123456" }
+```
+One account on the number → the same body as `/auth/login`:
+```json
+{ "success": true, "data": { "user": { "id": 42, "username": "...", "email": "...", "display_name": "...", "role": "user" },
+  "access_token": "...", "refresh_token": "...", "expires_in": 86400, "token_type": "Bearer" } }
+```
+Several accounts on the number → ask which one, then call `/auth/otp/choose` within 15 minutes:
+```json
+{ "success": true, "data": { "choose": [ { "id": 42, "name": "Sara", "email": "s•••@gmail.com" }, ... ], "proof": "Xy3..." } }
+```
+```http
+POST /auth/otp/choose
+{ "proof": "Xy3...", "user_id": 42 }
+```
+The proof works once; a wrong `user_id` uses it up (start again from send).
+
+**Forgot password**
+
+```http
+POST /auth/password/otp/send
+{ "email": "sara@gmail.com" }            // or { "phone": "01012345678", "country_code": "+20" }
+```
+The code goes to the WhatsApp number on the account.
+
+```http
+POST /auth/password/otp/verify
+{ "email": "sara@gmail.com", "code": "123456" }   // same email or phone as the send step
+```
+```json
+{ "success": true, "data": { "proof": "Ab9...", "choose": [] } }
+```
+`choose` lists the accounts when a phone number has several; send the chosen `user_id` in the next step.
+
+```http
+POST /auth/password/otp/reset
+{ "proof": "Ab9...", "user_id": 42, "password": "NewPass#2026", "password_confirmation": "NewPass#2026" }
+```
+The password needs at least 8 characters and can't be the phone number (`422` with
+`errors.password`; the proof stays valid so the user can try again). Success returns fresh tokens
+like `/auth/login`, and every other device is signed out.
+
+**Errors**
+
+| HTTP | error_code | Meaning |
+|------|------------|---------|
+| 422 | VALIDATION_ERROR | Missing phone, email, code or password (see `errors`) |
+| 400 | OTP_WRONG | Wrong code; the message says how many tries are left |
+| 400 | OTP_EXPIRED | Code or proof expired or used up; ask for a new code |
+| 404 | NO_ACCOUNT | The code was right but no member account uses the number |
+| 429 | OTP_WAIT | Too soon for a new code; `errors.resend_in` = seconds to wait |
+| 429 | OTP_LIMIT / OTP_LOCKED | Too many codes or wrong tries; try later |
+| 429 | RATE_LIMIT_EXCEEDED | More than 10 auth requests a minute from one IP |
+| 503 | OTP_UNAVAILABLE | No WhatsApp line connected |
 
 ---
 

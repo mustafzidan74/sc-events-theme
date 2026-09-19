@@ -247,6 +247,18 @@ function sc_verified_owner_of_phone($phone, $except = 0) {
     return 0;
 }
 
+/**
+ * A new password signs the app out on every phone, however it was set: the website's reset, the
+ * app's reset, My Account, or wp-admin. Same effect as SC_API_Auth::revokeAllTokens() (the API
+ * classes only load on api.php requests).
+ */
+add_action('wp_set_password', 'sc_revoke_api_tokens_on_password', 10, 2);
+function sc_revoke_api_tokens_on_password($password, $user_id) {
+    delete_user_meta($user_id, 'sc_api_refresh_token');
+    delete_user_meta($user_id, 'sc_api_refresh_token_exp');
+    update_user_meta($user_id, 'sc_api_token_version', (int) get_user_meta($user_id, 'sc_api_token_version', true) + 1);
+}
+
 /** "a•••@clinic.com" */
 function sc_mask_email($email) {
     $parts = explode('@', (string) $email);

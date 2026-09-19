@@ -86,7 +86,9 @@ class SC_API_Auth {
             'exp' => $expiration,
             'sub' => $user_id,
             'role' => $role,
-            'jti' => $this->generateJti()
+            'jti' => $this->generateJti(),
+            // Bumped by revokeAllTokens(); a token from an older version is refused.
+            'ver' => (int) get_user_meta($user_id, 'sc_api_token_version', true),
         ], $extra);
 
         $payload = $this->base64UrlEncode(json_encode($payload_data));
@@ -148,6 +150,13 @@ class SC_API_Auth {
 
         // Check issuer
         if (isset($payload_data['iss']) && $payload_data['iss'] !== home_url()) {
+            return false;
+        }
+
+        // Signed out everywhere (password changed or reset) since this token was made.
+        // Tokens from before versions existed count as version 0.
+        $version = (int) get_user_meta((int) ($payload_data['sub'] ?? 0), 'sc_api_token_version', true);
+        if ((int) ($payload_data['ver'] ?? 0) !== $version) {
             return false;
         }
 
@@ -224,7 +233,17 @@ class SC_API_Auth {
             return new WP_Error('access_denied', 'You do not have permission to access the API');
         }
 
-        // Generate tokens
+        return $this->issueTokens($user);
+    }
+
+    /**
+     * Tokens and user summary for a user who has already proved who they are
+     * (password above, or a WhatsApp code in SC_Auth_Endpoint).
+     *
+     * @param WP_User $user
+     * @return array
+     */
+    public function issueTokens($user) {
         $role = $this->getUserRole($user);
         $access_token = $this->generateToken($user->ID, $role);
         $refresh_token = $this->generateRefreshToken($user->ID);

@@ -21,8 +21,13 @@ if (!defined('ABSPATH')) {
 
 /** The number typed on a form (country code select + number) as international digits. */
 function sc_otp_phone_input($code_field = 'phone_code', $number_field = 'phone') {
-    $cc = preg_replace('/\D/', '', sanitize_text_field(wp_unslash($_POST[$code_field] ?? '+20'))) ?: '20';
-    $raw = sanitize_text_field(wp_unslash($_POST[$number_field] ?? ''));
+    return sc_otp_normalize_phone(wp_unslash($_POST[$code_field] ?? '+20'), wp_unslash($_POST[$number_field] ?? ''));
+}
+
+/** A country code and a number as typed ("010…", "+20 10…", "10…") as international digits. */
+function sc_otp_normalize_phone($country_code, $number) {
+    $cc = preg_replace('/\D/', '', sanitize_text_field((string) $country_code)) ?: '20';
+    $raw = sanitize_text_field((string) $number);
     $digits = preg_replace('/\D/', '', $raw);
     if ($digits === '') {
         return '';
@@ -112,13 +117,8 @@ function sc_otp_login_verify() {
         sc_otp_sign_in($accounts[0], $phone, $remember);
         wp_send_json_success(array('message' => __('Signed in.', 'sc_events'), 'redirect' => $redirect));
     }
-    $list = array();
-    foreach ($accounts as $id) {
-        $u = get_userdata($id);
-        $list[] = array('id' => $id, 'name' => $u->display_name, 'email' => sc_mask_email($u->user_email));
-    }
     wp_send_json_success(array(
-        'choose'   => $list,
+        'choose'   => sc_otp_account_choices($accounts),
         'proof'    => sc_otp_issue_proof('login', $phone, array('users' => $accounts, 'remember' => $remember)),
         'redirect' => $redirect,
         'message'  => __('This number is on more than one account. Which one?', 'sc_events'),
@@ -250,16 +250,43 @@ function sc_register_resend() {
  */
 function sc_reset_target() {
     $by = sanitize_key(wp_unslash($_POST['by'] ?? 'phone'));
-    if ($by === 'email') {
-        $user = get_user_by('email', sanitize_email(wp_unslash($_POST['email'] ?? '')));
-        if (!$user || sc_otp_is_staff($user->ID)) {
-            return array('phone' => '', 'users' => array());
-        }
-        $phone = sc_wabot_phone(get_user_meta($user->ID, 'phone', true)) ?: sc_wabot_phone(get_user_meta($user->ID, 'billing_phone', true));
-        return array('phone' => $phone, 'users' => $phone !== '' ? array((int) $user->ID) : array());
+    return $by === 'email'
+        ? sc_reset_target_by_email(wp_unslash($_POST['email'] ?? ''))
+        : sc_reset_target_by_phone(sc_otp_phone_input());
+}
+
+function sc_reset_target_by_email($email) {
+    $user = get_user_by('email', sanitize_email((string) $email));
+    if (!$user || sc_otp_is_staff($user->ID)) {
+        return array('phone' => '', 'users' => array());
     }
-    $phone = sc_otp_phone_input();
+    $phone = sc_wabot_phone(get_user_meta($user->ID, 'phone', true)) ?: sc_wabot_phone(get_user_meta($user->ID, 'billing_phone', true));
+    return array('phone' => $phone, 'users' => $phone !== '' ? array((int) $user->ID) : array());
+}
+
+function sc_reset_target_by_phone($phone) {
     return array('phone' => $phone, 'users' => $phone !== '' ? sc_otp_member_accounts($phone) : array());
+}
+
+/** Masked name and email of each account, for "which account?" */
+function sc_otp_account_choices($user_ids) {
+    $list = array();
+    foreach ($user_ids as $id) {
+        $u = get_userdata($id);
+        $list[] = array('id' => (int) $id, 'name' => $u->display_name, 'email' => sc_mask_email($u->user_email));
+    }
+    return $list;
+}
+
+/** Password rules for a reset: at least 8 characters and not the phone number. Empty = fine. */
+function sc_reset_password_problem($password, $phone) {
+    if (strlen($password) < 8) {
+        return __('Use at least 8 characters.', 'sc_events');
+    }
+    if (sc_wabot_phone($password) === $phone) {
+        return __('Don’t use your phone number as the password.', 'sc_events');
+    }
+    return '';
 }
 
 add_action('wp_ajax_nopriv_sc_reset_send', 'sc_reset_send');
@@ -299,14 +326,9 @@ function sc_reset_verify() {
     if (!$target['users']) {
         wp_send_json_error(array('message' => __('No account matches. Create one, or contact us.', 'sc_events')));
     }
-    $list = array();
-    foreach ($target['users'] as $id) {
-        $u = get_userdata($id);
-        $list[] = array('id' => $id, 'name' => $u->display_name, 'email' => sc_mask_email($u->user_email));
-    }
     wp_send_json_success(array(
         'proof'  => sc_otp_issue_proof('reset', $target['phone'], array('users' => $target['users'])),
-        'choose' => count($list) > 1 ? $list : array(),
+        'choose' => count($target['users']) > 1 ? sc_otp_account_choices($target['users']) : array(),
     ));
 }
 
@@ -323,11 +345,9 @@ function sc_reset_set_password() {
     if (!in_array($user_id, $proof['users'], true)) {
         wp_send_json_error(array('message' => __('Choose the account.', 'sc_events')));
     }
-    if (strlen($password) < 8) {
-        wp_send_json_error(array('message' => __('Use at least 8 characters.', 'sc_events')));
-    }
-    if (sc_wabot_phone($password) === $proof['phone']) {
-        wp_send_json_error(array('message' => __('Don’t use your phone number as the password.', 'sc_events')));
+    $problem = sc_reset_password_problem($password, $proof['phone']);
+    if ($problem !== '') {
+        wp_send_json_error(array('message' => $problem));
     }
     sc_otp_read_proof($token, 'reset');
     wp_set_password($password, $user_id);

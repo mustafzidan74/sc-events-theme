@@ -381,6 +381,198 @@ class SC_Auth_Endpoint extends SC_Base_Endpoint {
         SC_API_Response::success(null, 'Password has been reset successfully. You can now login.');
     }
 
+    /* ======================================================================
+       WhatsApp codes (same service as the website: inc/auth/sc-otp.php)
+
+       Sign in:        /auth/otp/send → /auth/otp/verify (→ /auth/otp/choose)
+       Reset password: /auth/password/otp/send → /auth/password/otp/verify
+                       → /auth/password/otp/reset
+       Codes are for member accounts; staff keep signing in with their password.
+       "Send" answers never say whether an account exists.
+       ====================================================================== */
+
+    /**
+     * GET /auth/otp/status
+     * Whether WhatsApp codes can be sent right now, so the app can show or hide the option.
+     */
+    public function otpStatus() {
+        SC_API_Response::success([
+            'available'    => sc_otp_available(),
+            'resend_after' => SC_OTP_RESEND_AFTER,
+            'expires_in'   => SC_OTP_TTL,
+            'code_length'  => 6,
+        ]);
+    }
+
+    /**
+     * POST /auth/otp/send
+     * Body: phone, country_code (optional, default +20).
+     */
+    public function otpSend() {
+        $phone = $this->otpPhone();
+        $accounts = sc_otp_member_accounts($phone);
+        $sent = sc_otp_send('login', $phone, ['silent' => !$accounts, 'user_id' => count($accounts) === 1 ? $accounts[0] : 0]);
+        $this->otpFail($sent);
+
+        SC_API_Response::success($sent + ['phone' => sc_otp_mask_phone($phone)],
+            'If an account uses this number, a 6-digit code is on its way on WhatsApp.');
+    }
+
+    /**
+     * POST /auth/otp/verify
+     * Body: phone, country_code, code.
+     * Returns tokens, or { choose: [...], proof } when the number is on more than one account.
+     */
+    public function otpVerify() {
+        $this->validate(['code' => 'required|string']);
+        $phone = $this->otpPhone();
+        $this->otpFail(sc_otp_verify('login', $phone, sanitize_text_field((string) $this->input('code'))));
+
+        $accounts = sc_otp_member_accounts($phone);
+        if (!$accounts) {
+            SC_API_Response::error('No account uses this number. Create one, or sign in with your email.', 404, null, 'NO_ACCOUNT');
+        }
+        if (count($accounts) === 1) {
+            $this->otpSignIn($accounts[0], $phone);
+        }
+        SC_API_Response::success([
+            'choose' => sc_otp_account_choices($accounts),
+            'proof'  => sc_otp_issue_proof('login', $phone, ['users' => $accounts, 'remember' => true]),
+        ], 'This number is on more than one account. Which one?');
+    }
+
+    /**
+     * POST /auth/otp/choose
+     * Body: proof (from /auth/otp/verify), user_id.
+     */
+    public function otpChoose() {
+        $this->validate(['proof' => 'required|string', 'user_id' => 'required']);
+        $proof = sc_otp_read_proof((string) $this->input('proof'), 'login');
+        $user_id = absint($this->input('user_id'));
+        if (!$proof || !in_array($user_id, $proof['users'], true)) {
+            SC_API_Response::error('This step has expired. Ask for a new code.', 400, null, 'OTP_EXPIRED');
+        }
+        $this->otpSignIn($user_id, $proof['phone']);
+    }
+
+    /**
+     * POST /auth/password/otp/send
+     * Body: email, or phone + country_code. The code goes to the account's WhatsApp number.
+     */
+    public function passwordOtpSend() {
+        if (!sc_password_reset_available()) {
+            SC_API_Response::error('Password reset is temporarily unavailable. Please contact us and we will help you sign in.', 503, null, 'OTP_UNAVAILABLE');
+        }
+        $target = $this->resetTarget();
+        $message = 'If an account matches and has a WhatsApp number, a 6-digit code is on its way to that number.';
+        if ($target['phone'] === '') {
+            // Email with no account or no number on it: look the same as a real send.
+            SC_API_Response::success(['resend_in' => SC_OTP_RESEND_AFTER, 'expires_in' => SC_OTP_TTL], $message);
+        }
+        $sent = sc_otp_send('reset', $target['phone'], ['silent' => !$target['users'], 'user_id' => count($target['users']) === 1 ? $target['users'][0] : 0]);
+        $this->otpFail($sent);
+        SC_API_Response::success($sent, $message);
+    }
+
+    /**
+     * POST /auth/password/otp/verify
+     * Body: the same email or phone as the send step, and code.
+     * Returns proof (valid 15 minutes) and, when the number has several accounts, choose.
+     */
+    public function passwordOtpVerify() {
+        $this->validate(['code' => 'required|string']);
+        $target = $this->resetTarget();
+        $this->otpFail(sc_otp_verify('reset', $target['phone'], sanitize_text_field((string) $this->input('code'))));
+        if (!$target['users']) {
+            SC_API_Response::error('No account matches. Create one, or contact us.', 404, null, 'NO_ACCOUNT');
+        }
+        SC_API_Response::success([
+            'proof'  => sc_otp_issue_proof('reset', $target['phone'], ['users' => $target['users']]),
+            'choose' => count($target['users']) > 1 ? sc_otp_account_choices($target['users']) : [],
+        ], 'Code confirmed. Choose a new password.');
+    }
+
+    /**
+     * POST /auth/password/otp/reset
+     * Body: proof, user_id (only when choose had several accounts), password, password_confirmation.
+     * Signs out every other device and returns fresh tokens.
+     */
+    public function passwordOtpReset() {
+        $this->validate([
+            'proof' => 'required|string',
+            'password' => 'required|string',
+            'password_confirmation' => 'required|string|same:password',
+        ]);
+        $token = (string) $this->input('proof');
+        $proof = sc_otp_read_proof($token, 'reset', false);
+        if (!$proof) {
+            SC_API_Response::error('This step has expired. Ask for a new code.', 400, null, 'OTP_EXPIRED');
+        }
+        $user_id = count($proof['users']) === 1 ? $proof['users'][0] : absint($this->input('user_id'));
+        if (!in_array($user_id, $proof['users'], true)) {
+            SC_API_Response::validationError(['user_id' => ['Choose the account.']]);
+        }
+        $password = (string) $this->input('password');
+        $problem = sc_reset_password_problem($password, $proof['phone']);
+        if ($problem !== '') {
+            SC_API_Response::validationError(['password' => [$problem]]);
+        }
+
+        sc_otp_read_proof($token, 'reset');
+        wp_set_password($password, $user_id);
+        delete_user_meta($user_id, 'sc_must_change_password');
+        $this->auth->revokeAllTokens($user_id);
+        if (function_exists('sc_notify_password_changed')) {
+            sc_notify_password_changed($user_id);
+        }
+        $this->otpSignIn($user_id, $proof['phone'], 'Your password is changed and you are signed in.');
+    }
+
+    /** The number in the body (phone + optional country_code) as international digits. */
+    private function otpPhone() {
+        $phone = sc_otp_normalize_phone($this->input('country_code', '+20'), (string) $this->input('phone', ''));
+        if ($phone === '') {
+            SC_API_Response::validationError(['phone' => ['Enter the WhatsApp number on your account.']]);
+        }
+        return $phone;
+    }
+
+    /** Reset by email when one is given, otherwise by phone. */
+    private function resetTarget() {
+        $email = trim((string) $this->input('email', ''));
+        if ($email !== '') {
+            if (!is_email($email)) {
+                SC_API_Response::validationError(['email' => ['Enter the email on your account.']]);
+            }
+            return sc_reset_target_by_email($email);
+        }
+        return sc_reset_target_by_phone($this->otpPhone());
+    }
+
+    /** Stop with the code service's error, if it returned one. */
+    private function otpFail($result) {
+        if (!is_wp_error($result)) {
+            return;
+        }
+        $status = [
+            'sc_otp_wait' => 429, 'sc_otp_limit' => 429, 'sc_otp_locked' => 429,
+            'sc_otp_unavailable' => 503, 'sc_otp_phone' => 422,
+        ][$result->get_error_code()] ?? 400;
+        $extra = $result->get_error_data();
+        SC_API_Response::error($result->get_error_message(), $status, is_array($extra) ? $extra : null,
+            strtoupper(str_replace('sc_', '', $result->get_error_code())));
+    }
+
+    /** The number is confirmed by the code: mark it, and hand out tokens. */
+    private function otpSignIn($user_id, $phone, $message = 'Login successful') {
+        $user = get_userdata($user_id);
+        if (!$user || sc_otp_is_staff($user_id)) {
+            SC_API_Response::error('Staff accounts sign in with their password.', 403, null, 'STAFF_ACCOUNT');
+        }
+        sc_set_user_phone($user_id, $phone, true);
+        SC_API_Response::success($this->auth->issueTokens($user), $message);
+    }
+
     /**
      * Format user data for response
      *

@@ -67,6 +67,14 @@ class SC_API_Router {
         $this->addRoute('POST', '/auth/register', 'SC_Auth_Endpoint@register', ['rate_limit' => 'auth']);
         $this->addRoute('POST', '/auth/forgot-password', 'SC_Auth_Endpoint@forgotPassword', ['rate_limit' => 'auth']);
         $this->addRoute('POST', '/auth/reset-password', 'SC_Auth_Endpoint@resetPassword', ['rate_limit' => 'auth']);
+        // WhatsApp codes: sign in, and reset a forgotten password.
+        $this->addRoute('GET', '/auth/otp/status', 'SC_Auth_Endpoint@otpStatus');
+        $this->addRoute('POST', '/auth/otp/send', 'SC_Auth_Endpoint@otpSend', ['rate_limit' => 'auth']);
+        $this->addRoute('POST', '/auth/otp/verify', 'SC_Auth_Endpoint@otpVerify', ['rate_limit' => 'auth']);
+        $this->addRoute('POST', '/auth/otp/choose', 'SC_Auth_Endpoint@otpChoose', ['rate_limit' => 'auth']);
+        $this->addRoute('POST', '/auth/password/otp/send', 'SC_Auth_Endpoint@passwordOtpSend', ['rate_limit' => 'auth']);
+        $this->addRoute('POST', '/auth/password/otp/verify', 'SC_Auth_Endpoint@passwordOtpVerify', ['rate_limit' => 'auth']);
+        $this->addRoute('POST', '/auth/password/otp/reset', 'SC_Auth_Endpoint@passwordOtpReset', ['rate_limit' => 'auth']);
         $this->addRoute('POST', '/auth/logout', 'SC_Auth_Endpoint@logout', ['auth' => true]);
         $this->addRoute('POST', '/auth/refresh', 'SC_Auth_Endpoint@refresh', ['auth' => true]);
         $this->addRoute('GET', '/auth/me', 'SC_Auth_Endpoint@me', ['auth' => true]);
