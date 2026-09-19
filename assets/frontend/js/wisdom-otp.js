@@ -242,6 +242,7 @@
                     return;
                 }
                 say(regMsg, r.data.message, true);
+                if (r.data.redirect) { go(r.data.redirect); return; }
                 resendTimer(btn, r.data.resend_in);
             });
         });

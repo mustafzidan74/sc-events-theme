@@ -226,9 +226,27 @@ function sc_register_verify() {
 add_action('wp_ajax_nopriv_sc_register_resend', 'sc_register_resend');
 function sc_register_resend() {
     sc_verify_public_nonce();
-    $pending = get_transient(sc_register_pending_key(wp_unslash($_POST['token'] ?? '')));
+    $key = sc_register_pending_key(wp_unslash($_POST['token'] ?? ''));
+    $pending = get_transient($key);
     if (!is_array($pending)) {
         wp_send_json_error(array('message' => __('This sign-up has expired. Please fill in the form again.', 'sc_events'), 'restart' => true));
+    }
+    // The WhatsApp lines went down (banned, logged out) while this person waited for a code: don't
+    // leave them stuck. Same as signing up when no line is connected: the account is made with the
+    // number unconfirmed.
+    if (!sc_otp_available()) {
+        delete_transient($key);
+        if (email_exists($pending['email'])) {
+            wp_send_json_error(array('message' => __('This email is already registered.', 'sc_events'), 'restart' => true));
+        }
+        $user_id = sc_register_create_account($pending['name'], $pending['email'], $pending['phone'], false, '', $pending['hash']);
+        if (is_wp_error($user_id)) {
+            wp_send_json_error(array('message' => $user_id->get_error_message(), 'restart' => true));
+        }
+        wp_send_json_success(array(
+            'message'  => __('WhatsApp codes are down right now, so your account is ready without one.', 'sc_events'),
+            'redirect' => home_url('/my-account/'),
+        ));
     }
     $sent = sc_otp_send('register', $pending['phone']);
     if (is_wp_error($sent)) {
