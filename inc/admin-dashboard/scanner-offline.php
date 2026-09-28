@@ -77,6 +77,24 @@ function sc_scanner_offline_guard() {
    ========================================================================== */
 
 /**
+ * The answer for a ticket scanned at the wrong door, naming the place it opens:
+ * a workshop ticket → that workshop; a congress ticket → the main entrance.
+ *
+ * @return array ok=false, code (workshop_ticket | congress_ticket), title, message, go_to, name.
+ */
+function sc_scanner_wrong_door($a) {
+    global $wpdb;
+    if (!empty($a->workshop_id)) {
+        $go_to = (string) $wpdb->get_var($wpdb->prepare("SELECT title FROM {$wpdb->prefix}sc_workshops WHERE id = %d", $a->workshop_id));
+        return array('ok' => false, 'code' => 'workshop_ticket', 'title' => 'Wrong door', 'name' => (string) $a->name, 'go_to' => $go_to,
+            /* translators: %s: workshop title */
+            'message' => sprintf(__('This ticket is for the workshop "%s", not this door. Send them there.', 'sc_events'), $go_to));
+    }
+    return array('ok' => false, 'code' => 'congress_ticket', 'title' => 'Wrong door', 'name' => (string) $a->name, 'go_to' => '',
+        'message' => __('This is a congress ticket; it does not open workshop doors. Send them to the main entrance.', 'sc_events'));
+}
+
+/**
  * Check a ticket against the door and record the scan.
  *
  * @param object $a    Attendee row joined with the event (event_title, attendance_tracking).
@@ -112,11 +130,10 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
             'message' => __('Payment for this ticket has not been confirmed yet.', 'sc_events'));
     }
     // A workshop door takes only its own tickets; the event entrance takes only event tickets.
+    // Anyone at the wrong door is told where their ticket does work.
     if ($opts['workshop_id']) {
         if ((int) $a->workshop_id !== (int) $opts['workshop_id']) {
-            $expected = $wpdb->get_var($wpdb->prepare("SELECT title FROM {$wpdb->prefix}sc_workshops WHERE id = %d", $opts['workshop_id']));
-            return array('ok' => false, 'code' => 'wrong_workshop', 'title' => 'Wrong Workshop',
-                'message' => sprintf(__('This ticket is not registered for this workshop. Expected: %s', 'sc_events'), $expected ?: 'Unknown'));
+            return sc_scanner_wrong_door($a);
         }
     } elseif ($opts['event_id']) {
         if ((int) $a->event_id !== (int) $opts['event_id']) {
@@ -125,8 +142,7 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
                 'message' => sprintf(__('This ticket belongs to a different event. Expected: %s', 'sc_events'), $expected ?: 'Unknown'));
         }
         if (!empty($a->workshop_id)) {
-            return array('ok' => false, 'code' => 'workshop_ticket', 'title' => 'Workshop Ticket',
-                'message' => __('This is a workshop ticket. Choose its workshop in "Scanning at" and scan again.', 'sc_events'));
+            return sc_scanner_wrong_door($a);
         }
     }
 

@@ -581,7 +581,7 @@ function sc_scan_and_checkin() {
             'client_ref'  => $client_ref,
         ));
         if (!$scan['ok']) {
-            wp_send_json_error(array('message' => $scan['message'], 'title' => $scan['title'], 'code' => $scan['code']));
+            wp_send_json_error(array_intersect_key($scan, array_flip(array('message', 'title', 'code', 'name', 'go_to'))));
         }
         $current_time = current_time('timestamp');
 

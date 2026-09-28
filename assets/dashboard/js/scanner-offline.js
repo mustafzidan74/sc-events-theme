@@ -336,12 +336,9 @@
         if (!r) { return unknown(key); }
         if (r[STATE] === 'x') { return { refused: true, title: T.error_title, message: T.inactive, name: r[NAME] }; }
         if (r[STATE] === 'p') { return { refused: true, title: T.error_title, message: T.unpaid, name: r[NAME] }; }
-        if (door.workshop) {
-            if (String(r[WORKSHOP]) !== String(door.workshop)) {
-                return { refused: true, title: T.error_title, message: T.wrong_workshop.replace('%s', door.workshopTitle || ''), name: r[NAME] };
-            }
-        } else if (r[WORKSHOP]) {
-            return { refused: true, title: T.error_title, message: T.workshop_ticket, name: r[NAME] };
+        // Wrong door: the page says where the ticket does work (its workshop, or the entrance).
+        if (door.workshop ? String(r[WORKSHOP] || '') !== String(door.workshop) : !!r[WORKSHOP]) {
+            return { refused: true, wrongDoor: true, workshop: r[WORKSHOP] || '', name: r[NAME] };
         }
 
         var result = { kind: 'attendee', key: key, at: now, name: r[NAME], ticket: r[TICKET], action: 'check_in', already: false, firstAt: '', duration: '' };

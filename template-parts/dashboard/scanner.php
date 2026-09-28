@@ -72,10 +72,15 @@ foreach ($all_events as $event) {
 }
 
 // No event asked for: start on the featured event when it is in the list.
+// No event asked for: start on the featured event, else the next one coming up, when it is in the
+// list, so the door (entrance or workshop) can be chosen straight away.
 if (!$url_event_id && count($filtered_events) > 1) {
-    $featured = (int) get_option('sc_featured_event_id', 0);
-    if ($featured && in_array($featured, array_map('intval', wp_list_pluck($filtered_events, 'id')), true)) {
-        $url_event_id = $featured;
+    $listed = array_map('intval', wp_list_pluck($filtered_events, 'id'));
+    foreach (array((int) get_option('sc_featured_event_id', 0), function_exists('sc_turn_event_id') ? (int) sc_turn_event_id() : 0) as $candidate) {
+        if ($candidate && in_array($candidate, $listed, true)) {
+            $url_event_id = $candidate;
+            break;
+        }
     }
 }
 if (count($filtered_events) === 1) {
@@ -152,8 +157,12 @@ $i18n = array(
     'review_none'       => sc_t('scanner.review_none', 'Nothing to check.'),
     'inactive'          => sc_t('scanner.inactive', 'This ticket has been cancelled or transferred.'),
     'unpaid'            => sc_t('scanner.unpaid', 'Payment for this ticket has not been confirmed yet.'),
-    'wrong_workshop'    => sc_t('scanner.wrong_workshop', 'This ticket is not registered for this workshop. Expected: %s'),
-    'workshop_ticket'   => sc_t('scanner.workshop_ticket', 'This is a workshop ticket. Choose its workshop in "Scanning at" and scan again.'),
+    'wrong_door'        => sc_t('scanner.wrong_door', 'Wrong door'),
+    'door_workshop'     => sc_t('scanner.door_workshop', 'This is a workshop ticket, it does not open this door.'),
+    'door_congress'     => sc_t('scanner.door_congress', 'This is a congress ticket, it does not open workshop doors.'),
+    'send_to'           => sc_t('scanner.send_to', 'Send them to'),
+    'main_entrance'     => sc_t('scanner.main_entrance', 'The main entrance'),
+    'workshop_word'     => sc_t('scanner.workshop_word', 'Workshop'),
     'company_inactive'  => sc_t('scanner.company_inactive', 'This company badge is not active.'),
     'company_ticket'    => sc_t('scanner.company_ticket', 'Company / exhibitor'),
 );
@@ -237,7 +246,7 @@ if (!$is_scanner_only) {
                     </div>
                 <?php endif; ?>
                 <div class="w-field" id="workshop-field" hidden>
-                    <label class="w-field__label" for="scanner-workshop-select"><?php echo esc_html(sc_t('scanner.door', 'Door')); ?></label>
+                    <label class="w-field__label" for="scanner-workshop-select"><?php echo esc_html(sc_t('scanner.door_pick', 'Door: entrance or workshop')); ?></label>
                     <select class="form-control" id="scanner-workshop-select">
                         <option value=""><?php echo esc_html(sc_t('dashboard_pages.event_entrance', 'Event entrance')); ?></option>
                     </select>
@@ -337,7 +346,13 @@ if (!$is_scanner_only) {
                 </div>
             </div>
             <div class="w-scan__body">
+                <p class="w-scan__name" id="error-name" dir="auto" hidden></p>
                 <p class="w-scan__errmsg" id="error-message"></p>
+                <div class="w-scan__goto" id="error-goto" hidden>
+                    <span class="w-scan__gotolabel"><?php echo esc_html($i18n['send_to']); ?></span>
+                    <strong class="w-scan__gotoplace" id="error-goto-place" dir="auto"></strong>
+                    <span class="w-scan__gotokind" id="error-goto-kind"></span>
+                </div>
                 <div class="w-scan__actions">
                     <button type="button" id="error-scan-again-btn" class="btn btn-primary btn-lg"><?php echo esc_html(sc_t('scanner.try_next', 'Scan again')); ?></button>
                 </div>
@@ -777,6 +792,8 @@ jQuery(function ($) {
                 showResult(sessionMode ? fromSession(res.data) : res.data);
             } else if (res && res.data && res.data.code === 'nonce' && off && !retried) {
                 off.refreshNonce().then(function () { processTicket(code, true); }, function () { showError(T.network, T.network_title); });
+            } else if (res && res.data && (res.data.code === 'workshop_ticket' || res.data.code === 'congress_ticket')) {
+                showWrongDoor(res.data.code, res.data.go_to, res.data.name);
             } else {
                 showError((res && res.data && res.data.message) || T.network, (res && res.data && res.data.title) || T.error_title);
             }
@@ -801,6 +818,11 @@ jQuery(function ($) {
             gate: selectedGateId
         };
         var d = off.decide(code, door);
+        if (d.wrongDoor) {
+            var ws = (workshopsByEvent[selectedEventId] || []).filter(function (w) { return String(w.id) === String(d.workshop); })[0];
+            showWrongDoor(d.workshop ? 'workshop_ticket' : 'congress_ticket', ws ? ws.title : '', d.name);
+            return;
+        }
         if (d.refused) {
             showError(d.message, d.title);
             if (d.name) { $('#error-message').text(d.name + ' — ' + d.message); }
@@ -897,7 +919,21 @@ jQuery(function ($) {
         $('#another-scan-btn').trigger('focus');
     }
 
-    function showError(message, title) {
+    // Right ticket, wrong door: an amber alert that names where the person should go.
+    function showWrongDoor(code, goTo, name) {
+        var workshop = code === 'workshop_ticket';
+        showError(workshop ? T.door_workshop : T.door_congress, T.wrong_door, 'door');
+        $('#error-name').text(name || '').prop('hidden', !name);
+        $('#error-goto-place').text(workshop ? (goTo || T.workshop_word) : T.main_entrance);
+        $('#error-goto-kind').text(workshop && goTo ? T.workshop_word : '').prop('hidden', !(workshop && goTo));
+        $('#error-goto').prop('hidden', false);
+        if (navigator.vibrate) { navigator.vibrate([120, 80, 120]); }
+    }
+
+    function showError(message, title, tone) {
+        $('#error-mode').attr('data-tone', tone || 'error');
+        $('#error-name').prop('hidden', true);
+        $('#error-goto').prop('hidden', true);
         $('#error-title').text(title || T.error_title);
         $('#error-message').text(message);
         $('#scanner-mode, #result-mode').prop('hidden', true);

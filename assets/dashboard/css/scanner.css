@@ -298,6 +298,7 @@
 .w-scan__result[data-tone="warn"] { --tone: #B54708; --tone-soft: #FEF0C7; }
 .w-scan__result[data-tone="out"] { --tone: #2E5AAC; --tone-soft: #EAF0FB; }
 .w-scan__result[data-tone="error"] { --tone: #B42318; --tone-soft: #FEE4E2; }
+.w-scan__result[data-tone="door"] { --tone: #B54708; --tone-soft: #FEF0C7; }
 
 .w-scan__band {
   display: flex;
@@ -349,6 +350,21 @@
 
 .w-scan__errmsg { margin: 0; font-size: 17px; line-height: 1.5; }
 
+/* Wrong door: where to send the person */
+.w-scan__goto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--w-radius-md);
+  border: 2px solid var(--tone);
+  background: var(--tone-soft);
+}
+.w-scan__gotolabel { color: var(--w-text-2); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.w-scan__gotoplace { color: var(--w-text); font-size: 22px; line-height: 1.3; font-weight: 700; }
+.w-scan__gotokind { color: var(--w-text-2); font-size: 13px; }
+
 .w-scan__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .w-dash .w-scan__actions .btn { min-height: 48px; padding: 0 24px; font-size: 16px; }
 .w-dash .w-scan__actions .btn-primary { flex: 1 1 220px; }
@@ -358,12 +374,14 @@
   :root:not([data-theme="light"]) .w-scan__result[data-tone="warn"] { --tone: #B54708; --tone-soft: #4E1D09; }
   :root:not([data-theme="light"]) .w-scan__result[data-tone="out"] { --tone: #2E5AAC; --tone-soft: #14213D; }
   :root:not([data-theme="light"]) .w-scan__result[data-tone="error"] { --tone: #B42318; --tone-soft: #55160C; }
+  :root:not([data-theme="light"]) .w-scan__result[data-tone="door"] { --tone: #F79009; --tone-soft: #4E1D09; }
   :root:not([data-theme="light"]) .w-scan__warn { color: #fff; }
 }
 :root[data-theme="dark"] .w-scan__result { --tone: #079455; --tone-soft: #053321; }
 :root[data-theme="dark"] .w-scan__result[data-tone="warn"] { --tone: #B54708; --tone-soft: #4E1D09; }
 :root[data-theme="dark"] .w-scan__result[data-tone="out"] { --tone: #2E5AAC; --tone-soft: #14213D; }
 :root[data-theme="dark"] .w-scan__result[data-tone="error"] { --tone: #B42318; --tone-soft: #55160C; }
+:root[data-theme="dark"] .w-scan__result[data-tone="door"] { --tone: #F79009; --tone-soft: #4E1D09; }
 :root[data-theme="dark"] .w-scan__warn { color: #fff; }
 
 @media (max-width: 479.98px) {
