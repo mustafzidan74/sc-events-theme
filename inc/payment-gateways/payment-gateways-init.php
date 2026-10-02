@@ -353,6 +353,12 @@ function sc_process_payment_ajax() {
     $verified_discount = 0;
     if (!empty($coupon_code)) {
         $coupon = sc_find_coupon($coupon_code, $event_id);
+        if ($coupon && function_exists('sc_coupon_scope_error')) {
+            $scope = sc_coupon_scope_error($coupon, !empty($ticket->workshop_id));
+            if ($scope !== '') {
+                wp_send_json_error(array('message' => $scope));
+            }
+        }
         if ($coupon) {
             $discount_type = get_post_meta($coupon->ID, 'discount_type', true);
             $discount_value = floatval(get_post_meta($coupon->ID, 'discount_value', true));

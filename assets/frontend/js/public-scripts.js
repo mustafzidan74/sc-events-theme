@@ -569,6 +569,8 @@
 
         scAjax('sc_validate_coupon', {
             event_id: eventId,
+            workshop_id: couponRegState.workshopId || 0,
+            ticket_id: $('#coupon-reg-ticket-id').val() || 0,
             coupon_code: couponCode
         }, function(response) {
             $btn.prop('disabled', false).html(scPublic.i18n.verify || 'Verify');
@@ -753,6 +755,7 @@
 
         var $btn = $(this);
         var eventId = $btn.data('event-id');
+        var boxWorkshopId = $btn.data('workshop-id') || 0;
         var couponCode = $('#coupon-code').val().trim();
 
         if (!couponCode) { showError('Please enter a coupon code'); return; }
@@ -761,6 +764,7 @@
 
         scAjax('sc_validate_coupon', {
             event_id: eventId,
+            workshop_id: boxWorkshopId,
             coupon_code: couponCode
         }, function(response) {
             closeLoading();
@@ -769,13 +773,13 @@
                 if (d.is_free) {
                     var hasExtraFields = eventExtraFields && eventExtraFields.filter(function(f) { return f.show_attendee_form; }).length > 0;
                     if (hasExtraFields) {
-                        pendingRegistration = { type: 'coupon', eventId: eventId, couponCode: couponCode };
+                        pendingRegistration = { type: 'coupon', eventId: eventId, couponCode: couponCode, workshopId: boxWorkshopId };
                         buildExtraFieldsInto($('#extra-fields-container'));
                         var modal = new bootstrap.Modal(document.getElementById('extraFieldsModal'));
                         modal.show();
                     } else {
                         showConfirm('This coupon gives you free access! Register now?', 'Free Access', 'Register', 'Cancel').then(function(result) {
-                            if (result.isConfirmed) processCouponRegistration(eventId, couponCode, []);
+                            if (result.isConfirmed) processCouponRegistration(eventId, couponCode, [], boxWorkshopId);
                         });
                     }
                 } else {
@@ -807,6 +811,8 @@
 
         scAjax('sc_validate_coupon', {
             event_id: eventId,
+            workshop_id: checkoutState.workshopId || 0,
+            ticket_id: checkoutState.ticketId || 0,
             coupon_code: couponCode
         }, function(response) {
             $btn.prop('disabled', false).html(scPublic.i18n.apply || 'Apply');

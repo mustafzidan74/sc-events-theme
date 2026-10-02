@@ -2216,6 +2216,13 @@ function sc_attendee_form_save() {
         $amount_paid = 0;
         $coupon_code = '';
     }
+    if ($coupon_code !== '' && function_exists('sc_coupon_scope_error') && (!$existing || strcasecmp($coupon_code, (string) $existing->coupon_code) !== 0)) {
+        $real = get_posts(array('post_type' => 'sc_coupon', 'title' => strtoupper($coupon_code), 'post_status' => array('publish', 'draft'), 'numberposts' => 1));
+        $scope = $real ? sc_coupon_scope_error($real[0], $workshop_id > 0) : '';
+        if ($scope !== '') {
+            wp_send_json_error(array('message' => $scope, 'errors' => array('coupon_code' => $scope)));
+        }
+    }
     $status = in_array($in('status'), array('active', 'cancelled'), true) ? $in('status') : 'active';
 
     // Registration answers keyed by the event's (or workshop's) question labels.

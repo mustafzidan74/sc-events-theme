@@ -505,6 +505,11 @@ function sc_validate_coupon_handler() {
         wp_send_json_error(array('message' => __('Invalid or expired coupon code.', 'sc_events')));
     }
 
+    $scope = sc_coupon_scope_error($coupon, sc_coupon_request_workshop_id() > 0);
+    if ($scope !== '') {
+        wp_send_json_error(array('message' => $scope, 'code' => 'coupon_scope'));
+    }
+
     // Check usage limit (meta keys without underscore prefix - as saved by dashboard)
     $usage_count = intval(get_post_meta($coupon->ID, 'usage_count', true));
     $usage_limit = intval(get_post_meta($coupon->ID, 'usage_limit', true));
@@ -568,6 +573,10 @@ function sc_register_with_coupon_handler() {
 
     if (!$coupon) {
         wp_send_json_error(array('message' => __('Invalid or expired coupon code.', 'sc_events')));
+    }
+    $scope = sc_coupon_scope_error($coupon, $workshop_id > 0);
+    if ($scope !== '') {
+        wp_send_json_error(array('message' => $scope, 'code' => 'coupon_scope'));
     }
 
     // Check usage limit
@@ -735,6 +744,10 @@ function sc_process_checkout_handler() {
     if (!empty($coupon_code)) {
         $coupon = sc_find_coupon($coupon_code, $event_id, $ticket_type);
         if ($coupon) {
+            $scope = sc_coupon_scope_error($coupon, $workshop_id > 0);
+            if ($scope !== '') {
+                wp_send_json_error(array('message' => $scope, 'code' => 'coupon_scope'));
+            }
             // Meta keys without underscore - as saved by dashboard
             $discount_type = get_post_meta($coupon->ID, 'discount_type', true);
             $discount_value = floatval(get_post_meta($coupon->ID, 'discount_value', true));
@@ -1037,15 +1050,66 @@ function sc_check_user_registration($user_id, $event_id) {
         return false;
     }
 
-    // Use Custom Tables
-    if (class_exists('SC_Attendee')) {
-        $existing = SC_Attendee::get_by_email_and_event($user->user_email, $event_id);
-        if ($existing) {
-            return true;
-        }
-    }
+    // A congress registration only: a workshop seat in the same event is a separate ticket and
+    // must not stop the person from registering for the congress too.
+    global $wpdb;
+    return (bool) $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}sc_attendees
+         WHERE event_id = %d AND email = %s AND status != 'cancelled' AND (workshop_id IS NULL OR workshop_id = 0)
+         LIMIT 1",
+        $event_id, $user->user_email
+    ));
+}
 
-    return false;
+/**
+ * Coupon categories that hold workshop coupons: any category whose name says "workshop" (the live
+ * one is "Workshops"). Coupons in them work only for workshops; every other coupon works only for
+ * the congress (general) tickets.
+ *
+ * @return int[]
+ */
+function sc_coupon_workshop_category_ids() {
+    static $ids = null;
+    if ($ids === null) {
+        global $wpdb;
+        $ids = array_map('intval', (array) $wpdb->get_col(
+            "SELECT id FROM {$wpdb->prefix}sc_coupon_categories WHERE name LIKE '%workshop%' OR name LIKE '%ورش%'"
+        ));
+    }
+    return $ids;
+}
+
+function sc_coupon_is_workshop($coupon_id) {
+    $category = (int) get_post_meta($coupon_id, 'category_id', true);
+    return $category > 0 && in_array($category, sc_coupon_workshop_category_ids(), true);
+}
+
+/**
+ * Why this coupon can't be used here, or '' when it can.
+ *
+ * @param WP_Post $coupon
+ * @param bool    $for_workshop Buying a workshop seat (true) or a congress ticket (false).
+ */
+function sc_coupon_scope_error($coupon, $for_workshop) {
+    $workshop_coupon = sc_coupon_is_workshop($coupon->ID);
+    if ($workshop_coupon && !$for_workshop) {
+        return __('This coupon is for workshops only. Open the workshop you want and use it there.', 'sc_events');
+    }
+    if (!$workshop_coupon && $for_workshop) {
+        return __('This coupon is for the congress ticket, not workshops. Workshops take workshop coupons only.', 'sc_events');
+    }
+    return '';
+}
+
+/** The workshop a request is about: workshop_id, or the workshop of the posted ticket. */
+function sc_coupon_request_workshop_id() {
+    $workshop_id = absint($_POST['workshop_id'] ?? 0);
+    $ticket_id = absint($_POST['ticket_id'] ?? 0);
+    if (!$workshop_id && $ticket_id) {
+        global $wpdb;
+        $workshop_id = (int) $wpdb->get_var($wpdb->prepare("SELECT workshop_id FROM {$wpdb->prefix}sc_tickets WHERE id = %d", $ticket_id));
+    }
+    return $workshop_id;
 }
 
 /**

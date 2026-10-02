@@ -320,7 +320,7 @@ $show_buy = $has_tickets && !$is_past && !$is_registered;
             <div class="w-ev__coupon-row">
                 <input type="text" id="coupon-code" class="w-input sc-input"
                        placeholder="<?php echo esc_attr(sc_t('frontend.enter_code', 'Enter code')); ?>">
-                <button class="w-btn w-btn--outline btn-apply-coupon" data-event-id="<?php echo (int) $workshop->event_id; ?>">
+                <button class="w-btn w-btn--outline btn-apply-coupon" data-event-id="<?php echo (int) $workshop->event_id; ?>" data-workshop-id="<?php echo (int) $workshop_id; ?>">
                     <?php echo esc_html(sc_t('frontend.apply', 'Apply')); ?>
                 </button>
             </div>
