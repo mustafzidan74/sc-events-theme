@@ -114,6 +114,23 @@ function sc_door_board_data($event_id, $day) {
     }
     sort($firsts);
 
+    // Hourly attendance: "inside" is who has scanned in the hour running now.
+    $hourly = function_exists('sc_hours_enabled') && sc_hours_enabled((int) $event_id) ? sc_hours_settings((int) $event_id) : null;
+    $hour_label = '';
+    if ($hourly) {
+        $inside = 0;
+        $slot_now = $is_today ? sc_hours_slot($now, $hourly) : null;
+        if ($slot_now !== null) {
+            $hour_label = sc_hours_label($slot_now);
+            $from_slot = $slot_now === $hourly['day_start'] ? $from : $day . sprintf(' %02d:00:00', $slot_now);
+            $inside = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(DISTINCT attendee_id) FROM {$p}sc_checkins
+                 WHERE event_id = %d AND workshop_id IS NULL AND action IN $in AND created_at >= %s AND created_at <= %s",
+                $event_id, $from_slot, $now
+            ));
+        }
+    }
+
     // Arrivals per slot, from the first arrival (or 08:00) to now — at most the last six hours.
     $slot = SC_DOOR_BOARD_SLOT * 60;
     $end = $is_today ? $now_ts : ($firsts ? end($firsts) : strtotime($day . ' 18:00:00'));
@@ -225,7 +242,8 @@ function sc_door_board_data($event_id, $day) {
     }
 
     $data = array(
-        'event'      => array('id' => (int) $event->id, 'title' => $event->title, 'tracking' => $tracking),
+        'event'      => array('id' => (int) $event->id, 'title' => $event->title, 'tracking' => $tracking || (bool) $hourly, 'hourly' => (bool) $hourly),
+        'hour'       => $hour_label,
         'day'        => $day,
         'days'       => $days['days'],
         'is_today'   => $is_today,

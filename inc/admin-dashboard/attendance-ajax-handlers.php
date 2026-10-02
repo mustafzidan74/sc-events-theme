@@ -601,10 +601,11 @@ function sc_scan_and_checkin() {
             'first_checked_in_at' => isset($scan['first_checked_in_at']) ? $scan['first_checked_in_at'] : '',
             'scan_time'        => date('h:i A', $current_time),
             'scan_date'        => date('M d, Y', $current_time),
-            'tracking_enabled' => (int) $sc_attendee->attendance_tracking === 1,
+            'tracking_enabled' => (int) $sc_attendee->attendance_tracking === 1 && empty($scan['hours']),
             'total_scans'      => isset($scan['total_scans']) ? $scan['total_scans'] : 1,
             'duration'         => isset($scan['duration']) ? $scan['duration'] : '',
             'gate'             => isset($scan['gate']) ? $scan['gate'] : null,
+            'hours'            => isset($scan['hours']) ? $scan['hours'] : null,
             'attendee' => array(
                 'id'          => (int) $sc_attendee->id,
                 'name'        => $sc_attendee->name,

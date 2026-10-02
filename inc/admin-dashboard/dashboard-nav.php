@@ -145,6 +145,7 @@ function sc_dashboard_nav() {
         $groups[] = array('key' => 'onsite', 'label' => sc_t('dashboard.onsite', 'On-site'), 'icon' => 'scan', 'links' => array(
             $link('scanner', sc_t('nav.scanner', 'Scanner')),
             $link('door-board', sc_t('nav.door_board', 'Door board')),
+            $link('attendance-hours', sc_t('nav.attendance_hours', 'Attendance hours')),
             $link('scanners', sc_t('nav.scanner_team', 'Scanner team'), array('scanner-create', 'scanner-edit')),
             $link('badges', sc_t('nav.badges', 'Badges')),
         ));

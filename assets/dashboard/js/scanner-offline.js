@@ -184,7 +184,7 @@
     }
 
     function blankList(eventId) {
-        return { event: String(eventId), user: cfg.userId, day: '', tracking: false, cursor: null, fullAt: 0, checkedAt: 0, rows: {}, companies: {} };
+        return { event: String(eventId), user: cfg.userId, day: '', tracking: false, hours: null, cursor: null, fullAt: 0, checkedAt: 0, rows: {}, companies: {} };
     }
 
     function useEvent(eventId) {
@@ -240,6 +240,7 @@
                     fresh.cursor = d.cursor;
                     fresh.day = d.day;
                     fresh.tracking = !!d.tracking;
+                    fresh.hours = d.hours || null;
                     fresh.user = d.user;
                     (d.companies || []).forEach(function (c) { fresh.companies[c[0]] = c; });
                     first = false;
@@ -275,6 +276,7 @@
             });
             list.cursor = d.cursor;
             list.tracking = !!d.tracking;
+            list.hours = d.hours || null;
         });
     }
 
@@ -342,6 +344,19 @@
         }
 
         var result = { kind: 'attendee', key: key, at: now, name: r[NAME], ticket: r[TICKET], action: 'check_in', already: false, firstAt: '', duration: '' };
+        // Hourly attendance: each clock hour counts once; nobody scans out (attendance-hours.php).
+        if (list.hours && !door.workshop) {
+            var slot = hourSlot(now);
+            if (slot === null) {
+                result.hours = { state: 'outside', label: pad(list.hours.start) + ':00–' + pad(list.hours.end) + ':00', next: '' };
+            } else {
+                var label = pad(slot) + ':00–' + pad(slot + 1) + ':00';
+                var already = r[LAST] === 'i' && r[LAST_AT] && hourSlot(r[LAST_AT]) === slot;
+                result.hours = { state: already ? 'already' : 'counted', label: label, next: pad(slot + 1) + ':00' };
+                if (already) { result.hourAlready = true; }
+            }
+            return result;
+        }
         if (list.tracking) {
             if (r[LAST] === 'i') {
                 result.action = 'check_out';
@@ -353,6 +368,20 @@
             result.firstAt = r[FIRST_AT];
         }
         return result;
+    }
+
+    function pad(n) { return ('0' + n).slice(-2); }
+
+    // The congress hour an ISO time falls in, in the site's time zone; null after the day ends.
+    function hourSlot(iso) {
+        var h;
+        try {
+            h = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: cfg.timeZone, hour: '2-digit', hourCycle: 'h23' }).format(new Date(iso)), 10);
+        } catch (e) {
+            h = new Date(iso).getHours();
+        }
+        if (h >= list.hours.end) { return null; }
+        return Math.max(h, list.hours.start);
     }
 
     function unknown(key) {

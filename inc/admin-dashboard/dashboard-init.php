@@ -242,6 +242,7 @@ class SC_Event_Manager_Dashboard {
             'attendee-edit',
             'scanner',
             'door-board',
+            'attendance-hours',
             'customers',
             'speakers',
             'speaker-create',

@@ -34,6 +34,9 @@ $T = array(
     'registered'  => sc_t('board.registered', 'Registered'),
     'arrived'     => sc_t('board.arrived', 'Arrived'),
     'inside'      => sc_t('board.inside', 'Inside now'),
+    'this_hour'   => sc_t('board.this_hour', 'Scanned this hour'),
+    'hour_sub'    => sc_t('board.hour_sub', '%1$s · %2$s arrived today have not scanned yet this hour'),
+    'off_hours'   => sc_t('board.off_hours', 'Outside congress hours'),
     'to_come'     => sc_t('board.to_come', 'Still to come'),
     'of'          => sc_t('board.of_registered', '%s%% of registered'),
     'rate'        => sc_t('board.rate', '%s a minute over the last 10 minutes'),
@@ -183,7 +186,11 @@ get_template_part('template-parts/dashboard/components/dashboard', 'sidebar');
     function render(d) {
         $('board-title').textContent = d.event.title;
 
-        if (d.event.tracking) {
+        if (d.event.hourly) {
+            $('k-main-label').textContent = T.this_hour;
+            $('k-main').textContent = num(d.inside);
+            $('k-main-sub').textContent = d.hour ? T.hour_sub.replace('%1$s', d.hour).replace('%2$s', num(Math.max(0, d.arrived - d.inside))) : T.off_hours;
+        } else if (d.event.tracking) {
             $('k-main-label').textContent = T.inside;
             $('k-main').textContent = num(d.inside);
             $('k-main-sub').textContent = fmt(T.left_out, num(Math.max(0, d.arrived - d.inside)));

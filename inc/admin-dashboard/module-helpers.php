@@ -293,6 +293,7 @@ function sc_get_page_module_requirements() {
         'attendee-edit' => 'attendees',
         'scanner' => 'attendees',
         'door-board' => 'attendees',
+        'attendance-hours' => 'attendees',
         'customers' => 'attendees',
         'scanners' => 'attendees',
         'scanner-create' => 'attendees',

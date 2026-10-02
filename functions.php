@@ -274,6 +274,7 @@ require get_template_directory() . '/inc/admin-dashboard/support-ajax-handlers.p
 require get_template_directory() . '/inc/admin-dashboard/attendance-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/scanner-offline.php';
 require get_template_directory() . '/inc/admin-dashboard/door-board.php';
+require get_template_directory() . '/inc/admin-dashboard/attendance-hours.php';
 require get_template_directory() . '/inc/admin-dashboard/certificates-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/company-attendees-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/sessions-ajax-handlers.php';

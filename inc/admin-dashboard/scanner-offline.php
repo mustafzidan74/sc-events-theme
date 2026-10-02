@@ -166,6 +166,20 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
     $action   = 'check_in';
     $duration = '';
 
+    // Hourly attendance (attendance-hours.php): every scan is an entry that counts its clock hour;
+    // a second scan in an hour already counted is answered but not written, and nobody scans out.
+    $hours = null;
+    if (empty($a->workshop_id) && !$opts['workshop_id'] && function_exists('sc_hours_enabled') && sc_hours_enabled((int) $a->event_id)) {
+        $tracking = false;
+        $hours = sc_hours_scan_state((int) $a->id, (int) $a->event_id, $now);
+        if ($hours['state'] === 'already') {
+            $hours['total'] = sc_hours_for_attendee((int) $a->id, (int) $a->event_id)['hours'];
+            return array('ok' => true, 'replayed' => false, 'action_type' => 'check_in', 'already_checked_in' => false,
+                'first_checked_in_at' => '', 'first_in' => '', 'tracking_enabled' => false, 'total_scans' => 0,
+                'duration' => '', 'gate' => null, 'at' => $now, 'hours' => $hours);
+        }
+    }
+
     // With in/out tracking, a second scan the same day is a check-out. A phone
     // that decided while offline already told the door which one it was.
     if ($tracking) {
@@ -214,7 +228,7 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
     // after writing ours means two gates scanning the same ticket in the same
     // second cannot both show green.
     $first_in = null;
-    if (!$tracking) {
+    if (!$tracking && !$hours) {
         $earliest = $wpdb->get_row($wpdb->prepare(
             "SELECT id, created_at FROM {$checkins}
              WHERE attendee_id = %d AND action IN ('checkin', 'manual_checkin') AND created_at >= %s AND created_at < %s
@@ -279,6 +293,7 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
         'duration'           => $duration,
         'gate'               => $gate_info,
         'at'                 => $now,
+        'hours'              => $hours ? $hours + array('total' => sc_hours_for_attendee((int) $a->id, (int) $a->event_id)['hours']) : null,
     );
 }
 
@@ -438,6 +453,8 @@ function sc_scanner_offline_list() {
         'delta'     => (bool) $since,
         'day'       => $day,
         'tracking'  => (int) $event->attendance_tracking === 1,
+        'hours'     => function_exists('sc_hours_enabled') && sc_hours_enabled($event_id)
+            ? array('start' => sc_hours_settings($event_id)['day_start'], 'end' => sc_hours_settings($event_id)['day_end']) : null,
         'user'      => get_current_user_id(),
     ));
 }

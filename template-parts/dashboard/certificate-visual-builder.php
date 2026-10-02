@@ -233,6 +233,24 @@ $element_types = array(
             'color' => '#666666'
         )
     ),
+    'credit_hours_1' => array(
+        'label' => sc_t('certificates.credit_hours_1', 'Credit hours 1 (e.g. Wisdom Education)'),
+        'icon' => 'fa-clock-o',
+        'placeholder' => '{credit_hours_1}',
+        'default_style' => array(
+            'fontSize' => 16,
+            'color' => '#333333'
+        )
+    ),
+    'credit_hours_2' => array(
+        'label' => sc_t('certificates.credit_hours_2', 'Credit hours 2 (e.g. Health Council)'),
+        'icon' => 'fa-clock-o',
+        'placeholder' => '{credit_hours_2}',
+        'default_style' => array(
+            'fontSize' => 16,
+            'color' => '#333333'
+        )
+    ),
     'custom_text' => array(
         'label' => $t['custom_text'],
         'icon' => 'fa-font',

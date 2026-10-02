@@ -134,6 +134,14 @@ $i18n = array(
     'cancelled_tag'     => sc_t('scanner.cancelled_tag', 'Cancelled'),
     'in_tag'            => sc_t('scanner.in_tag', 'Checked in'),
     'mode_out'          => sc_t('scanner.mode_out', 'Scanning the same ticket again today checks the person out.'),
+    'mode_hours'        => sc_t('scanner.mode_hours', 'Attendance hours: each scan counts its whole hour. Everyone is timed out when the next hour starts, so people scan once every hour.'),
+    'hour_counted'      => sc_t('scanner.hour_counted', 'Hour counted'),
+    'hour_already'      => sc_t('scanner.hour_already', 'This hour is already counted'),
+    'hour_again'        => sc_t('scanner.hour_again', 'Scan again after %s.'),
+    'hour_outside'      => sc_t('scanner.hour_outside', 'Checked in, outside congress hours'),
+    'hour_outside_note' => sc_t('scanner.hour_outside_note', 'Only %s counts; this scan adds no hours.'),
+    'hour_label'        => sc_t('scanner.hour_label', 'Hour'),
+    'hours_so_far'      => sc_t('scanner.hours_so_far', 'Hours so far'),
     'mode_warn'         => sc_t('scanner.mode_warn', 'Scanning the same ticket again today shows "Already checked in".'),
     // Working without a connection
     'off_loading'       => sc_t('scanner.off_loading', 'Saving the list on this phone… %s people'),
@@ -388,6 +396,11 @@ jQuery(function ($) {
         foreach ($filtered_events as $ev) { $tracking_map[(int) $ev->id] = (int) $ev->attendance_tracking === 1; }
         echo wp_json_encode($tracking_map ?: new stdClass());
     ?>;
+    var eventHours = <?php
+        $hours_map = array();
+        foreach ($filtered_events as $ev) { $hours_map[(int) $ev->id] = function_exists('sc_hours_enabled') && sc_hours_enabled((int) $ev->id); }
+        echo wp_json_encode($hours_map ?: new stdClass());
+    ?>;
     var restrictedSessions =<?php echo ($is_scanner_only && !$is_full_scanner_access) ? wp_json_encode(array_map('intval', $scanner_allowed_session_ids)) : 'null'; ?>;
 
     // Answers from the list saved on this phone when the server cannot be reached.
@@ -434,7 +447,8 @@ jQuery(function ($) {
 
     function refreshMode() {
         var show = !!selectedEventId && !selectedSessionId;
-        $('#scan-mode-note').prop('hidden', !show).text(show ? (eventTracking[selectedEventId] ? T.mode_out : T.mode_warn) : '');
+        var note = eventHours[selectedEventId] && !selectedWorkshopId ? T.mode_hours : (eventTracking[selectedEventId] ? T.mode_out : T.mode_warn);
+        $('#scan-mode-note').prop('hidden', !show).text(show ? note : '');
     }
 
     function refreshReady() {
@@ -823,6 +837,11 @@ jQuery(function ($) {
             showWrongDoor(d.workshop ? 'workshop_ticket' : 'congress_ticket', ws ? ws.title : '', d.name);
             return;
         }
+        if (d.hourAlready) {
+            showResult({ action_type: 'check_in', hours: d.hours, attendee: { name: d.name, ticket_type: d.ticket }, offline: true });
+            $('#result-offline').prop('hidden', true);
+            return;
+        }
         if (d.refused) {
             showError(d.message, d.title);
             if (d.name) { $('#error-message').text(d.name + ' — ' + d.message); }
@@ -841,6 +860,7 @@ jQuery(function ($) {
                 first_checked_in_at: d.firstAt,
                 is_company: d.kind === 'company',
                 tracking_enabled: false,
+                hours: d.hours || null,
                 duration: d.duration,
                 attendee: { name: d.name, ticket_type: d.ticket },
                 offline: true
@@ -873,8 +893,12 @@ jQuery(function ($) {
 
     function showResult(data) {
         var a = data.attendee || {};
-        var tone = data.already_checked_in || data.unknown ? 'warn' : (data.action_type === 'check_out' ? 'out' : 'ok');
+        var hr = data.hours || null;
+        var tone = data.already_checked_in || data.unknown || (hr && hr.state !== 'counted') ? 'warn' : (data.action_type === 'check_out' ? 'out' : 'ok');
         var title = data.unknown ? T.off_unknown : data.already_checked_in ? (data.is_company ? T.already_company : T.already) : (data.action_type === 'check_out' ? T.checked_out : T.checked_in);
+        if (hr && !data.unknown) {
+            title = hr.state === 'already' ? T.hour_already : (hr.state === 'outside' ? T.hour_outside : T.hour_counted);
+        }
         $('#result-offline').text(data.unknown ? T.off_unknown_msg : T.off_saved).prop('hidden', !data.offline);
 
         $('#result-mode').attr('data-tone', tone);
@@ -883,7 +907,10 @@ jQuery(function ($) {
         $('#result-time').text([nowLabel(), a.event_name].filter(Boolean).join(' · '));
         var firstIn = data.already_checked_in && data.first_checked_in_at ? new Date(data.first_checked_in_at) : null;
         var firstLabel = firstIn && !isNaN(firstIn) ? firstIn.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-        $('#result-note').text(firstLabel ? fmt(T.first_in, firstLabel) : '').prop('hidden', !firstLabel);
+        var noteText = firstLabel ? fmt(T.first_in, firstLabel) : '';
+        if (hr && hr.state === 'already') { noteText = fmt(T.hour_again, hr.next); }
+        if (hr && hr.state === 'outside') { noteText = fmt(T.hour_outside_note, hr.label); }
+        $('#result-note').text(noteText).prop('hidden', !noteText);
         $('#result-name').text(a.name || '—');
         $('#result-ticket').text(a.ticket_type || '').prop('hidden', !a.ticket_type);
 
@@ -891,6 +918,10 @@ jQuery(function ($) {
             ['<?php echo esc_js(sc_t('attendees.email', 'Email')); ?>', a.email],
             ['<?php echo esc_js(sc_t('attendees.phone', 'Phone')); ?>', a.phone]
         ];
+        if (hr && hr.state !== 'outside') {
+            facts.push([T.hour_label, hr.label]);
+            if (hr.total !== undefined) { facts.push([T.hours_so_far, String(hr.total)]); }
+        }
         if (data.offline && data.duration) {
             facts.push(['<?php echo esc_js(sc_t('scanner.time_inside', 'Time inside')); ?>', data.duration]);
         }

@@ -364,6 +364,17 @@ class SC_Certificate {
         // Generate verification code
         $data['verification_code'] = self::generate_verification_code();
 
+        // Attendance hours, frozen at issue time so the certificate never changes afterwards.
+        if (function_exists('sc_hours_enabled') && !empty($data['event_id']) && sc_hours_enabled((int) $data['event_id'])) {
+            $custom = isset($data['custom_data']) && is_array($data['custom_data']) ? $data['custom_data'] : array();
+            if (!isset($custom['credit_hours'])) {
+                $mine = sc_hours_for_attendee((int) $data['attendee_id'], (int) $data['event_id']);
+                $custom['attended_hours'] = $mine['hours'];
+                $custom['credit_hours'] = array_column($mine['credits'], 'value');
+                $data['custom_data'] = $custom;
+            }
+        }
+
         $data = self::prepare_data($data);
         $data['issued_at'] = current_time('mysql');
         $data['created_at'] = current_time('mysql');

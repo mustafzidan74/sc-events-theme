@@ -505,6 +505,8 @@ function sc_preview_certificate_template() {
         'issue_date' => date_i18n(get_option('date_format')),
         'organizer_name' => __('Tech Events Inc.', 'sc_events'),
         'ticket_name' => __('Standard Ticket', 'sc_events'),
+        'credit_hours_1' => '24',
+        'credit_hours_2' => '17',
         'current_year' => date('Y'),
         'qr_code' => $qr_placeholder
     );
@@ -1022,6 +1024,10 @@ function sc_generate_html_from_visual_config($config) {
             case 'ticket_name':
                 $content = '{ticket_name}';
                 break;
+            case 'credit_hours_1':
+            case 'credit_hours_2':
+                $content = '{' . $element['type'] . '}';
+                break;
             case 'custom_text':
                 $content = esc_html($element['content'] ?? '');
                 break;
@@ -1169,6 +1175,12 @@ function sc_preview_visual_certificate() {
                 break;
             case 'ticket_name':
                 $content = $sample_data['ticket_name'];
+                break;
+            case 'credit_hours_1':
+                $content = '24';
+                break;
+            case 'credit_hours_2':
+                $content = '17';
                 break;
             case 'custom_text':
                 $content = esc_html($element['content'] ?? 'Custom Text');

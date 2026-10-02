@@ -374,6 +374,12 @@ class SC_Certificate_PDF {
                 return $placeholders['organizer_name'];
             case 'ticket_name':
                 return $placeholders['ticket_name'];
+            case 'credit_hours_1':
+                return $placeholders['credit_hours_1'];
+            case 'credit_hours_2':
+                return $placeholders['credit_hours_2'];
+            case 'attended_hours':
+                return $placeholders['attended_hours'];
             case 'custom_text':
                 return isset($element['content']) ? $element['content'] : '';
             default:
@@ -517,12 +523,35 @@ class SC_Certificate_PDF {
         // Build verification URL
         $verification_url = home_url('/certificate-verify/' . $certificate['verification_code'] . '/');
 
+        // Credit hours (attendance-hours.php): the numbers saved when the certificate was issued,
+        // else worked out now; samples on a preview.
+        $credits = array('', '');
+        $attended = '';
+        $custom = isset($certificate['custom_data']) ? $certificate['custom_data'] : array();
+        if (is_string($custom)) {
+            $custom = json_decode($custom, true) ?: array();
+        }
+        if (isset($custom['credit_hours']) && is_array($custom['credit_hours'])) {
+            $credits = array_pad(array_map('strval', $custom['credit_hours']), 2, '');
+            $attended = isset($custom['attended_hours']) ? (string) $custom['attended_hours'] : '';
+        } elseif (empty($certificate['id'])) {
+            $credits = array('24', '17');
+            $attended = '24';
+        } elseif (function_exists('sc_hours_enabled') && !empty($event->id) && !empty($attendee->id) && sc_hours_enabled((int) $event->id)) {
+            $mine = sc_hours_for_attendee((int) $attendee->id, (int) $event->id);
+            $credits = array_pad(array_map('strval', array_column($mine['credits'], 'value')), 2, '');
+            $attended = (string) $mine['hours'];
+        }
+
         return array(
             // Attendee placeholders
             'attendee_name' => $attendee->name,
             'attendee_email' => $attendee->email,
             'attendee_phone' => !empty($attendee->phone) ? $attendee->phone : '',
             'ticket_name' => !empty($attendee->ticket_name) ? $attendee->ticket_name : '',
+            'credit_hours_1' => $credits[0],
+            'credit_hours_2' => $credits[1],
+            'attended_hours' => $attended,
 
             // Event placeholders
             'event_name' => $event->title,
