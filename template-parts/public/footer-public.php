@@ -257,7 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <?php endif; ?>
 
 <!-- Shared Utilities -->
-<script src="<?php echo esc_url(get_template_directory_uri()); ?>/assets/js/shared-utilities.js?v=<?php echo defined('_S_VERSION') ? _S_VERSION : '1.0.0'; ?>"></script>
+<?php // Versioned by the files themselves, so a deploy reaches browsers that cached the old copy for a year. ?>
+<script src="<?php echo esc_url(get_template_directory_uri()); ?>/assets/js/shared-utilities.js?v=<?php echo esc_attr((defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1') . '.' . (int) @filemtime(get_template_directory() . '/assets/js/shared-utilities.js')); ?>"></script>
 
 <!-- Public Config -->
 <script>
@@ -295,7 +296,7 @@ var scPublic = {
 </script>
 
 <!-- Public Frontend JS -->
-<script src="<?php echo esc_url(get_template_directory_uri()); ?>/assets/frontend/js/public-scripts.js?v=<?php echo defined('_S_VERSION') ? _S_VERSION : '1.0.0'; ?>"></script>
+<script src="<?php echo esc_url(get_template_directory_uri()); ?>/assets/frontend/js/public-scripts.js?v=<?php echo esc_attr(defined('SC_ASSET_VERSION') ? SC_ASSET_VERSION : '1'); ?>"></script>
 
 <!-- Dark Theme Init -->
 <script>
