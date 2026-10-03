@@ -173,7 +173,7 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
         $tracking = false;
         $hours = sc_hours_scan_state((int) $a->id, (int) $a->event_id, $now);
         if ($hours['state'] === 'already') {
-            $hours['total'] = sc_hours_for_attendee((int) $a->id, (int) $a->event_id)['hours'];
+            $hours['total'] = sc_hours_for_attendee((int) $a->id, (int) $a->event_id)['counted'];
             return array('ok' => true, 'replayed' => false, 'action_type' => 'check_in', 'already_checked_in' => false,
                 'first_checked_in_at' => '', 'first_in' => '', 'tracking_enabled' => false, 'total_scans' => 0,
                 'duration' => '', 'gate' => null, 'at' => $now, 'hours' => $hours);
@@ -293,7 +293,7 @@ function sc_scanner_record_attendee_scan($a, array $opts) {
         'duration'           => $duration,
         'gate'               => $gate_info,
         'at'                 => $now,
-        'hours'              => $hours ? $hours + array('total' => sc_hours_for_attendee((int) $a->id, (int) $a->event_id)['hours']) : null,
+        'hours'              => $hours ? $hours + array('total' => sc_hours_for_attendee((int) $a->id, (int) $a->event_id)['counted']) : null,
     );
 }
 

@@ -12,6 +12,10 @@
  *   credit = round(hours × credit max ÷ all hours of the congress), at most the max,
  *   and at least the minimum for anyone with one counted hour or more.
  *
+ * Organisers can correct anyone's numbers by hand (option sc_hours_edits_{event_id}): the hours
+ * attended (credits are then worked out from them), or a credit set directly. A hand-set value
+ * wins over the scans; clearing it goes back to the scans.
+ *
  * Settings per event in the option sc_hours_{event_id}; page: template-parts/dashboard/attendance-hours.php.
  *
  * @package sc_events
@@ -145,12 +149,37 @@ function sc_hours_count($by_day) {
     return $n;
 }
 
+/** Hand corrections for an event: [attendee_id => [hours => ?float, credits => [?float, …], note, by, at]]. */
+function sc_hours_edits($event_id) {
+    $edits = get_option('sc_hours_edits_' . (int) $event_id, array());
+    return is_array($edits) ? $edits : array();
+}
+
+/**
+ * What counts for one person: the scans, unless an organiser corrected them.
+ *
+ * @return array hours (what counts), counted (from the scans), credits [[label, value]], edit (or null).
+ */
+function sc_hours_effective($attendee_id, $event_id, $counted, $edits = null) {
+    $edits = $edits === null ? sc_hours_edits($event_id) : $edits;
+    $edit = $edits[(int) $attendee_id] ?? null;
+    $hours = $edit && isset($edit['hours']) && $edit['hours'] !== null ? (float) $edit['hours'] + 0 : $counted;
+    $credits = sc_hours_credits($hours, $event_id);
+    if ($edit && !empty($edit['credits'])) {
+        foreach ($credits as $i => $c) {
+            if (isset($edit['credits'][$i]) && $edit['credits'][$i] !== null) {
+                $credits[$i]['value'] = (float) $edit['credits'][$i] + 0;
+            }
+        }
+    }
+    return array('hours' => $hours, 'counted' => $counted, 'credits' => $credits, 'edit' => $edit);
+}
+
 /** Hours and credits of one attendee, for the scanner and the certificate. */
 function sc_hours_for_attendee($attendee_id, $event_id) {
     $map = sc_hours_counted_slots($event_id, $attendee_id);
     $by_day = $map[$attendee_id] ?? array();
-    $hours = sc_hours_count($by_day);
-    return array('hours' => $hours, 'by_day' => $by_day, 'credits' => sc_hours_credits($hours, $event_id));
+    return sc_hours_effective($attendee_id, $event_id, sc_hours_count($by_day)) + array('by_day' => $by_day);
 }
 
 /**
@@ -244,6 +273,7 @@ function sc_hours_rows($event_id) {
     ));
     $slots = sc_hours_counted_slots($event_id);
     $days = sc_hours_event_days($event_id);
+    $edits = sc_hours_edits($event_id);
     $rows = array();
     foreach ($people as $p) {
         $by_day = $slots[(int) $p->id] ?? array();
@@ -251,7 +281,8 @@ function sc_hours_rows($event_id) {
         foreach ($days as $d) {
             $per_day[] = isset($by_day[$d]) ? count($by_day[$d]) : 0;
         }
-        $hours = array_sum($per_day);
+        $mine = sc_hours_effective((int) $p->id, $event_id, array_sum($per_day), $edits);
+        $edit = $mine['edit'];
         $rows[] = array(
             'id'      => (int) $p->id,
             'name'    => (string) $p->name,
@@ -259,8 +290,17 @@ function sc_hours_rows($event_id) {
             'phone'   => (string) $p->phone,
             'code'    => (string) $p->ticket_code,
             'days'    => $per_day,
-            'hours'   => $hours,
-            'credits' => array_column(sc_hours_credits($hours, $event_id), 'value'),
+            'hours'   => $mine['hours'],
+            'counted' => $mine['counted'],
+            'credits' => array_column($mine['credits'], 'value'),
+            'auto'    => array_column(sc_hours_credits($mine['counted'], $event_id), 'value'),
+            'edit'    => $edit ? array(
+                'hours'   => $edit['hours'] ?? null,
+                'credits' => $edit['credits'] ?? array(),
+                'note'    => (string) ($edit['note'] ?? ''),
+                'by'      => !empty($edit['by']) && ($u = get_userdata((int) $edit['by'])) ? $u->display_name : '',
+                'at'      => !empty($edit['at']) ? mysql2date('j M, H:i', $edit['at']) : '',
+            ) : null,
         );
     }
     return $rows;
@@ -274,7 +314,92 @@ function sc_hours_list() {
     wp_send_json_success(array(
         'days'    => sc_hours_event_days($event_id),
         'credits' => array_column($s['credits'], 'label'),
+        'maxes'   => array_column($s['credits'], 'max'),
+        'total'   => sc_hours_total($event_id),
         'rows'    => sc_hours_rows($event_id),
+    ));
+}
+
+/**
+ * Save or clear a hand correction. Empty fields mean "from the scans". An issued certificate is
+ * updated to the new numbers.
+ */
+add_action('wp_ajax_sc_hours_edit', 'sc_hours_edit');
+function sc_hours_edit() {
+    sc_hours_guard();
+    global $wpdb;
+    $event_id = absint($_POST['event_id'] ?? 0);
+    $attendee_id = absint($_POST['attendee_id'] ?? 0);
+    $belongs = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}sc_attendees WHERE id = %d AND event_id = %d AND (workshop_id IS NULL OR workshop_id = 0)",
+        $attendee_id, $event_id
+    ));
+    if (!$belongs) {
+        wp_send_json_error(array('message' => __('This person has no congress ticket for this event.', 'sc_events')));
+    }
+    $s = sc_hours_settings($event_id);
+    $total = sc_hours_total($event_id);
+    $number = static function ($raw, $max) {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return null;
+        }
+        if (!is_numeric($raw) || (float) $raw < 0 || (float) $raw > $max) {
+            return false;
+        }
+        return round((float) $raw * 2) / 2; // whole or half hours
+    };
+
+    $hours = $number(wp_unslash($_POST['hours'] ?? ''), $total);
+    if ($hours === false) {
+        /* translators: %s: hours in the congress */
+        wp_send_json_error(array('message' => sprintf(__('Hours attended must be between 0 and %s.', 'sc_events'), $total)));
+    }
+    $credits = array();
+    $posted = isset($_POST['credits']) && is_array($_POST['credits']) ? wp_unslash($_POST['credits']) : array();
+    foreach ($s['credits'] as $i => $c) {
+        $v = $number($posted[$i] ?? '', $c['max']);
+        if ($v === false) {
+            /* translators: 1: credit name, 2: its maximum */
+            wp_send_json_error(array('message' => sprintf(__('%1$s must be between 0 and %2$s.', 'sc_events'), $c['label'], $c['max'] + 0)));
+        }
+        $credits[$i] = $v;
+    }
+
+    $edits = sc_hours_edits($event_id);
+    if ($hours === null && !array_filter($credits, static function ($v) { return $v !== null; })) {
+        unset($edits[$attendee_id]);
+    } else {
+        $edits[$attendee_id] = array(
+            'hours'   => $hours,
+            'credits' => $credits,
+            'note'    => sanitize_text_field(wp_unslash($_POST['note'] ?? '')),
+            'by'      => get_current_user_id(),
+            'at'      => current_time('mysql'),
+        );
+    }
+    update_option('sc_hours_edits_' . $event_id, $edits, false);
+
+    // An issued certificate shows the corrected numbers from now on.
+    $mine = sc_hours_for_attendee($attendee_id, $event_id);
+    $cert_updated = false;
+    if (class_exists('SC_Certificate')) {
+        $cert = SC_Certificate::get_by_attendee_event($attendee_id, $event_id);
+        if ($cert) {
+            $cert = (array) $cert;
+            $custom = isset($cert['custom_data']) ? (is_array($cert['custom_data']) ? $cert['custom_data'] : (json_decode((string) $cert['custom_data'], true) ?: array())) : array();
+            $custom['attended_hours'] = $mine['hours'];
+            $custom['credit_hours'] = array_column($mine['credits'], 'value');
+            $wpdb->update($wpdb->prefix . 'sc_certificates', array('custom_data' => wp_json_encode($custom), 'updated_at' => current_time('mysql')), array('id' => (int) $cert['id']));
+            $cert_updated = true;
+        }
+    }
+
+    wp_send_json_success(array(
+        'message'      => $cert_updated ? __('Saved. The certificate shows the new numbers.', 'sc_events') : __('Saved.', 'sc_events'),
+        'hours'        => $mine['hours'],
+        'credits'      => array_column($mine['credits'], 'value'),
+        'cert_updated' => $cert_updated,
     ));
 }
 
@@ -305,9 +430,12 @@ function sc_hours_export() {
     foreach ($s['credits'] as $c) {
         $head[] = $c['label'];
     }
+    $head[] = 'Hours from scans';
+    $head[] = 'Corrected by hand';
     fputcsv($out, $head);
     foreach (sc_hours_rows($event_id) as $r) {
-        fputcsv($out, array_merge(array($cell($r['name']), $cell($r['email']), $cell($r['phone']), $cell($r['code'])), $r['days'], array($r['hours']), $r['credits']));
+        $note = $r['edit'] ? trim('Yes' . ($r['edit']['note'] !== '' ? ': ' . $r['edit']['note'] : '') . ($r['edit']['by'] ? ' (' . $r['edit']['by'] . ')' : '')) : '';
+        fputcsv($out, array_merge(array($cell($r['name']), $cell($r['email']), $cell($r['phone']), $cell($r['code'])), $r['days'], array($r['hours']), $r['credits'], array($r['counted'], $cell($note))));
     }
     fclose($out);
     exit;
