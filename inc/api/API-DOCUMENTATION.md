@@ -297,40 +297,62 @@ like `/auth/login`, and every other device is signed out.
 
 *Requires either login or email query parameter
 
+Registration follows the same rules as the website:
+
+- `ticket_id` decides what is booked. A workshop's ticket books a **workshop seat** (it opens that
+  workshop's door only); the congress ticket books the congress.
+- **Coupon-only tickets** (price 0 with coupons on, e.g. every IDC ticket) need a `coupon_code` worth
+  **100%**. Paid tickets take an optional coupon as a discount.
+- **Workshop coupons** (coupon category "Workshops") work only on workshop tickets; **every other
+  coupon** works only on congress tickets.
+- A coupon is used up when the registration is made; one email can hold one congress registration
+  and one seat per workshop.
+- Signed in (`Authorization: Bearer …`), name, email and phone default to the account's.
+- The ticket and its QR are sent on WhatsApp/email as on the website.
+
 **Register Request:**
 ```json
 {
-    "event_id": 1,
-    "ticket_id": 2,
+    "event_id": 5,
+    "ticket_id": 181,
     "name": "Ahmed Mohamed",
     "email": "ahmed@example.com",
-    "phone": "+966501234567",
-    "extra_fields": {
-        "company": "Tech Corp",
-        "job_title": "Developer"
-    },
-    "coupon_code": "DISCOUNT20"
+    "phone": "01012345678",
+    "coupon_code": "12IDC26WOY8L4",
+    "extra_fields": { "Specialty": "Endodontics" }
 }
 ```
 
-**Register Response:**
+**Register Response (201):**
 ```json
 {
     "success": true,
     "data": {
-        "id": 1,
-        "ticket_code": "TKT-A1B2C3D4",
+        "id": 11651,
+        "ticket_code": "SCCA719223B4",
         "name": "Ahmed Mohamed",
         "email": "ahmed@example.com",
-        "event_id": 1,
-        "ticket_name": "VIP Ticket",
-        "ticket_price": 100.00,
-        "payment_status": "pending",
-        "requires_payment": true
+        "phone": "01012345678",
+        "event_id": 5,
+        "workshop_id": 3,
+        "ticket_name": "Suturing techniques",
+        "ticket_price": 0,
+        "amount_to_pay": 0,
+        "payment_status": "success",
+        "coupon_code": "12IDC26WOY8L4",
+        "coupon_discount": 0,
+        "status": "active",
+        "extra_fields": { "Specialty": "Endodontics" },
+        "requires_payment": false
     },
-    "message": "Registration successful"
+    "message": "تم التسجيل بنجاح"
 }
 ```
+
+**Register errors (400):** `COUPON_MISSING` (coupon-only ticket, no code), `COUPON_INVALID`
+(unknown, expired or another event), `COUPON_SCOPE` (workshop coupon on the congress, or another
+coupon on a workshop), `COUPON_USED` (no uses left), `COUPON_NOT_FULL` (coupon-only ticket with a
+coupon under 100%), `ALREADY_REGISTERED`, `SOLD_OUT`.
 
 ---
 
@@ -440,18 +462,21 @@ GET /certificates/check?email=user@example.com&event_id=1
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | /coupons | No | List coupons for event |
-| POST | /coupons/validate | No | Validate coupon code |
-| POST | /coupons/apply | No | Apply coupon |
-| GET | /coupons/check/{code} | No | Quick check coupon |
+| POST | /coupons/validate | No | Check a code for a ticket (uses nothing up) |
+| GET | /coupons/check/{code} | No | Quick check (`&event_id=` and optional `&workshop_id=` / `&ticket_id=`) |
+| POST | /coupons/apply | Yes | Use up one use (registration already does this) |
+| GET | /coupons | Manager | The event's coupons (`&event_id=`); codes are never public |
 
-**Validate Coupon Request:**
+These read the coupons managed in the dashboard, with the website's rules (event, expiry, uses
+left, workshop coupons for workshops only, other coupons for the congress only).
+
+**Validate Coupon Request:** say which ticket it is for with `ticket_id`, or `workshop_id`
+(that workshop's ticket); neither means the congress ticket.
 ```json
 {
-    "code": "DISCOUNT20",
-    "event_id": 1,
-    "ticket_id": 2,
-    "amount": 100.00
+    "code": "12IDC26WOY8L4",
+    "event_id": 5,
+    "workshop_id": 3
 }
 ```
 
@@ -461,16 +486,19 @@ GET /certificates/check?email=user@example.com&event_id=1
     "success": true,
     "data": {
         "valid": true,
-        "code": "DISCOUNT20",
+        "code": "12IDC26WOY8L4",
         "discount_type": "percentage",
-        "discount_value": 20,
-        "discount_amount": 20.00,
-        "original_amount": 100.00,
-        "final_amount": 80.00,
-        "message": "Discount of 20.00 applied"
+        "discount_value": 100,
+        "is_free": true,
+        "discount_amount": 0,
+        "original_amount": 0,
+        "final_amount": 0
     }
 }
 ```
+
+When the code can't be used here: `{ "valid": false, "reason": "COUPON_SCOPE", "message": "This coupon is for workshops only. …" }`
+(`reason` is one of the register error codes above).
 
 ---
 
@@ -553,11 +581,12 @@ const result = await fetch('https://your-domain.com/wp-content/themes/sc_events/
         'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-        event_id: 1,
-        ticket_id: 2,
+        event_id: 5,
+        ticket_id: 177,            // the congress ticket; a workshop's ticket books that workshop
         name: 'Ahmed Mohamed',
         email: 'ahmed@example.com',
-        phone: '+966501234567'
+        phone: '01012345678',
+        coupon_code: 'IDC26XXL297W6' // required: IDC tickets are coupon-only
     })
 });
 ```
@@ -571,9 +600,9 @@ const coupon = await fetch('https://your-domain.com/wp-content/themes/sc_events/
         'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-        code: 'DISCOUNT20',
-        event_id: 1,
-        amount: 100.00
+        code: '12IDC26WOY8L4',
+        event_id: 5,
+        workshop_id: 3             // leave out for the congress ticket
     })
 });
 ```

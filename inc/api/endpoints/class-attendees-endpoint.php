@@ -28,141 +28,122 @@ class SC_Attendees_Endpoint extends SC_Base_Endpoint {
     public function register() {
         global $wpdb;
 
+        // Same rules as registering on the website (public-ajax-handlers.php): a coupon-only ticket
+        // needs a 100% coupon; workshop seats take workshop coupons, congress tickets the others;
+        // a workshop ticket makes a workshop seat; the ticket is sent on WhatsApp/email.
         $this->validate([
             'event_id' => 'required|integer',
             'ticket_id' => 'required|integer',
-            'name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'phone' => 'string|max:50'
+            'name' => 'string|max:255',
+            'email' => 'email'
+            // phone: no max rule, the validator reads a numeric phone as a number (01012345678 > 50).
         ]);
 
         $event_id = (int) $this->input('event_id');
         $ticket_id = (int) $this->input('ticket_id');
+        $user = $this->userId() ? get_userdata($this->userId()) : null;
 
-        // Check event exists and is published
         $event = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->events_table} WHERE id = %d AND status = 'publish'",
             $event_id
         ));
-
         if (!$event) {
             SC_API_Response::notFound('الفعالية غير موجودة أو غير متاحة');
         }
-
-        // Check registration deadline
         if ($event->registration_deadline && current_time('mysql') > $event->registration_deadline) {
             SC_API_Response::error('انتهى موعد التسجيل لهذه الفعالية', 400);
         }
 
-        // Check ticket exists and is available
         $ticket = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->tickets_table} WHERE id = %d AND event_id = %d AND is_active = 1",
             $ticket_id, $event_id
         ));
-
         if (!$ticket) {
             SC_API_Response::notFound('التذكرة غير موجودة');
         }
+        // A quantity of 0 means no limit.
+        if ((int) $ticket->quantity > 0 && (int) $ticket->sold >= (int) $ticket->quantity) {
+            SC_API_Response::error('نفدت التذاكر المتاحة', 400, null, 'SOLD_OUT');
+        }
+        $workshop_id = (int) $ticket->workshop_id;
 
-        // Check ticket availability
-        $available = (int) $ticket->quantity - (int) $ticket->sold;
-        if ($available <= 0) {
-            SC_API_Response::error('نفدت التذاكر المتاحة', 400);
+        $name  = sanitize_text_field((string) ($this->input('name') ?: ($user ? $user->display_name : '')));
+        $email = sanitize_email((string) ($this->input('email') ?: ($user ? $user->user_email : '')));
+        $phone = mb_substr(sanitize_text_field((string) ($this->input('phone') ?: ($user ? get_user_meta($user->ID, 'phone', true) : ''))), 0, 50);
+        if ($name === '' || !is_email($email)) {
+            SC_API_Response::validationError(['name' => ['الاسم والبريد الإلكتروني مطلوبين']]);
         }
 
-        // Check for duplicate registration
-        $email = sanitize_email($this->input('email'));
+        // One congress registration per email, and one seat per workshop.
         $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE event_id = %d AND email = %s AND status != 'cancelled'",
-            $event_id, $email
+            "SELECT id FROM {$this->table} WHERE event_id = %d AND email = %s AND status != 'cancelled' AND "
+            . ($workshop_id ? 'workshop_id = %d' : '(workshop_id IS NULL OR workshop_id = 0) AND %d = 0'),
+            $event_id, $email, $workshop_id
         ));
-
         if ($existing) {
-            SC_API_Response::error('هذا البريد الإلكتروني مسجل مسبقاً في هذه الفعالية', 400);
+            SC_API_Response::error($workshop_id ? 'مسجل مسبقاً في هذه الورشة' : 'هذا البريد الإلكتروني مسجل مسبقاً في هذه الفعالية', 400, null, 'ALREADY_REGISTERED');
         }
 
-        // Get extra fields from event
-        $extra_fields = json_decode($event->extra_fields, true) ?: [];
-        $extra_values = [];
+        // Coupons: required on coupon-only tickets (price 0 + coupons on), optional discount otherwise.
+        $price = (float) $ticket->price;
+        $coupon_code = trim((string) $this->input('coupon_code', ''));
+        $coupon = null;
+        $coupon_only = $price <= 0 && !empty($ticket->enable_coupons);
+        if ($coupon_only || $coupon_code !== '') {
+            $check = sc_coupon_for_ticket($coupon_code, $ticket);
+            if (is_wp_error($check)) {
+                SC_API_Response::error($check->get_error_message(), 400, null, strtoupper($check->get_error_code()));
+            }
+            if ($coupon_only && !$check['is_free']) {
+                SC_API_Response::error('هذه التذكرة تحتاج كوبون خصم 100%', 400, null, 'COUPON_NOT_FULL');
+            }
+            $coupon = $check;
+        }
+        $discount = 0;
+        if ($coupon && $price > 0) {
+            $discount = $coupon['discount_type'] === 'percentage' ? $price * $coupon['discount_value'] / 100 : $coupon['discount_value'];
+            $discount = min($price, max(0, $discount));
+        }
+        $to_pay = max(0, $price - $discount);
+        $paid = $to_pay <= 0;
 
-        // Collect extra field values
+        $extra = [];
         $input_extra = $this->input('extra_fields');
         if (is_array($input_extra)) {
-            foreach ($extra_fields as $field) {
-                $field_name = $field['name'] ?? '';
-                if (isset($input_extra[$field_name])) {
-                    $extra_values[$field_name] = sanitize_text_field($input_extra[$field_name]);
+            foreach ($input_extra as $label => $value) {
+                if (!is_array($value)) {
+                    $extra[] = ['label' => (string) $label, 'value' => (string) $value];
                 }
             }
         }
 
-        // Generate ticket code
-        $ticket_code = $this->generateTicketCode();
-
-        // Prepare attendee data
-        $data = [
-            'event_id' => $event_id,
-            'ticket_id' => $ticket_id,
-            'user_id' => $this->userId() ?: null,
-            'name' => sanitize_text_field($this->input('name')),
-            'email' => $email,
-            'phone' => sanitize_text_field($this->input('phone')),
-            'ticket_code' => $ticket_code,
-            'ticket_name' => $ticket->name,
-            'ticket_price' => $ticket->price,
-            'payment_status' => $ticket->price > 0 ? 'pending' : 'success',
-            'payment_method' => $ticket->price > 0 ? null : 'free',
-            'amount_paid' => $ticket->price > 0 ? 0 : $ticket->price,
-            'extra_fields' => !empty($extra_values) ? json_encode($extra_values) : null,
-            'status' => 'active',
-            'created_at' => current_time('mysql')
-        ];
-
-        // Apply coupon if provided
-        $coupon_code = $this->input('coupon_code');
-        if ($coupon_code && $ticket->price > 0) {
-            $coupon_result = $this->applyCoupon($coupon_code, $ticket->price, $event_id, $ticket_id);
-            if ($coupon_result['valid']) {
-                $data['coupon_code'] = $coupon_code;
-                $data['coupon_discount'] = $coupon_result['discount'];
-                $data['ticket_price'] = $ticket->price - $coupon_result['discount'];
-
-                if ($data['ticket_price'] <= 0) {
-                    $data['ticket_price'] = 0;
-                    $data['payment_status'] = 'success';
-                    $data['payment_method'] = 'coupon';
-                    $data['amount_paid'] = 0;
-                }
-            }
-        }
-
-        // Insert attendee
-        $result = $wpdb->insert($this->table, $data);
-
-        if ($result === false) {
+        $attendee_id = sc_create_attendee([
+            'event_id'       => $event_id,
+            'workshop_id'    => $workshop_id,
+            'ticket_id'      => $ticket_id,
+            'ticket_name'    => $ticket->name,
+            'ticket_type'    => !empty($ticket->ticket_type) ? $ticket->ticket_type : 'general',
+            'user_id'        => $user ? $user->ID : 0,
+            'name'           => $name,
+            'email'          => $email,
+            'phone'          => $phone,
+            'payment_status' => $paid ? 'success' : 'pending',
+            'payment_method' => $coupon ? 'coupon' : ($price > 0 ? 'online' : 'free'),
+            'amount_paid'    => 0,
+            'coupon_code'    => $coupon ? $coupon['coupon']->post_title : '',
+            'extra_fields'   => $extra,
+        ]);
+        if (!$attendee_id) {
             SC_API_Response::error('فشل في التسجيل، حاول مرة أخرى', 500);
         }
+        if ($coupon) {
+            sc_coupon_use($coupon['coupon']->ID);
+        }
+        if ($paid && function_exists('sc_public_send_ticket_email')) {
+            sc_public_send_ticket_email($attendee_id);
+        }
 
-        $attendee_id = $wpdb->insert_id;
-
-        // Update ticket sold count
-        $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->tickets_table} SET sold = sold + 1 WHERE id = %d",
-            $ticket_id
-        ));
-
-        // Update event sold count
-        $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->events_table} SET total_sold = total_sold + 1 WHERE id = %d",
-            $event_id
-        ));
-
-        // Get the created attendee
-        $attendee = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE id = %d",
-            $attendee_id
-        ));
-
+        $attendee = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d", $attendee_id));
         SC_API_Response::created([
             'id' => (int) $attendee->id,
             'ticket_code' => $attendee->ticket_code,
@@ -170,14 +151,16 @@ class SC_Attendees_Endpoint extends SC_Base_Endpoint {
             'email' => $attendee->email,
             'phone' => $attendee->phone,
             'event_id' => (int) $attendee->event_id,
+            'workshop_id' => $workshop_id ?: null,
             'ticket_name' => $attendee->ticket_name,
-            'ticket_price' => (float) $attendee->ticket_price,
+            'ticket_price' => $price,
+            'amount_to_pay' => round($to_pay, 2),
             'payment_status' => $attendee->payment_status,
             'coupon_code' => $attendee->coupon_code,
-            'coupon_discount' => (float) ($attendee->coupon_discount ?? 0),
+            'coupon_discount' => round($discount, 2),
             'status' => $attendee->status,
-            'extra_fields' => json_decode($attendee->extra_fields, true) ?: [],
-            'requires_payment' => $attendee->payment_status === 'pending' && $attendee->ticket_price > 0
+            'extra_fields' => json_decode((string) $attendee->extra_fields, true) ?: [],
+            'requires_payment' => !$paid
         ], 'تم التسجيل بنجاح');
     }
 
@@ -277,62 +260,6 @@ class SC_Attendees_Endpoint extends SC_Base_Endpoint {
         }, $attendees);
 
         SC_API_Response::success($data);
-    }
-
-    /**
-     * Apply coupon to calculate discount
-     */
-    private function applyCoupon($code, $price, $event_id, $ticket_id) {
-        global $wpdb;
-
-        $coupons_table = $wpdb->prefix . 'sc_coupons';
-
-        $coupon = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$coupons_table}
-             WHERE code = %s AND is_active = 1
-             AND (event_id IS NULL OR event_id = %d)
-             AND (start_date IS NULL OR start_date <= NOW())
-             AND (expiry_date IS NULL OR expiry_date >= NOW())
-             AND (usage_limit IS NULL OR usage_count < usage_limit)",
-            $code, $event_id
-        ));
-
-        if (!$coupon) {
-            return ['valid' => false, 'discount' => 0];
-        }
-
-        // Check ticket restriction
-        if ($coupon->ticket_ids) {
-            $allowed_tickets = json_decode($coupon->ticket_ids, true);
-            if (is_array($allowed_tickets) && !in_array($ticket_id, $allowed_tickets)) {
-                return ['valid' => false, 'discount' => 0];
-            }
-        }
-
-        // Check minimum amount
-        if ($coupon->min_amount > 0 && $price < $coupon->min_amount) {
-            return ['valid' => false, 'discount' => 0];
-        }
-
-        // Calculate discount
-        $discount = 0;
-        if ($coupon->discount_type === 'percentage') {
-            $discount = ($price * $coupon->discount_value) / 100;
-        } else {
-            $discount = $coupon->discount_value;
-        }
-
-        // Apply max discount cap
-        if ($coupon->max_discount && $discount > $coupon->max_discount) {
-            $discount = $coupon->max_discount;
-        }
-
-        // Don't discount more than the price
-        if ($discount > $price) {
-            $discount = $price;
-        }
-
-        return ['valid' => true, 'discount' => $discount];
     }
 
     /**

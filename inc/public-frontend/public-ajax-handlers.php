@@ -1101,6 +1101,47 @@ function sc_coupon_scope_error($coupon, $for_workshop) {
     return '';
 }
 
+/**
+ * Every rule a coupon must pass for a ticket, as the website applies them: it exists and is active,
+ * belongs to the event, has not expired, matches the ticket type, has uses left, and is a workshop
+ * coupon for a workshop seat or a congress coupon for a congress ticket.
+ *
+ * @param string $code
+ * @param object $ticket Row of sc_tickets (event_id, workshop_id, ticket_type, price).
+ * @return array|WP_Error coupon (WP_Post), discount_type, discount_value, is_free.
+ */
+function sc_coupon_for_ticket($code, $ticket) {
+    $code = strtoupper(trim(sanitize_text_field((string) $code)));
+    if ($code === '') {
+        return new WP_Error('coupon_missing', __('Please enter a coupon code.', 'sc_events'));
+    }
+    $coupon = sc_find_coupon($code, (int) $ticket->event_id, !empty($ticket->ticket_type) ? $ticket->ticket_type : 'general');
+    if (!$coupon) {
+        return new WP_Error('coupon_invalid', __('Invalid or expired coupon code.', 'sc_events'));
+    }
+    $scope = sc_coupon_scope_error($coupon, !empty($ticket->workshop_id));
+    if ($scope !== '') {
+        return new WP_Error('coupon_scope', $scope);
+    }
+    $limit = (int) get_post_meta($coupon->ID, 'usage_limit', true);
+    if ($limit > 0 && (int) get_post_meta($coupon->ID, 'usage_count', true) >= $limit) {
+        return new WP_Error('coupon_used', __('This coupon has reached its usage limit.', 'sc_events'));
+    }
+    $type = (string) get_post_meta($coupon->ID, 'discount_type', true);
+    $value = (float) get_post_meta($coupon->ID, 'discount_value', true);
+    return array(
+        'coupon'         => $coupon,
+        'discount_type'  => $type,
+        'discount_value' => $value,
+        'is_free'        => $type === 'percentage' && $value >= 100,
+    );
+}
+
+/** Count one use of a coupon. */
+function sc_coupon_use($coupon_id) {
+    update_post_meta($coupon_id, 'usage_count', (int) get_post_meta($coupon_id, 'usage_count', true) + 1);
+}
+
 /** The workshop a request is about: workshop_id, or the workshop of the posted ticket. */
 function sc_coupon_request_workshop_id() {
     $workshop_id = absint($_POST['workshop_id'] ?? 0);

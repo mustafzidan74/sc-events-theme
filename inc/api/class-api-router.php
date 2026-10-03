@@ -148,7 +148,7 @@ class SC_API_Router {
         // ==========================================
         // Coupons Routes
         // ==========================================
-        $this->addRoute('GET', '/coupons', 'SC_Coupons_Endpoint@index'); // List coupons for event
+        $this->addRoute('GET', '/coupons', 'SC_Coupons_Endpoint@index', ['auth' => true, 'role' => 'manager']); // List coupons for event (codes are not public)
         $this->addRoute('POST', '/coupons/validate', 'SC_Coupons_Endpoint@validateCoupon'); // Validate coupon
         $this->addRoute('POST', '/coupons/apply', 'SC_Coupons_Endpoint@apply', ['auth' => true]); // Apply coupon (uses up a code)
         $this->addRoute('GET', '/coupons/check/{code}', 'SC_Coupons_Endpoint@check'); // Quick check

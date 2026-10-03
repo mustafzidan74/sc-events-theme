@@ -2,7 +2,10 @@
 /**
  * SC Events API - Coupons Endpoint
  *
- * Handles coupon validation and application
+ * The coupons managed in the dashboard (sc_coupon posts), checked with the website's rules
+ * (sc_coupon_for_ticket() in public-ajax-handlers.php): event, expiry, uses left, ticket type, and
+ * workshop coupons for workshop seats only, every other coupon for congress tickets only.
+ * The old sc_coupons table is a stale copy and is not read.
  *
  * @package sc_events
  */
@@ -13,242 +16,128 @@ if (!defined('ABSPATH')) {
 
 class SC_Coupons_Endpoint extends SC_Base_Endpoint {
 
-    private $table;
-    private $events_table;
-    private $tickets_table;
-
-    public function __construct() {
+    /** The ticket the coupon is for: ticket_id, else the workshop's or the congress ticket of the event. */
+    private function ticketFromInput() {
         global $wpdb;
-        $this->table = $wpdb->prefix . 'sc_coupons';
-        $this->events_table = $wpdb->prefix . 'sc_events';
-        $this->tickets_table = $wpdb->prefix . 'sc_tickets';
+        $event_id = (int) $this->input('event_id', $this->query('event_id'));
+        $ticket_id = (int) $this->input('ticket_id', $this->query('ticket_id'));
+        $workshop_id = (int) $this->input('workshop_id', $this->query('workshop_id'));
+        $t = $wpdb->prefix . 'sc_tickets';
+        if ($ticket_id) {
+            $ticket = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t} WHERE id = %d", $ticket_id));
+        } elseif ($workshop_id) {
+            $ticket = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t} WHERE workshop_id = %d AND is_active = 1 ORDER BY id LIMIT 1", $workshop_id));
+        } else {
+            $ticket = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t} WHERE event_id = %d AND (workshop_id IS NULL OR workshop_id = 0) AND is_active = 1 ORDER BY id LIMIT 1", $event_id));
+        }
+        if (!$ticket || ($event_id && (int) $ticket->event_id !== $event_id)) {
+            SC_API_Response::notFound('التذكرة غير موجودة');
+        }
+        return $ticket;
     }
 
-    /**
-     * POST /coupons/validate - Validate a coupon code
-     */
-    public function validateCoupon() {
-        global $wpdb;
-
-        $this->validate([
-            'code' => 'required|string',
-            'event_id' => 'required|integer'
-        ]);
-
-        $code = strtoupper(sanitize_text_field($this->input('code')));
-        $event_id = (int) $this->input('event_id');
-        $ticket_id = (int) $this->input('ticket_id');
-        $amount = (float) $this->input('amount', 0);
-
-        // Get coupon
-        $coupon = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table}
-             WHERE code = %s AND is_active = 1
-             AND (event_id IS NULL OR event_id = %d)
-             AND (start_date IS NULL OR start_date <= NOW())
-             AND (expiry_date IS NULL OR expiry_date >= NOW())",
-            $code, $event_id
-        ));
-
-        if (!$coupon) {
+    private function answer($check, $amount) {
+        if (is_wp_error($check)) {
             SC_API_Response::success([
                 'valid' => false,
-                'message' => 'كود الخصم غير صالح أو منتهي الصلاحية'
+                'reason' => strtoupper($check->get_error_code()),
+                'message' => $check->get_error_message(),
             ]);
-            return;
         }
-
-        // Check usage limit
-        if ($coupon->usage_limit > 0 && $coupon->usage_count >= $coupon->usage_limit) {
-            SC_API_Response::success([
-                'valid' => false,
-                'message' => 'تم استنفاد عدد مرات استخدام الكوبون'
-            ]);
-            return;
-        }
-
-        // Check ticket restriction
-        if ($coupon->ticket_ids && $ticket_id) {
-            $allowed_tickets = json_decode($coupon->ticket_ids, true);
-            if (is_array($allowed_tickets) && !in_array($ticket_id, $allowed_tickets)) {
-                SC_API_Response::success([
-                    'valid' => false,
-                    'message' => 'الكوبون غير صالح لهذا النوع من التذاكر'
-                ]);
-                return;
-            }
-        }
-
-        // Check minimum amount
-        if ($coupon->min_amount > 0 && $amount < $coupon->min_amount) {
-            SC_API_Response::success([
-                'valid' => false,
-                'message' => 'الحد الأدنى للطلب ' . number_format($coupon->min_amount, 2) . ' لاستخدام هذا الكوبون'
-            ]);
-            return;
-        }
-
-        // Calculate discount
-        $discount = 0;
-        if ($coupon->discount_type === 'percentage') {
-            $discount = ($amount * $coupon->discount_value) / 100;
-        } else {
-            $discount = (float) $coupon->discount_value;
-        }
-
-        // Apply max discount cap
-        if ($coupon->max_discount > 0 && $discount > $coupon->max_discount) {
-            $discount = (float) $coupon->max_discount;
-        }
-
-        // Don't discount more than the price
-        if ($discount > $amount) {
-            $discount = $amount;
-        }
-
-        $final_amount = max(0, $amount - $discount);
-
-        SC_API_Response::success([
+        $discount = $check['discount_type'] === 'percentage' ? $amount * $check['discount_value'] / 100 : $check['discount_value'];
+        $discount = min($amount, max(0, $discount));
+        return [
             'valid' => true,
-            'code' => $coupon->code,
-            'discount_type' => $coupon->discount_type,
-            'discount_value' => (float) $coupon->discount_value,
+            'code' => $check['coupon']->post_title,
+            'discount_type' => $check['discount_type'],
+            'discount_value' => $check['discount_value'],
+            'is_free' => $check['is_free'],
             'discount_amount' => round($discount, 2),
             'original_amount' => round($amount, 2),
-            'final_amount' => round($final_amount, 2),
-            'message' => $final_amount > 0
-                ? 'تم تطبيق خصم ' . number_format($discount, 2)
-                : 'المبلغ المطلوب = 0 (تذكرة مجانية)'
-        ], 'الكوبون صالح');
+            'final_amount' => round(max(0, $amount - $discount), 2),
+        ];
     }
 
     /**
-     * POST /coupons/apply - Apply coupon (increment usage)
+     * POST /coupons/validate
+     * Body: code, event_id, and ticket_id or workshop_id (none = the congress ticket), amount.
+     * Checks only; nothing is used up.
+     */
+    public function validateCoupon() {
+        $this->validate(['code' => 'required|string', 'event_id' => 'required|integer']);
+        $ticket = $this->ticketFromInput();
+        $amount = (float) $this->input('amount', $ticket->price);
+        SC_API_Response::success($this->answer(sc_coupon_for_ticket($this->input('code'), $ticket), $amount), 'الكوبون صالح');
+    }
+
+    /**
+     * POST /coupons/apply (signed in)
+     * Uses up one use of the coupon. Registering with /attendees/register already does this, so
+     * apps only need it for flows that register some other way.
      */
     public function apply() {
-        global $wpdb;
-
-        $this->validate([
-            'code' => 'required|string',
-            'event_id' => 'required|integer'
-        ]);
-
-        $code = strtoupper(sanitize_text_field($this->input('code')));
-        $event_id = (int) $this->input('event_id');
-
-        // Verify coupon is valid
-        $coupon = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table}
-             WHERE code = %s AND is_active = 1
-             AND (event_id IS NULL OR event_id = %d)
-             AND (start_date IS NULL OR start_date <= NOW())
-             AND (expiry_date IS NULL OR expiry_date >= NOW())
-             AND (usage_limit IS NULL OR usage_count < usage_limit)",
-            $code, $event_id
-        ));
-
-        if (!$coupon) {
-            SC_API_Response::error('كود الخصم غير صالح', 400);
+        $this->validate(['code' => 'required|string', 'event_id' => 'required|integer']);
+        $ticket = $this->ticketFromInput();
+        $check = sc_coupon_for_ticket($this->input('code'), $ticket);
+        if (is_wp_error($check)) {
+            SC_API_Response::error($check->get_error_message(), 400, null, strtoupper($check->get_error_code()));
         }
-
-        // Increment usage count
-        $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table} SET usage_count = usage_count + 1 WHERE id = %d",
-            $coupon->id
-        ));
-
+        sc_coupon_use($check['coupon']->ID);
         SC_API_Response::success([
             'applied' => true,
-            'code' => $coupon->code,
-            'new_usage_count' => $coupon->usage_count + 1
+            'code' => $check['coupon']->post_title,
+            'new_usage_count' => (int) get_post_meta($check['coupon']->ID, 'usage_count', true),
         ], 'تم تطبيق الكوبون بنجاح');
     }
 
     /**
-     * GET /coupons/check/{code} - Quick check if coupon exists and is active
+     * GET /coupons/check/{code}&event_id=…[&workshop_id=…|&ticket_id=…]
      */
     public function check() {
-        global $wpdb;
-
-        $code = strtoupper($this->param('code'));
-
-        $coupon = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, code, discount_type, discount_value, event_id, min_amount, max_discount,
-                    usage_limit, usage_count, start_date, expiry_date
-             FROM {$this->table}
-             WHERE code = %s AND is_active = 1",
-            $code
-        ));
-
+        $code = (string) $this->param('code');
+        $coupon = get_posts(['post_type' => 'sc_coupon', 'title' => strtoupper($code), 'post_status' => 'publish', 'numberposts' => 1]);
         if (!$coupon) {
-            SC_API_Response::success([
-                'exists' => false,
-                'message' => 'الكوبون غير موجود'
-            ]);
-            return;
+            SC_API_Response::success(['exists' => false, 'message' => 'الكوبون غير موجود']);
         }
-
-        // Check dates
-        $now = current_time('mysql');
-        $is_started = !$coupon->start_date || $coupon->start_date <= $now;
-        $is_expired = $coupon->expiry_date && $coupon->expiry_date < $now;
-        $has_uses = !$coupon->usage_limit || $coupon->usage_count < $coupon->usage_limit;
-
-        $is_valid = $is_started && !$is_expired && $has_uses;
-
-        SC_API_Response::success([
-            'exists' => true,
-            'valid' => $is_valid,
-            'code' => $coupon->code,
-            'discount_type' => $coupon->discount_type,
-            'discount_value' => (float) $coupon->discount_value,
-            'event_id' => $coupon->event_id ? (int) $coupon->event_id : null,
-            'min_amount' => (float) $coupon->min_amount,
-            'max_discount' => $coupon->max_discount ? (float) $coupon->max_discount : null,
-            'usage_remaining' => $coupon->usage_limit ? ($coupon->usage_limit - $coupon->usage_count) : null,
-            'status' => [
-                'started' => $is_started,
-                'expired' => $is_expired,
-                'has_uses' => $has_uses
-            ]
+        $c = $coupon[0];
+        $event_id = (int) $this->query('event_id') ?: (int) get_post_meta($c->ID, 'event_id', true);
+        if (!$event_id) {
+            SC_API_Response::success(['exists' => true, 'valid' => false, 'message' => 'حدد الفعالية']);
+        }
+        $this->request['body']['event_id'] = $event_id;
+        $ticket = $this->ticketFromInput();
+        $answer = $this->answer(sc_coupon_for_ticket($code, $ticket), (float) $ticket->price);
+        SC_API_Response::success(['exists' => true] + $answer + [
+            'for_workshops' => function_exists('sc_coupon_is_workshop') && sc_coupon_is_workshop($c->ID),
         ]);
     }
 
     /**
-     * GET /coupons - List coupons for an event (public info only)
+     * GET /coupons (managers only) — the event's coupons. Codes are never listed publicly.
      */
     public function index() {
         global $wpdb;
-
         $event_id = (int) $this->query('event_id');
-
         if (!$event_id) {
             SC_API_Response::error('يجب تحديد الفعالية', 400);
         }
-
-        // Get only active, non-expired coupons with remaining uses
-        $coupons = $wpdb->get_results($wpdb->prepare(
-            "SELECT code, discount_type, discount_value, min_amount, expiry_date
-             FROM {$this->table}
-             WHERE is_active = 1
-             AND (event_id IS NULL OR event_id = %d)
-             AND (start_date IS NULL OR start_date <= NOW())
-             AND (expiry_date IS NULL OR expiry_date >= NOW())
-             AND (usage_limit IS NULL OR usage_count < usage_limit)",
-            $event_id
+        $page = max(1, (int) $this->query('page', 1));
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'event_id' AND m.meta_value = %d
+             WHERE p.post_type = 'sc_coupon' AND p.post_status = 'publish' ORDER BY p.ID DESC LIMIT 100 OFFSET %d",
+            $event_id, ($page - 1) * 100
         ));
-
-        // Only return limited public info
-        $data = array_map(function($c) {
+        $data = array_map(function ($id) {
             return [
-                'code' => $c->code,
-                'discount_type' => $c->discount_type,
-                'discount_value' => (float) $c->discount_value,
-                'min_amount' => $c->min_amount ? (float) $c->min_amount : null,
-                'expires' => $c->expiry_date
+                'code' => get_the_title($id),
+                'discount_type' => get_post_meta($id, 'discount_type', true),
+                'discount_value' => (float) get_post_meta($id, 'discount_value', true),
+                'usage_limit' => (int) get_post_meta($id, 'usage_limit', true),
+                'usage_count' => (int) get_post_meta($id, 'usage_count', true),
+                'for_workshops' => function_exists('sc_coupon_is_workshop') && sc_coupon_is_workshop($id),
+                'expires' => get_post_meta($id, 'expiry_date', true) ?: null,
             ];
-        }, $coupons);
-
+        }, $ids);
         SC_API_Response::success($data);
     }
 }
