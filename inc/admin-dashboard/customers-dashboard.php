@@ -40,6 +40,42 @@ function sc_customers_read_filters($src) {
 }
 
 /**
+ * Accounts whose phone matches a search, found in two quick queries: the phone saved on the
+ * account, and the phone on their registrations. Only when the search has 4+ digits.
+ *
+ * @return array ids (int[]), emails (string[]).
+ */
+function sc_customers_phone_matches($search) {
+    global $wpdb;
+    $digits = preg_replace('/\D/', '', (string) $search);
+    if (strlen($digits) < 4) {
+        return array('ids' => array(), 'emails' => array());
+    }
+    // Any way of writing a number finds the others ("010…", "+20 10…", "2010…"): long numbers
+    // match on their last 9 digits, short ones without a leading zero.
+    $needle = strlen($digits) >= 9 ? substr($digits, -9) : (ltrim($digits, '0') ?: $digits);
+    $like = '%' . $wpdb->esc_like($needle) . '%';
+    $ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT DISTINCT user_id FROM {$wpdb->usermeta} WHERE meta_key IN ('phone', 'billing_phone', 'sc_phone_e164') AND meta_value LIKE %s LIMIT 500",
+        $like
+    ));
+    $reg = $wpdb->get_results($wpdb->prepare(
+        "SELECT DISTINCT user_id, email FROM {$wpdb->prefix}sc_attendees WHERE phone LIKE %s LIMIT 500",
+        $like
+    ));
+    $emails = array();
+    foreach ($reg as $r) {
+        if ((int) $r->user_id) {
+            $ids[] = (int) $r->user_id;
+        }
+        if ($r->email !== '') {
+            $emails[] = (string) $r->email;
+        }
+    }
+    return array('ids' => array_values(array_unique(array_map('intval', $ids))), 'emails' => array_values(array_unique($emails)));
+}
+
+/**
  * @return array [from_where_sql, values]
  */
 function sc_customers_where($f, $with_view = true) {
@@ -53,9 +89,19 @@ function sc_customers_where($f, $with_view = true) {
 
     if ($f['search'] !== '') {
         $like = '%' . $wpdb->esc_like($f['search']) . '%';
-        $sql .= " AND (u.display_name LIKE %s OR u.user_email LIKE %s OR u.user_login LIKE %s
-                  OR EXISTS (SELECT 1 FROM $a s WHERE (s.user_id = u.ID OR s.email = u.user_email) AND s.phone LIKE %s))";
-        array_push($values, $like, $like, $like, $like);
+        $match = "u.display_name LIKE %s OR u.user_email LIKE %s OR u.user_login LIKE %s";
+        array_push($values, $like, $like, $like);
+        // Phone numbers are looked up once, not per account: an EXISTS per account over every
+        // registration took a minute on 13k accounts and ended in a 503.
+        $phone = sc_customers_phone_matches($f['search']);
+        if ($phone['ids']) {
+            $match .= ' OR u.ID IN (' . implode(',', $phone['ids']) . ')';
+        }
+        if ($phone['emails']) {
+            $match .= ' OR u.user_email IN (' . implode(',', array_fill(0, count($phone['emails']), '%s')) . ')';
+            $values = array_merge($values, $phone['emails']);
+        }
+        $sql .= " AND ($match)";
     }
     if ($f['event_id']) {
         $sql .= " AND (EXISTS (SELECT 1 FROM $a e WHERE e.user_id = u.ID AND e.event_id = %d) OR EXISTS (SELECT 1 FROM $a e2 WHERE e2.email = u.user_email AND e2.event_id = %d))";
