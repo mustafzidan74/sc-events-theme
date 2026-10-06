@@ -785,11 +785,44 @@
                 } else {
                     showError('Only 100% discount coupons are allowed for free registration. This coupon provides ' + d.discount_text + ' discount.');
                 }
+            } else if (response.data && response.data.code === 'coupon_scope' && response.data.for_workshops && !boxWorkshopId) {
+                pickWorkshopForCoupon(eventId, couponCode);
             } else {
                 showError(response.data.message);
             }
         });
     });
+
+    // A workshop coupon typed in the congress page's coupon box: offer the page's workshops
+    // (their "Register with coupon" buttons) instead of a dead end.
+    function pickWorkshopForCoupon(eventId, couponCode) {
+        var options = {};
+        var tickets = {};
+        $('.btn-register-coupon[data-workshop-id]').each(function () {
+            var ws = String($(this).data('workshop-id') || '');
+            if (!ws || ws === '0' || options[ws]) { return; }
+            options[ws] = String($(this).data('ticket-name') || ('Workshop ' + ws));
+            tickets[ws] = $(this).data('ticket-id') || 0;
+        });
+        if (!Object.keys(options).length) {
+            showError('This coupon is for workshops only. Open the workshop you want and use it there.');
+            return;
+        }
+        Swal.fire({
+            title: 'Workshop coupon',
+            text: 'This coupon is for one workshop. Which one?',
+            input: 'select',
+            inputOptions: options,
+            inputPlaceholder: 'Choose a workshop',
+            showCancelButton: true,
+            confirmButtonText: 'Register',
+            cancelButtonText: 'Cancel',
+            inputValidator: function (value) { return value ? null : 'Choose a workshop'; }
+        }).then(function (res) {
+            if (!res.isConfirmed || !res.value) { return; }
+            processCouponRegistration(eventId, couponCode, [], parseInt(res.value, 10), tickets[res.value] || 0);
+        });
+    }
 
     // ===========================================
     // COUPON - Inside checkout modal

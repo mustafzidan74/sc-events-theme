@@ -502,12 +502,13 @@ function sc_validate_coupon_handler() {
     $coupon = sc_find_coupon($coupon_code, $event_id);
 
     if (!$coupon) {
-        wp_send_json_error(array('message' => __('Invalid or expired coupon code.', 'sc_events')));
+        wp_send_json_error(array('message' => sc_coupon_failure_reason($coupon_code, $event_id)));
     }
 
     $scope = sc_coupon_scope_error($coupon, sc_coupon_request_workshop_id() > 0);
     if ($scope !== '') {
-        wp_send_json_error(array('message' => $scope, 'code' => 'coupon_scope'));
+        // for_workshops: the congress page offers its workshops instead of stopping here.
+        wp_send_json_error(array('message' => $scope, 'code' => 'coupon_scope', 'for_workshops' => sc_coupon_is_workshop($coupon->ID)));
     }
 
     // Check usage limit (meta keys without underscore prefix - as saved by dashboard)
@@ -572,7 +573,7 @@ function sc_register_with_coupon_handler() {
     $coupon = sc_find_coupon($coupon_code, $event_id);
 
     if (!$coupon) {
-        wp_send_json_error(array('message' => __('Invalid or expired coupon code.', 'sc_events')));
+        wp_send_json_error(array('message' => sc_coupon_failure_reason($coupon_code, $event_id)));
     }
     $scope = sc_coupon_scope_error($coupon, $workshop_id > 0);
     if ($scope !== '') {
@@ -651,7 +652,7 @@ function sc_register_with_coupon_handler() {
         'payment_method' => 'coupon',
         'payment_status' => 'success',
         'amount_paid'    => $ticket_price,
-        'coupon_code'    => $coupon_code,
+        'coupon_code'    => $coupon->post_title,
         'extra_fields'   => $extra_fields
     );
     if ($workshop_id) {
@@ -1115,9 +1116,10 @@ function sc_coupon_for_ticket($code, $ticket) {
     if ($code === '') {
         return new WP_Error('coupon_missing', __('Please enter a coupon code.', 'sc_events'));
     }
-    $coupon = sc_find_coupon($code, (int) $ticket->event_id, !empty($ticket->ticket_type) ? $ticket->ticket_type : 'general');
+    $type = !empty($ticket->ticket_type) ? $ticket->ticket_type : 'general';
+    $coupon = sc_find_coupon($code, (int) $ticket->event_id, $type);
     if (!$coupon) {
-        return new WP_Error('coupon_invalid', __('Invalid or expired coupon code.', 'sc_events'));
+        return new WP_Error('coupon_invalid', sc_coupon_failure_reason($code, (int) $ticket->event_id, $type));
     }
     $scope = sc_coupon_scope_error($coupon, !empty($ticket->workshop_id));
     if ($scope !== '') {
@@ -1158,61 +1160,79 @@ function sc_coupon_request_workshop_id() {
 }
 
 /**
+ * The coupon a typed code means, in any status. Spaces and case don't matter, and when nothing
+ * matches exactly, a code typed with the letter O for zero (or I for one), or the other way round,
+ * still finds its coupon when only one coupon fits.
+ *
+ * @return WP_Post|null
+ */
+function sc_coupon_lookup($code) {
+    global $wpdb;
+    $code = strtoupper(preg_replace('/\s+/', '', (string) $code));
+    if ($code === '') {
+        return null;
+    }
+    $id = $wpdb->get_var($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_title = %s ORDER BY post_status = 'publish' DESC, ID DESC LIMIT 1",
+        $code
+    ));
+    if (!$id) {
+        $look = strtr($code, array('O' => '0', 'I' => '1'));
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'sc_coupon' AND post_status = 'publish'
+               AND REPLACE(REPLACE(UPPER(post_title), 'O', '0'), 'I', '1') = %s LIMIT 2",
+            $look
+        ));
+        $id = count($ids) === 1 ? $ids[0] : 0;
+    }
+    return $id ? get_post((int) $id) : null;
+}
+
+/**
+ * Why a coupon can't be used for this event and ticket type, or '' when it can.
+ */
+function sc_coupon_problem($coupon, $event_id = 0, $ticket_type = 'general') {
+    if ($coupon->post_status !== 'publish') {
+        return __('This coupon has been turned off.', 'sc_events');
+    }
+    // A date-only expiry is valid through the end of that day (site time).
+    $expiry = trim((string) get_post_meta($coupon->ID, 'expiry_date', true));
+    if ($expiry !== '' && (strlen($expiry) <= 10 ? $expiry < current_time('Y-m-d') : $expiry < current_time('mysql'))) {
+        /* translators: %s: date */
+        return sprintf(__('This coupon expired on %s.', 'sc_events'), date_i18n('j M Y', strtotime($expiry)));
+    }
+    $coupon_event_id = (int) get_post_meta($coupon->ID, 'event_id', true);
+    if ($event_id > 0 && $coupon_event_id && $coupon_event_id !== (int) $event_id) {
+        global $wpdb;
+        $title = $wpdb->get_var($wpdb->prepare("SELECT title FROM {$wpdb->prefix}sc_events WHERE id = %d", $coupon_event_id));
+        /* translators: %s: event title */
+        return $title ? sprintf(__('This coupon is for %s, not this event.', 'sc_events'), $title) : __('This coupon is for another event.', 'sc_events');
+    }
+    $filter = get_post_meta($coupon->ID, 'ticket_type_filter', true) ?: 'all';
+    if ($filter !== 'all' && $filter !== $ticket_type) {
+        return __('This coupon is not for this ticket type.', 'sc_events');
+    }
+    return '';
+}
+
+/** The message to show when a code can't be used: the real reason rather than "invalid or expired". */
+function sc_coupon_failure_reason($code, $event_id = 0, $ticket_type = 'general') {
+    $coupon = sc_coupon_lookup($code);
+    if (!$coupon) {
+        return __('This code was not found. Check it character by character: the letter O and the number 0 look alike.', 'sc_events');
+    }
+    return sc_coupon_problem($coupon, $event_id, $ticket_type) ?: __('Invalid or expired coupon code.', 'sc_events');
+}
+
+/**
  * Find coupon by code
  */
 function sc_find_coupon($code, $event_id = 0, $ticket_type = 'general') {
-    // Search by post_title (coupon code is stored as post_title)
-    $args = array(
-        'post_type' => 'sc_coupon',
-        'post_status' => 'publish',
-        'title' => strtoupper($code),
-        'posts_per_page' => 1
-    );
-
-    $query = new WP_Query($args);
-
-    // If not found by exact title, try searching
-    if (!$query->have_posts()) {
-        $args = array(
-            'post_type' => 'sc_coupon',
-            'post_status' => 'publish',
-            's' => $code,
-            'posts_per_page' => 1
-        );
-        $query = new WP_Query($args);
+    $coupon = sc_coupon_lookup($code);
+    if (!$coupon || sc_coupon_problem($coupon, $event_id, $ticket_type) !== '') {
+        return false;
     }
-
-    if ($query->have_posts()) {
-        $coupon = $query->posts[0];
-
-        // Verify code matches (case-insensitive)
-        if (strtoupper($coupon->post_title) !== strtoupper($code)) {
-            // Not an exact match, continue searching
-        } else {
-            // Check expiry (meta key without underscore prefix)
-            // A date-only expiry is valid through the end of that day (site time).
-            $expiry = trim((string) get_post_meta($coupon->ID, 'expiry_date', true));
-            if ($expiry !== '' && (strlen($expiry) <= 10 ? $expiry < current_time('Y-m-d') : $expiry < current_time('mysql'))) {
-                return false;
-            }
-
-            // Check if coupon is for specific event
-            $coupon_event_id = get_post_meta($coupon->ID, 'event_id', true);
-            if ($event_id > 0 && !empty($coupon_event_id) && intval($coupon_event_id) != $event_id) {
-                return false; // Coupon is for a different event
-            }
-
-            // Check ticket type filter
-            $filter = get_post_meta($coupon->ID, 'ticket_type_filter', true) ?: 'all';
-            if ($filter !== 'all' && $filter !== $ticket_type) {
-                return false; // Coupon not for this ticket type
-            }
-
-            return $coupon;
-        }
-    }
-
-    return false;
+    return $coupon;
 }
 
 /**
