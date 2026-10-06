@@ -37,6 +37,10 @@ $sold    = (int) $ticket->sold;
 $left    = $cap > 0 ? max(0, $cap - $sold) : -1;
 $soldout = $cap > 0 && $left === 0;
 $coupons = !empty($ticket->enable_coupons);
+// The congress page lists workshop tickets too: their buttons carry their workshop.
+if (!$workshop_id && !empty($ticket->workshop_id)) {
+    $workshop_id = (int) $ticket->workshop_id;
+}
 $taken   = $cap > 0 ? min(100, ($sold / $cap) * 100) : 0;
 
 // Emitted on every button so the checkout script finds what it expects.

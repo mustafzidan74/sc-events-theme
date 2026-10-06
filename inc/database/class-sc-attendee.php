@@ -580,6 +580,16 @@ class SC_Attendee {
         $data['created_at'] = current_time('mysql');
         $data['updated_at'] = current_time('mysql');
 
+        // A workshop's ticket always makes a seat in that workshop, whichever page, payment or app
+        // created it. Without this a workshop ticket bought from the congress page became a
+        // congress registration (the door then let them into the congress and not the workshop).
+        if (!empty($data['ticket_id'])) {
+            $ticket_ws = (int) $wpdb->get_var($wpdb->prepare("SELECT workshop_id FROM {$wpdb->prefix}sc_tickets WHERE id = %d", $data['ticket_id']));
+            if ($ticket_ws) {
+                $data['workshop_id'] = $ticket_ws;
+            }
+        }
+
         // Generate unique ticket code
         if (empty($data['ticket_code'])) {
             $data['ticket_code'] = self::generate_ticket_code();

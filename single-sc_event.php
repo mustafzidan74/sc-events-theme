@@ -207,7 +207,13 @@ $is_past = strtotime($event_end_datetime) < current_time('timestamp');
 $is_registered = false;
 if (is_user_logged_in() && class_exists('SC_Attendee')) {
     $user = wp_get_current_user();
-    $existing = SC_Attendee::get_by_email_and_event($user->user_email, $event_id);
+    // A congress registration only: someone holding just a workshop seat must still see the
+    // congress ticket and register for it.
+    global $wpdb;
+    $existing = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}sc_attendees WHERE event_id = %d AND email = %s AND status = 'active' AND (workshop_id IS NULL OR workshop_id = 0) LIMIT 1",
+        $event_id, $user->user_email
+    ));
     $is_registered = !empty($existing);
 }
 

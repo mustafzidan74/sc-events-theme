@@ -382,7 +382,7 @@ function sc_register_free_ticket_handler() {
     }
 
     $event_id = intval($_POST['event_id'] ?? 0);
-    $workshop_id = intval($_POST['workshop_id'] ?? 0);
+    $workshop_id = sc_coupon_request_workshop_id();
     $ticket_id = intval($_POST['ticket_id'] ?? 0);
     $extra_fields = isset($_POST['extra_fields']) ? $_POST['extra_fields'] : array();
 
@@ -547,7 +547,7 @@ function sc_register_with_coupon_handler() {
     }
 
     $event_id = intval($_POST['event_id'] ?? 0);
-    $workshop_id = intval($_POST['workshop_id'] ?? 0);
+    $workshop_id = sc_coupon_request_workshop_id();
     $ticket_id_post = intval($_POST['ticket_id'] ?? 0);
     $coupon_code = sanitize_text_field($_POST['coupon_code'] ?? '');
     $extra_fields = isset($_POST['extra_fields']) ? $_POST['extra_fields'] : array();
@@ -698,7 +698,7 @@ function sc_process_checkout_handler() {
     }
 
     $event_id = intval($_POST['event_id'] ?? 0);
-    $workshop_id = intval($_POST['workshop_id'] ?? 0);
+    $workshop_id = sc_coupon_request_workshop_id();
     $ticket_id = intval($_POST['ticket_id'] ?? 0);
     $quantity = max(1, intval($_POST['quantity'] ?? 1));
     $coupon_code = sanitize_text_field($_POST['coupon_code'] ?? '');
@@ -1144,13 +1144,17 @@ function sc_coupon_use($coupon_id) {
 
 /** The workshop a request is about: workshop_id, or the workshop of the posted ticket. */
 function sc_coupon_request_workshop_id() {
-    $workshop_id = absint($_POST['workshop_id'] ?? 0);
+    // The posted ticket decides: a workshop's ticket is that workshop even when the page (the
+    // congress page lists workshop tickets too) sends no workshop_id.
     $ticket_id = absint($_POST['ticket_id'] ?? 0);
-    if (!$workshop_id && $ticket_id) {
+    if ($ticket_id) {
         global $wpdb;
-        $workshop_id = (int) $wpdb->get_var($wpdb->prepare("SELECT workshop_id FROM {$wpdb->prefix}sc_tickets WHERE id = %d", $ticket_id));
+        $ticket_ws = $wpdb->get_var($wpdb->prepare("SELECT workshop_id FROM {$wpdb->prefix}sc_tickets WHERE id = %d", $ticket_id));
+        if ($ticket_ws !== null) {
+            return (int) $ticket_ws;
+        }
     }
-    return $workshop_id;
+    return absint($_POST['workshop_id'] ?? 0);
 }
 
 /**
