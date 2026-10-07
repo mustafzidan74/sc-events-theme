@@ -417,6 +417,23 @@ function sc_custom_event_templates($template) {
 }
 
 /**
+ * The workshops, speakers and events lists page through the theme's own tables, not WordPress
+ * posts. WordPress counts its own (few) posts of that type and calls /workshops/page/2/ a 404 before
+ * the list is built; let these archives decide their pages themselves.
+ */
+add_filter('pre_handle_404', 'sc_archive_pages_are_not_404', 10, 2);
+function sc_archive_pages_are_not_404($preempt, $query) {
+    if ($preempt || !$query->is_main_query() || (int) $query->get('paged') < 2) {
+        return $preempt;
+    }
+    if ($query->is_post_type_archive(array('sc_workshop', 'sc_speaker', 'sc_event'))) {
+        status_header(200);
+        return true;
+    }
+    return $preempt;
+}
+
+/**
  * Register Custom Post Type for Workshops
  */
 function sc_register_workshop_post_type() {
