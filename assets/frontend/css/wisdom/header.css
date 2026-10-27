@@ -292,67 +292,184 @@
 
 /* ==========================================================================
    Certificate notice (template-parts/public/certificate-notice.php)
+
+   A dark-and-gold bar, the same in both themes so it never blends into the
+   page. It sits right after the header and sticks under it; when the header
+   steps aside on scroll the bar slides up to the top in step with it.
    ========================================================================== */
 
 .w-certnote {
-  background: var(--w-primary-soft);
-  border-bottom: 1px solid var(--w-border);
-  font-family: var(--w-font);
-  color: var(--w-text);
-}
-
-.w-certnote__inner {
-  position: relative;
-  max-width: 1200px;
-  margin-inline: auto;
-  padding: var(--w-space-3) var(--w-space-5);
-  padding-inline-end: calc(var(--w-space-5) + 36px);
+  --w-certnote-h: 48px;
+  position: sticky;
+  top: 64px;
+  z-index: 59;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--w-space-2) var(--w-space-4);
+  gap: var(--w-space-3);
+  height: var(--w-certnote-h);
+  padding-inline: var(--w-space-4) var(--w-space-2);
+  background: linear-gradient(90deg, var(--w-ink-950), var(--w-ink-800));
+  border-bottom: 2px solid var(--w-gold-500);
+  box-shadow: 0 6px 18px rgba(11, 14, 23, .25);
+  color: #fff;
+  font-family: var(--w-font);
+  transition: top .25s ease;
 }
 
-.w-certnote__icon { color: var(--w-primary); font-size: 1.25rem; }
+.w-header--hidden + .w-certnote { top: 0; }
 
-.w-certnote__text {
-  flex: 1 1 280px;
-  margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.5;
+@media (min-width: 992px) {
+  .w-certnote { top: 80px; --w-certnote-h: 52px; padding-inline: clamp(20px, 3vw, 40px) var(--w-space-3); }
 }
 
-.w-certnote__text strong { color: var(--w-primary); }
+.w-certnote__badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding-inline: 10px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-gold-400);
+  color: var(--w-ink-950);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  animation: w-certnote-pulse 1.8s ease-out infinite;
+}
+
+.w-certnote__badge .fa-bell { animation: w-certnote-ring 1.8s ease-in-out infinite; transform-origin: 50% 0; }
+
+@keyframes w-certnote-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(216, 181, 105, .6); }
+  70%  { box-shadow: 0 0 0 10px rgba(216, 181, 105, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(216, 181, 105, 0); }
+}
+
+@keyframes w-certnote-ring {
+  0%, 60%, 100% { transform: rotate(0); }
+  10%, 30%      { transform: rotate(14deg); }
+  20%, 40%      { transform: rotate(-14deg); }
+}
+
+/* The full message for screen readers; the moving copy is hidden from them. */
+.w-certnote__sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.w-certnote__marquee {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+
+.w-certnote__track {
+  display: flex;
+  width: max-content;
+  animation: w-certnote-scroll 38s linear infinite;
+}
+
+.w-certnote:hover .w-certnote__track,
+.w-certnote:focus-within .w-certnote__track { animation-play-state: paused; }
+
+[dir="rtl"] .w-certnote__track { animation-name: w-certnote-scroll-rtl; }
+
+@keyframes w-certnote-scroll     { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes w-certnote-scroll-rtl { from { transform: translateX(0); } to { transform: translateX(50%); } }
+
+.w-certnote__group {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.w-certnote__msg {
+  white-space: nowrap;
+  font-size: .9375rem;
+  color: rgba(255, 255, 255, .92);
+}
+
+.w-certnote__msg strong { color: var(--w-gold-300); font-weight: 700; }
+
+.w-certnote__sep {
+  margin-inline: var(--w-space-6);
+  color: var(--w-gold-500);
+  font-size: .75rem;
+}
 
 .w-certnote__actions {
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
   gap: var(--w-space-2);
+  max-width: 45%;
+  overflow: hidden;
 }
 
-.w-certnote__get { max-width: 100%; }
+.w-certnote__get {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  max-width: 260px;
+  padding-inline: 14px;
+  border-radius: var(--w-radius-pill);
+  background: var(--w-gold-400);
+  color: var(--w-ink-950);
+  font-size: .8125rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background var(--w-duration, .15s) ease, transform var(--w-duration, .15s) ease;
+}
+
 .w-certnote__get span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-certnote__get:hover { background: var(--w-gold-300); color: var(--w-ink-950); transform: translateY(-1px); }
+.w-certnote__get:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.w-certnote__get--phone { display: none; }
 
 .w-certnote__close {
-  position: absolute;
-  top: var(--w-space-2);
-  inset-inline-end: var(--w-space-3);
+  flex: none;
   width: 36px;
   height: 36px;
   border: 0;
   border-radius: var(--w-radius-pill);
   background: transparent;
-  color: var(--w-text-2);
+  color: rgba(255, 255, 255, .7);
   cursor: pointer;
 }
 
-.w-certnote__close:hover { background: var(--w-surface-2); color: var(--w-text); }
-.w-certnote__close:focus-visible { outline: none; box-shadow: var(--w-focus-ring); }
+.w-certnote__close:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.w-certnote__close:focus-visible { outline: 2px solid var(--w-gold-400); outline-offset: 1px; }
 
-@media (max-width: 600px) {
-  .w-certnote .w-certnote__icon { display: none; } /* beats Font Awesome's display */
-  .w-certnote__inner { padding-inline-start: var(--w-space-4); }
-  .w-certnote__actions, .w-certnote__get { width: 100%; }
+/* Phones: icon-only badge, one Download button. */
+@media (max-width: 767px) {
+  .w-certnote { gap: var(--w-space-2); padding-inline: var(--w-space-3) 2px; }
+  .w-certnote__badge { width: 28px; padding: 0; justify-content: center; }
+  .w-certnote__badge-text { display: none; }
+  .w-certnote__actions { display: none; }
+  .w-certnote__get--phone { display: inline-flex; padding-inline: 12px; }
+  .w-certnote__msg { font-size: .875rem; }
+  .w-certnote__sep { margin-inline: var(--w-space-4); }
+}
+
+/* No motion wanted: the message stands still and wraps instead of scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  .w-certnote { transition: none; height: auto; min-height: var(--w-certnote-h); padding-block: 6px; }
+  .w-certnote__badge, .w-certnote__badge .fa-bell { animation: none; }
+  .w-certnote__marquee { -webkit-mask-image: none; mask-image: none; }
+  .w-certnote__track { animation: none; width: auto; }
+  .w-certnote__group { flex: 1 1 auto; }
+  .w-certnote__group + .w-certnote__group,
+  .w-certnote__group > :not(:first-child) { display: none; }
+  .w-certnote__msg { white-space: normal; }
 }
 
 /* ==========================================================================
