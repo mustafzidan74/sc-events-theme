@@ -291,6 +291,71 @@
 }
 
 /* ==========================================================================
+   Certificate notice (template-parts/public/certificate-notice.php)
+   ========================================================================== */
+
+.w-certnote {
+  background: var(--w-primary-soft);
+  border-bottom: 1px solid var(--w-border);
+  font-family: var(--w-font);
+  color: var(--w-text);
+}
+
+.w-certnote__inner {
+  position: relative;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--w-space-3) var(--w-space-5);
+  padding-inline-end: calc(var(--w-space-5) + 36px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--w-space-2) var(--w-space-4);
+}
+
+.w-certnote__icon { color: var(--w-primary); font-size: 1.25rem; }
+
+.w-certnote__text {
+  flex: 1 1 280px;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.w-certnote__text strong { color: var(--w-primary); }
+
+.w-certnote__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--w-space-2);
+}
+
+.w-certnote__get { max-width: 100%; }
+.w-certnote__get span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.w-certnote__close {
+  position: absolute;
+  top: var(--w-space-2);
+  inset-inline-end: var(--w-space-3);
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--w-radius-pill);
+  background: transparent;
+  color: var(--w-text-2);
+  cursor: pointer;
+}
+
+.w-certnote__close:hover { background: var(--w-surface-2); color: var(--w-text); }
+.w-certnote__close:focus-visible { outline: none; box-shadow: var(--w-focus-ring); }
+
+@media (max-width: 600px) {
+  .w-certnote .w-certnote__icon { display: none; } /* beats Font Awesome's display */
+  .w-certnote__inner { padding-inline-start: var(--w-space-4); }
+  .w-certnote__actions, .w-certnote__get { width: 100%; }
+}
+
+/* ==========================================================================
    Footer
 
    The design collapses the footer to a single row: brand on one side, links on

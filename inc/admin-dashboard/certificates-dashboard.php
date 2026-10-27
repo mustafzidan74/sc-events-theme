@@ -254,46 +254,6 @@ function sc_certificates_bulk() {
 /* ------------------------------------------------------------------- issuing */
 
 /**
- * Resolve "event:5" / "workshop:12" to the scope, its rules and its template.
- *
- * @return array|null
- */
-function sc_certs_scope($raw) {
-    global $wpdb;
-    $p = $wpdb->prefix;
-    if (!preg_match('/^(event|workshop):(\d+)$/', (string) $raw, $m)) {
-        return null;
-    }
-    $today = current_time('Y-m-d');
-    if ($m[1] === 'event') {
-        $e = $wpdb->get_row($wpdb->prepare("SELECT id, title, start_date, end_date, enable_certificates, certificate_template_id, certificate_require_checkin, certificate_require_checkout, certificate_require_event_ended FROM {$p}sc_events WHERE id = %d", (int) $m[2]));
-        if (!$e) {
-            return null;
-        }
-        $end = $e->end_date ?: $e->start_date;
-        return array(
-            'key' => 'event:' . $e->id, 'type' => 'event', 'event_id' => (int) $e->id, 'workshop_id' => 0,
-            'event_title' => $e->title, 'title' => $e->title, 'event_date' => $e->start_date,
-            'enabled' => (bool) $e->enable_certificates, 'template_id' => (int) $e->certificate_template_id,
-            'require_checkin' => (bool) $e->certificate_require_checkin, 'require_checkout' => (bool) $e->certificate_require_checkout,
-            'require_ended' => (bool) $e->certificate_require_event_ended, 'ended' => substr((string) $end, 0, 10) < $today, 'end_date' => $end,
-        );
-    }
-    $w = $wpdb->get_row($wpdb->prepare("SELECT w.id, w.title, w.event_id, w.start_date, w.end_date, w.enable_certificates, w.certificate_template_id, w.certificate_require_checkin, e.title AS event_title, e.certificate_template_id AS event_template_id FROM {$p}sc_workshops w JOIN {$p}sc_events e ON e.id = w.event_id WHERE w.id = %d", (int) $m[2]));
-    if (!$w) {
-        return null;
-    }
-    $end = $w->end_date ?: $w->start_date;
-    return array(
-        'key' => 'workshop:' . $w->id, 'type' => 'workshop', 'event_id' => (int) $w->event_id, 'workshop_id' => (int) $w->id,
-        'event_title' => $w->event_title, 'title' => $w->title, 'event_date' => $w->start_date,
-        'enabled' => (bool) $w->enable_certificates, 'template_id' => (int) $w->certificate_template_id ?: (int) $w->event_template_id,
-        'require_checkin' => (bool) $w->certificate_require_checkin, 'require_checkout' => false,
-        'require_ended' => false, 'ended' => substr((string) $end, 0, 10) < $today, 'end_date' => $end,
-    );
-}
-
-/**
  * SQL pieces for the attendees of a scope with their certificate state.
  *
  * @return array [from_where_sql, values, eligible_condition, rules_condition]
