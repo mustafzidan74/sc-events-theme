@@ -537,7 +537,8 @@ class SC_Certificate_PDF {
         } elseif (empty($certificate['id'])) {
             $credits = array('24', '17');
             $attended = '24';
-        } elseif (function_exists('sc_hours_enabled') && !empty($event->id) && !empty($attendee->id) && sc_hours_enabled((int) $event->id)) {
+        } elseif (empty($certificate['workshop_id']) && function_exists('sc_hours_enabled') && !empty($event->id) && !empty($attendee->id) && sc_hours_enabled((int) $event->id)) {
+            // Congress hours only: a workshop certificate never shows them.
             $mine = sc_hours_for_attendee((int) $attendee->id, (int) $event->id);
             $credits = array_pad(array_map('strval', array_column($mine['credits'], 'value')), 2, '');
             $attended = (string) $mine['hours'];

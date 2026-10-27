@@ -345,6 +345,8 @@ $w_account_url = $is_logged_in ? home_url('/my-account/') : (function_exists('sc
     </div>
 </header>
 
+<?php if ($is_logged_in) { get_template_part('template-parts/public/certificate-notice'); } ?>
+
 <script>
 // Language toggle — same endpoint the dashboard switcher uses.
 (function () {

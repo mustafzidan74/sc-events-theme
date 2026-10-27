@@ -17,6 +17,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
     private $templates_table;
     private $attendees_table;
     private $events_table;
+    private $workshops_table;
 
     public function __construct() {
         global $wpdb;
@@ -24,6 +25,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
         $this->templates_table = $wpdb->prefix . 'sc_certificate_templates';
         $this->attendees_table = $wpdb->prefix . 'sc_attendees';
         $this->events_table = $wpdb->prefix . 'sc_events';
+        $this->workshops_table = $wpdb->prefix . 'sc_workshops';
     }
 
     /**
@@ -36,10 +38,11 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
 
         $cert = $wpdb->get_row($wpdb->prepare(
             "SELECT c.*, a.name as attendee_name, a.email as attendee_email,
-                    e.title as event_title, e.start_date, e.end_date, e.venue_name
+                    e.title as event_title, e.start_date, e.end_date, e.venue_name, w.title as workshop_title
              FROM {$this->certificates_table} c
              JOIN {$this->attendees_table} a ON c.attendee_id = a.id
              JOIN {$this->events_table} e ON c.event_id = e.id
+             LEFT JOIN {$this->workshops_table} w ON w.id = c.workshop_id
              WHERE c.verification_code = %s OR c.certificate_number = %s",
             $code, $code
         ));
@@ -72,6 +75,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
                 'end_date' => $cert->end_date,
                 'venue_name' => $cert->venue_name
             ],
+            'workshop' => $this->certificateWorkshop($cert),
             'issued_at' => $cert->issued_at,
             'status' => $cert->status
         ], 'الشهادة صالحة');
@@ -86,6 +90,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
         $ticket_code = $this->query('ticket_code');
         $email = $this->query('email');
         $event_id = (int) $this->query('event_id');
+        $workshop_id = (int) $this->query('workshop_id');
 
         if (!$ticket_code && !$email) {
             SC_API_Response::error('يجب تقديم كود التذكرة أو البريد الإلكتروني', 400);
@@ -99,20 +104,19 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
             $where .= " AND a.ticket_code = %s";
             $params[] = $ticket_code;
         } elseif ($email && $event_id) {
-            $where .= " AND a.email = %s AND a.event_id = %d";
+            // By email: the congress ticket, or the ticket for workshop_id.
+            $where .= " AND a.email = %s AND a.event_id = %d AND " . ($workshop_id ? 'a.workshop_id = %d' : '(a.workshop_id IS NULL OR a.workshop_id = 0)');
             $params[] = sanitize_email($email);
             $params[] = $event_id;
+            if ($workshop_id) {
+                $params[] = $workshop_id;
+            }
         } else {
             SC_API_Response::error('يجب تقديم الفعالية مع البريد الإلكتروني', 400);
         }
 
         $attendee = $wpdb->get_row($wpdb->prepare(
-            "SELECT a.*, e.title as event_title, e.enable_certificates,
-                    e.certificate_require_checkin, e.certificate_require_event_ended,
-                    e.end_date
-             FROM {$this->attendees_table} a
-             JOIN {$this->events_table} e ON a.event_id = e.id
-             WHERE {$where}",
+            "SELECT a.* FROM {$this->attendees_table} a WHERE {$where} LIMIT 1",
             ...$params
         ));
 
@@ -120,34 +124,16 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
             SC_API_Response::notFound('الحضور غير موجود أو غير مؤهل للشهادة');
         }
 
-        // Check if event has certificates enabled
-        if (!$attendee->enable_certificates) {
+        // A workshop ticket gets its workshop's certificate, under the workshop's rules.
+        $scope = sc_certs_scope_for_ticket($attendee);
+        $problem = sc_certs_ticket_problem($attendee, $scope);
+        if ($problem) {
             SC_API_Response::success([
                 'eligible' => false,
-                'reason' => 'الفعالية لا تقدم شهادات'
+                'reason' => $this->problemMessage($problem, $scope),
+                'workshop' => $this->workshopInfo($scope)
             ]);
             return;
-        }
-
-        // Check if check-in is required
-        if ($attendee->certificate_require_checkin && !$attendee->checked_in) {
-            SC_API_Response::success([
-                'eligible' => false,
-                'reason' => 'يجب تسجيل الحضور أولاً للحصول على الشهادة'
-            ]);
-            return;
-        }
-
-        // Check if event must end first
-        if ($attendee->certificate_require_event_ended) {
-            $event_end = strtotime($attendee->end_date);
-            if ($event_end > current_time('timestamp')) {
-                SC_API_Response::success([
-                    'eligible' => false,
-                    'reason' => 'الشهادة ستكون متاحة بعد انتهاء الفعالية'
-                ]);
-                return;
-            }
         }
 
         // Check if certificate already issued
@@ -166,7 +152,8 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
                     'verification_code' => $existing_cert->verification_code,
                     'issued_at' => $existing_cert->issued_at,
                     'download_url' => home_url('/certificate/' . $existing_cert->verification_code . '/download')
-                ]
+                ],
+                'workshop' => $this->workshopInfo($scope)
             ]);
             return;
         }
@@ -183,8 +170,9 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
             ],
             'event' => [
                 'id' => (int) $attendee->event_id,
-                'title' => $attendee->event_title
-            ]
+                'title' => $scope['event_title']
+            ],
+            'workshop' => $this->workshopInfo($scope)
         ]);
     }
 
@@ -202,12 +190,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
 
         // Find the attendee
         $attendee = $wpdb->get_row($wpdb->prepare(
-            "SELECT a.*, e.title as event_title, e.enable_certificates,
-                    e.certificate_template_id, e.auto_issue_certificate,
-                    e.certificate_require_checkin, e.certificate_require_event_ended,
-                    e.end_date, e.start_date
-             FROM {$this->attendees_table} a
-             JOIN {$this->events_table} e ON a.event_id = e.id
+            "SELECT a.* FROM {$this->attendees_table} a
              WHERE a.ticket_code = %s AND a.status = 'active' AND a.payment_status = 'success'",
             $ticket_code
         ));
@@ -216,16 +199,11 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
             SC_API_Response::notFound('التذكرة غير موجودة أو غير صالحة');
         }
 
-        if (!$attendee->enable_certificates) {
-            SC_API_Response::error('الفعالية لا تقدم شهادات', 400);
-        }
-
-        if ($attendee->certificate_require_checkin && !$attendee->checked_in) {
-            SC_API_Response::error('يجب تسجيل الحضور أولاً', 400);
-        }
-
-        if ($attendee->certificate_require_event_ended && strtotime($attendee->end_date) > current_time('timestamp')) {
-            SC_API_Response::error('الشهادة ستكون متاحة بعد انتهاء الفعالية', 400);
+        // A workshop ticket gets its workshop's certificate, under the workshop's rules and template.
+        $scope = sc_certs_scope_for_ticket($attendee);
+        $problem = sc_certs_ticket_problem($attendee, $scope);
+        if ($problem) {
+            SC_API_Response::error($this->problemMessage($problem, $scope), 400);
         }
 
         // Check if already issued
@@ -241,46 +219,49 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
                 'verification_code' => $existing->verification_code,
                 'issued_at' => $existing->issued_at,
                 'download_url' => home_url('/certificate/' . $existing->verification_code . '/download'),
-                'view_url' => home_url('/certificate/' . $existing->verification_code)
+                'view_url' => home_url('/certificate/' . $existing->verification_code),
+                'workshop' => $this->workshopInfo($scope)
             ], 'الشهادة موجودة مسبقاً');
             return;
         }
 
-        // Issue new certificate
-        $cert_number = $this->generateCertificateNumber();
-        $verification_code = $this->generateVerificationCode();
-
-        $data = [
-            'certificate_number' => $cert_number,
-            'verification_code' => $verification_code,
-            'template_id' => $attendee->certificate_template_id ?: 1,
-            'attendee_id' => $attendee->id,
-            'event_id' => $attendee->event_id,
-            'attendee_name' => $attendee->name,
-            'event_title' => $attendee->event_title,
-            'event_date' => $attendee->start_date,
-            'status' => 'issued',
-            'issued_by' => $this->userId() ?: 0,
-            'issued_at' => current_time('mysql'),
-            'created_at' => current_time('mysql')
-        ];
-
-        $result = $wpdb->insert($this->certificates_table, $data);
-
-        if ($result === false) {
+        $certificate_id = sc_certs_issue_for_ticket($attendee, $scope, $this->userId() ?: 0);
+        $certificate = is_wp_error($certificate_id) ? null : SC_Certificate::get($certificate_id);
+        if (!$certificate) {
             SC_API_Response::error('فشل في إصدار الشهادة', 500);
         }
 
         SC_API_Response::created([
-            'id' => $wpdb->insert_id,
-            'certificate_number' => $cert_number,
-            'verification_code' => $verification_code,
+            'id' => (int) $certificate['id'],
+            'certificate_number' => $certificate['certificate_number'],
+            'verification_code' => $certificate['verification_code'],
             'attendee_name' => $attendee->name,
-            'event_title' => $attendee->event_title,
-            'issued_at' => current_time('mysql'),
-            'download_url' => home_url('/certificate/' . $verification_code . '/download'),
-            'view_url' => home_url('/certificate/' . $verification_code)
+            'event_title' => $scope['event_title'],
+            'workshop' => $this->workshopInfo($scope),
+            'issued_at' => $certificate['issued_at'],
+            'download_url' => home_url('/certificate/' . $certificate['verification_code'] . '/download'),
+            'view_url' => home_url('/certificate/' . $certificate['verification_code'])
         ], 'تم إصدار الشهادة بنجاح');
+    }
+
+    /**
+     * Why a ticket can't get its certificate, worded for the app.
+     */
+    private function problemMessage($problem, $scope) {
+        $messages = [
+            'disabled'  => ($scope && $scope['type'] === 'workshop') ? 'الورشة لا تقدم شهادات' : 'الفعالية لا تقدم شهادات',
+            'checkin'   => 'يجب تسجيل الحضور أولاً للحصول على الشهادة',
+            'checkout'  => 'يجب تسجيل الانصراف أولاً للحصول على الشهادة',
+            'not_ended' => 'الشهادة ستكون متاحة بعد انتهاء الفعالية',
+        ];
+        return $messages[$problem];
+    }
+
+    /**
+     * The workshop a certificate belongs to, or null for a congress certificate.
+     */
+    private function workshopInfo($scope) {
+        return $scope && $scope['workshop_id'] ? ['id' => $scope['workshop_id'], 'title' => $scope['title']] : null;
     }
 
     /**
@@ -303,10 +284,11 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
         }
 
         $certificates = $wpdb->get_results(
-            "SELECT c.*, e.title as event_title, e.start_date, e.end_date, e.venue_name
+            "SELECT c.*, e.title as event_title, e.start_date, e.end_date, e.venue_name, w.title as workshop_title
              FROM {$this->certificates_table} c
              JOIN {$this->attendees_table} a ON c.attendee_id = a.id
              JOIN {$this->events_table} e ON c.event_id = e.id
+             LEFT JOIN {$this->workshops_table} w ON w.id = c.workshop_id
              WHERE {$where} AND c.status != 'revoked'
              ORDER BY c.issued_at DESC"
         );
@@ -324,6 +306,7 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
                     'end_date' => $cert->end_date,
                     'venue_name' => $cert->venue_name
                 ],
+                'workshop' => $this->certificateWorkshop($cert),
                 'issued_at' => $cert->issued_at,
                 'download_count' => (int) $cert->download_count,
                 'download_url' => home_url('/certificate/' . $cert->verification_code . '/download'),
@@ -335,18 +318,9 @@ class SC_Certificates_Endpoint extends SC_Base_Endpoint {
     }
 
     /**
-     * Generate unique certificate number
+     * The workshop a stored certificate belongs to, or null for a congress certificate.
      */
-    private function generateCertificateNumber() {
-        $year = date('Y');
-        $random = strtoupper(bin2hex(random_bytes(4)));
-        return "CERT-{$year}-{$random}";
-    }
-
-    /**
-     * Generate verification code
-     */
-    private function generateVerificationCode() {
-        return strtoupper(bin2hex(random_bytes(8)));
+    private function certificateWorkshop($cert) {
+        return !empty($cert->workshop_id) ? ['id' => (int) $cert->workshop_id, 'title' => $cert->workshop_title] : null;
     }
 }

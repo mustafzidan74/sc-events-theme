@@ -275,6 +275,7 @@ require get_template_directory() . '/inc/admin-dashboard/attendance-ajax-handler
 require get_template_directory() . '/inc/admin-dashboard/scanner-offline.php';
 require get_template_directory() . '/inc/admin-dashboard/door-board.php';
 require get_template_directory() . '/inc/admin-dashboard/attendance-hours.php';
+require get_template_directory() . '/inc/certificates/certificate-scope.php';
 require get_template_directory() . '/inc/admin-dashboard/certificates-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/company-attendees-ajax-handlers.php';
 require get_template_directory() . '/inc/admin-dashboard/sessions-ajax-handlers.php';
@@ -319,6 +320,7 @@ require get_template_directory() . '/inc/public-frontend/chat-widget-init.php';
  * Public Certificate Handlers (Shortcodes & Download)
  */
 require get_template_directory() . '/inc/public-frontend/certificate-public.php';
+require get_template_directory() . '/inc/public-frontend/certificate-notice.php';
 require get_template_directory() . '/inc/public-frontend/company-ticket.php';
 
 /**

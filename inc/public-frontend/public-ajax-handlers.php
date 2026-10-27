@@ -1436,18 +1436,13 @@ function sc_request_certificate_public_handler() {
         wp_send_json_error(array('message' => __('Ticket not found.', 'sc_events')));
     }
 
-    $event = SC_Event::get($attendee->event_id);
-    if (!$event) {
+    // A workshop ticket gets its workshop's certificate, under the workshop's rules and template.
+    $scope = sc_certs_scope_for_ticket($attendee);
+    if (!$scope) {
         wp_send_json_error(array('message' => __('Event not found.', 'sc_events')));
     }
 
-    // Check if certificates are enabled
-    if (empty($event->enable_certificates)) {
-        wp_send_json_error(array('message' => __('Certificates are not available for this event.', 'sc_events')));
-    }
-
-    // Check if already issued — SC_Certificate::get_by_attendee_event() returns an ARRAY (hydrated)
-    $existing = SC_Certificate::get_by_attendee_event($attendee->id, $event->id);
+    $existing = SC_Certificate::get_for_ticket($attendee->id, $attendee->event_id);
     if (is_array($existing) && ($existing['status'] ?? '') !== 'revoked') {
         $token = wp_hash($existing['verification_code'] . $existing['certificate_number']);
         $url = add_query_arg(array(
@@ -1458,56 +1453,20 @@ function sc_request_certificate_public_handler() {
         wp_send_json_success(array('download_url' => $url, 'message' => __('Certificate ready.', 'sc_events')));
     }
 
-    // Check requirements
-    $checked_in = !empty($attendee->checked_in);
-    if (!empty($event->certificate_require_checkin) && !$checked_in) {
-        wp_send_json_error(array('message' => __('You need to check in to the event first.', 'sc_events')));
-    }
-
-    if (!empty($event->certificate_require_checkout)) {
-        $has_checkout = false;
-        if (class_exists('SC_Checkin')) {
-            $logs = SC_Checkin::get_by_attendee($attendee->id);
-            foreach ($logs as $log) {
-                if (in_array($log->action, array('checkout', 'manual_checkout', 'check_out'))) {
-                    $has_checkout = true;
-                    break;
-                }
-            }
-        }
-        if (!$has_checkout) {
-            wp_send_json_error(array('message' => __('You need to check out from the event first.', 'sc_events')));
-        }
-    }
-
-    $event_end = $event->end_date ?? $event->start_date;
-    if (!empty($event->certificate_require_event_ended) && strtotime($event_end) >= strtotime(current_time('Y-m-d'))) {
-        wp_send_json_error(array('message' => __('Certificate will be available after the event ends.', 'sc_events')));
-    }
-
-    // Get template
-    $template_id = $event->certificate_template_id ?? 0;
-    if (!$template_id && class_exists('SC_Certificate_Template')) {
-        $default = SC_Certificate_Template::get_default();
-        $template_id = $default ? ($default->id ?? ($default['id'] ?? 0)) : 0;
-    }
-
-    if (!$template_id) {
-        wp_send_json_error(array('message' => __('No certificate template configured.', 'sc_events')));
-    }
-
-    // Issue certificate
-    $cert_data = array(
-        'template_id'   => $template_id,
-        'attendee_id'   => $attendee->id,
-        'event_id'      => $event->id,
-        'attendee_name' => $attendee->name,
-        'event_title'   => $event->title,
-        'event_date'    => $event->start_date,
-        'issued_by'     => get_current_user_id()
+    $problems = array(
+        'disabled'  => $scope['type'] === 'workshop'
+            ? __('Certificates are not available for this workshop.', 'sc_events')
+            : __('Certificates are not available for this event.', 'sc_events'),
+        'checkin'   => __('You need to check in to the event first.', 'sc_events'),
+        'checkout'  => __('You need to check out from the event first.', 'sc_events'),
+        'not_ended' => __('Certificate will be available after the event ends.', 'sc_events'),
     );
+    $problem = sc_certs_ticket_problem($attendee, $scope);
+    if ($problem) {
+        wp_send_json_error(array('message' => $problems[$problem]));
+    }
 
-    $cert_id = SC_Certificate::issue($cert_data);
+    $cert_id = sc_certs_issue_for_ticket($attendee, $scope, get_current_user_id());
 
     if (is_wp_error($cert_id)) {
         wp_send_json_error(array('message' => $cert_id->get_error_message()));

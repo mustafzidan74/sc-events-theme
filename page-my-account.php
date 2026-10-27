@@ -103,20 +103,18 @@ if (!empty($attendees) && class_exists('SC_Certificate') && class_exists('SC_Eve
         $event = SC_Event::get($att->event_id);
         if (!$event) { continue; }
 
-        $cert          = SC_Certificate::get_by_attendee_event($att->id, $att->event_id);
-        $checked_in    = !empty($att->checked_in);
-        $event_end     = $event->end_date ?: $event->start_date;
-        $event_is_past = strtotime($event_end) < strtotime(current_time('Y-m-d'));
+        // A workshop ticket carries its workshop's certificate, title and rules.
+        $scope = sc_certs_scope_for_ticket($att);
+        if (!$scope) { continue; }
+        $cert = SC_Certificate::get_for_ticket($att->id, $att->event_id);
 
         $cert_list[] = [
             'event'       => $event,
+            'title'       => $scope['title'],
+            'date'        => $scope['event_date'],
             'attendee'    => $att,
             'certificate' => is_array($cert) ? $cert : null,
-            'eligible'    => !empty($event->enable_certificates)
-                             && (empty($event->certificate_require_checkin) || $checked_in)
-                             && (empty($event->certificate_require_event_ended) || $event_is_past),
-            'checked_in'  => $checked_in,
-            'is_past'     => $event_is_past,
+            'problem'     => sc_certs_ticket_problem($att, $scope),
         ];
     }
 }
@@ -336,9 +334,9 @@ get_template_part('template-parts/public/header', 'public');
             ?>
             <div class="w-acc__row">
                 <span class="w-acc__row-text">
-                    <span class="w-acc__row-title"><?php echo esc_html($event->title); ?></span>
+                    <span class="w-acc__row-title"><?php echo esc_html($row['title']); ?></span>
                     <span class="w-acc__row-meta">
-                        <?php echo esc_html(date_i18n('j F Y', strtotime($event->start_date))); ?>
+                        <?php echo esc_html(date_i18n('j F Y', strtotime($row['date']))); ?>
                         <?php if (!empty($att->ticket_code)): ?>
                             · <?php echo esc_html($att->ticket_code); ?>
                         <?php endif; ?>
@@ -350,7 +348,7 @@ get_template_part('template-parts/public/header', 'public');
                         <i class="fa-solid fa-download" aria-hidden="true"></i>
                         <?php echo esc_html(sc_t('frontend.download', 'Download')); ?>
                     </a>
-                <?php elseif ($row['eligible']): ?>
+                <?php elseif (!$row['problem']): ?>
                     <button class="w-btn w-btn--sm w-btn--outline sc-request-certificate" type="button"
                             data-attendee-id="<?php echo esc_attr($att->id); ?>"
                             data-event-id="<?php echo esc_attr($event->id); ?>"
@@ -360,15 +358,13 @@ get_template_part('template-parts/public/header', 'public');
                 <?php else: ?>
                     <span class="w-acc__row-meta">
                         <?php
-                        if (empty($event->enable_certificates)) {
-                            echo esc_html(sc_t('frontend.cert_not_available', 'Not available'));
-                        } elseif (!empty($event->certificate_require_checkin) && !$row['checked_in']) {
-                            echo esc_html(sc_t('frontend.cert_needs_checkin', 'Needs a check-in'));
-                        } elseif (!empty($event->certificate_require_event_ended) && !$row['is_past']) {
-                            echo esc_html(sc_t('frontend.cert_after_event', 'After the congress'));
-                        } else {
-                            echo esc_html(sc_t('frontend.cert_not_yet', 'Not yet'));
-                        }
+                        $waits = [
+                            'disabled'  => sc_t('frontend.cert_not_available', 'Not available'),
+                            'checkin'   => sc_t('frontend.cert_needs_checkin', 'Needs a check-in'),
+                            'checkout'  => sc_t('frontend.cert_needs_checkout', 'Needs a check-out'),
+                            'not_ended' => sc_t('frontend.cert_after_event', 'After the congress'),
+                        ];
+                        echo esc_html($waits[$row['problem']] ?? sc_t('frontend.cert_not_yet', 'Not yet'));
                         ?>
                     </span>
                 <?php endif; ?>

@@ -121,6 +121,26 @@ class SC_Certificate {
     }
 
     /**
+     * The certificate issued on a ticket, congress or workshop (one per ticket).
+     *
+     * @param int $attendee_id Attendee (ticket) ID
+     * @param int $event_id Event ID
+     * @return array|null
+     */
+    public static function get_for_ticket($attendee_id, $event_id) {
+        global $wpdb;
+        $table = self::get_table();
+
+        $certificate = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE attendee_id = %d AND event_id = %d",
+            $attendee_id,
+            $event_id
+        ));
+
+        return $certificate ? self::hydrate($certificate) : null;
+    }
+
+    /**
      * Get certificate for attendee and workshop
      *
      * @param int $attendee_id Attendee ID
@@ -352,8 +372,8 @@ class SC_Certificate {
         global $wpdb;
         $table = self::get_table();
 
-        // Check if certificate already exists for this attendee/event
-        $existing = self::get_by_attendee_event($data['attendee_id'], $data['event_id']);
+        // One certificate per ticket, congress or workshop (unique attendee_id + event_id)
+        $existing = self::get_for_ticket($data['attendee_id'], $data['event_id']);
         if ($existing) {
             return new WP_Error('certificate_exists', 'Certificate already issued for this attendee.');
         }
@@ -365,7 +385,8 @@ class SC_Certificate {
         $data['verification_code'] = self::generate_verification_code();
 
         // Attendance hours, frozen at issue time so the certificate never changes afterwards.
-        if (function_exists('sc_hours_enabled') && !empty($data['event_id']) && sc_hours_enabled((int) $data['event_id'])) {
+        // They count congress scans, so a workshop certificate carries none.
+        if (empty($data['workshop_id']) && function_exists('sc_hours_enabled') && !empty($data['event_id']) && sc_hours_enabled((int) $data['event_id'])) {
             $custom = isset($data['custom_data']) && is_array($data['custom_data']) ? $data['custom_data'] : array();
             if (!isset($custom['credit_hours'])) {
                 $mine = sc_hours_for_attendee((int) $data['attendee_id'], (int) $data['event_id']);
@@ -527,6 +548,10 @@ class SC_Certificate {
             current_time('mysql'),
             $id
         ));
+
+        if ($result !== false) {
+            do_action('sc_certificate_downloaded', (int) $id);
+        }
 
         return $result !== false;
     }

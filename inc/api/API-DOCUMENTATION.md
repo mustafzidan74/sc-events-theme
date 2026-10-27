@@ -431,7 +431,9 @@ GET /certificates/check?ticket_code=TKT-A1B2C3D4
 or
 ```
 GET /certificates/check?email=user@example.com&event_id=1
+GET /certificates/check?email=user@example.com&event_id=1&workshop_id=12
 ```
+By email, the congress ticket is checked unless `workshop_id` names a workshop.
 
 **Request Certificate:**
 ```json
@@ -439,6 +441,16 @@ GET /certificates/check?email=user@example.com&event_id=1
     "ticket_code": "TKT-A1B2C3D4"
 }
 ```
+
+**Congress and workshop tickets:** every ticket has its own certificate. A workshop ticket
+gets the workshop's certificate, on the workshop's template, under the workshop's rules
+(certificates on, check-in when the workshop asks for it); it never gets a congress
+certificate. `check`, `request`, `verify` and `my` carry `"workshop": {"id": 12, "title": "…"}`
+for a workshop certificate and `"workshop": null` for a congress one.
+
+Reasons a ticket is not eligible (`check` → `reason`, `request` → 400 message):
+`الفعالية لا تقدم شهادات` / `الورشة لا تقدم شهادات`, `يجب تسجيل الحضور أولاً للحصول على الشهادة`,
+`يجب تسجيل الانصراف أولاً للحصول على الشهادة`, `الشهادة ستكون متاحة بعد انتهاء الفعالية`.
 
 **Certificate Response:**
 ```json
